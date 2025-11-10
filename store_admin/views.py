@@ -28,7 +28,7 @@ def login_view(request):
 
 @login_required
 def dashboard(request):
-    return render(request, 'sbadmin/pages/index.html', {'user': request.user})
+    return render(request, 'sbadmin/pages/dashboard.html', {'user': request.user})
 
 
 def logout_view(request):

@@ -1,0 +1,22 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>AdminLTE 3 | {% block title %}Dashboard{% endblock %}</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+    {% include "sbadmin/common/header.html" %}
+</head>
+<body class="hold-transition sidebar-mini layout-fixed">
+<div class="wrapper">
+    {% include "sbadmin/common/navbar.html" %}
+    {% include "sbadmin/common/sidebar.html" %}
+    {% block content %}
+    {% endblock %}
+    {% block scripts %}
+    {% include "sbadmin/common/footer.html" %}
+    {% endblock %}
+</div>
+</body>
+</html>
