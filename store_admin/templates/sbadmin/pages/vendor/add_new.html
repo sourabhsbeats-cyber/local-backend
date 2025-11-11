@@ -1,0 +1,94 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Add Vendor{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <h4 class="m-0">
+             Vendor Registration
+          </h4>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="#">Vendors</a></li>
+            <li class="breadcrumb-item active">Add</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="content">
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header ">
+        <h3 class="card-title mb-0">
+          <i class="fas fa-building mr-2 text-secondary"></i> Vendor Information
+        </h3>
+        <button type="button" class="float-right btn btn-tool" data-card-widget="remove">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div class="card-body">
+        <form>
+            {% include "sbadmin/pages/vendor/tabs/primary_details.html" %}
+          <ul class="nav nav-tabs mt-4" id="vendorTabs" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" id="tab-other" data-toggle="tab" href="#tabContent-other" role="tab">Other Details</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="tab-address" data-toggle="tab" href="#tabContent-address" role="tab">Address</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="tab-bank" data-toggle="tab" href="#tabContent-bank" role="tab">Bank Details</a>
+            </li>
+           <li class="nav-item">
+              <a class="nav-link" id="tab-contacts" data-toggle="tab" href="#tabContent-contacts" role="tab">Contact Details</a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link" id="tab-custom" data-toggle="tab" href="#tabContent-custom" role="tab">Custom Fields</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="tab-remarks" data-toggle="tab" href="#tabContent-remarks" role="tab">Remarks</a>
+            </li>
+          </ul>
+          <div class="tab-content p-3 border border-top-0" id="vendorTabContent">
+            <div class="tab-pane fade show active" id="tabContent-other" role="tabpanel">
+                <div class="other_details_form">
+                    {% include "sbadmin/pages/vendor/tabs/other_details.html" %}
+                </div>
+            </div>
+            <div class="tab-pane fade show" id="tabContent-address" role="tabpanel">
+                {% include "sbadmin/pages/vendor/tabs/address_details.html" %}
+            </div>
+            <div class="tab-pane fade" id="tabContent-bank" role="tabpanel">
+                {% include "sbadmin/pages/vendor/tabs/bank_details.html" %}
+            </div>
+            <div class="tab-pane fade" id="tabContent-custom" role="tabpanel">
+              <p class="text-muted">Start adding custom fields for your Customers and Vendors by going to Settings  Preferences  Customers and Vendors. You can also refine the address format of your Customers and Vendors from there..</p>
+            </div>
+            <div class="tab-pane fade show" id="tabContent-remarks" role="tabpanel">
+              <h5 class="font-weight-bold mb-3">Remarks <small class="text-muted">(For Internal Use)</small></h5>
+              {% include "sbadmin/pages/vendor/tabs/remarks.html" %}
+            </div>
+            <div class="tab-pane fade show" id="tabContent-contacts" role="tabpanel">
+                {% include "sbadmin/pages/vendor/tabs/contact_details.html" %}
+            </div>
+          </div>
+          <div class="text-left mt-4">
+            <button type="submit" class="btn btn-success btn-sm">
+            Save
+            </button>
+            <button type="reset" class="btn btn-secondary btn-sm ml-2">
+             Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

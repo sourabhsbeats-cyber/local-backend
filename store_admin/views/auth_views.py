@@ -4,12 +4,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-def test(request):
-    return HttpResponse("Hi Testing install")
 # Create your views here.
-
 def login_view(request):
-    if request.method  == 'POST':
+    if request.method == 'POST':
         username = request.POST.get("username")
         password = request.POST.get("password")
 
@@ -21,15 +18,10 @@ def login_view(request):
             return redirect('dashboard')
         else:
             messages.error(request, "Invalid username or password")
-            return render(request, 'sbadmin/pages/login.html', {'error':'Invalid username or password'})
-        
+            return render(request, 'sbadmin/pages/login.html', {'error': 'Invalid username or password'})
+
     return render(request, 'sbadmin/pages/login.html')
-    #return HttpResponse("Hi Testing install")
-
-@login_required
-def dashboard(request):
-    return render(request, 'sbadmin/pages/dashboard.html', {'user': request.user})
-
+    # return HttpResponse("Hi Testing install")
 
 def logout_view(request):
     return redirect('login')

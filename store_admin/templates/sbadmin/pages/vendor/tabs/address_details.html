@@ -1,0 +1,143 @@
+<div class="row">
+    <div class="col-md-6">
+      <h5 class="mb-3 font-weight-bold">Billing Address</h5>
+      <div class="form-group">
+        <label>Attention</label>
+        <input type="text" name="billing[attention_name]"  class="form-control" placeholder="Enter attention name">
+      </div>
+
+      <div class="form-group">
+        <label>Country / Region</label>
+        <select name="billing[country]" class="form-control">
+          <option value="">Select or type to add</option>
+          <option>India</option>
+          <option>Australia</option>
+          <option>United States</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Address</label>
+        <textarea name="billing[address]" class="form-control mb-2" rows="1" placeholder="Street 1"></textarea>
+        <textarea class="form-control" rows="1" placeholder="Street 2"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label>City</label>
+          <input type="text" class="form-control" placeholder="City">
+        </div>
+        <div class="form-group col-md-6">
+          <label>State</label>
+          <select class="form-control">
+            <option value="">Select or type to add</option>
+            <option>Tamil Nadu</option>
+            <option>Kerala</option>
+            <option>Karnataka</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label>ZIP Code</label>
+          <input type="text" class="form-control" placeholder="Postal code">
+        </div>
+        <div class="form-group col-md-6">
+          <label>Phone</label>
+          <input type="text" class="form-control" placeholder="Phone number">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Fax Number</label>
+        <input type="text" class="form-control" placeholder="Fax number (optional)">
+      </div>
+    </div>
+
+    <!-- Shipping Address -->
+    <div class="col-md-6">
+      <div class="d-flex align-items-center mb-3">
+        <h5 class="mb-0 font-weight-bold">Shipping Address</h5>
+        <a href="#" id="copyBilling" class="ml-2 text-primary small">
+          <i class="fas fa-arrow-down"></i> Copy billing address
+        </a>
+      </div>
+
+      <div class="form-group">
+        <label>Attention</label>
+        <input type="text" class="form-control" placeholder="Enter attention name">
+      </div>
+
+      <div class="form-group">
+        <label>Country / Region</label>
+        <select class="form-control">
+          <option value="">Select or type to add</option>
+          <option>India</option>
+          <option>Australia</option>
+          <option>United States</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Address</label>
+        <textarea class="form-control mb-2" rows="1" placeholder="Street 1"></textarea>
+        <textarea class="form-control" rows="1" placeholder="Street 2"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label>City</label>
+          <input type="text" class="form-control" placeholder="City">
+        </div>
+        <div class="form-group col-md-6">
+          <label>State</label>
+          <select class="form-control">
+            <option value="">Select or type to add</option>
+            <option>Tamil Nadu</option>
+            <option>Kerala</option>
+            <option>Karnataka</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group col-md-6">
+          <label>ZIP Code</label>
+          <input type="text" class="form-control" placeholder="Postal code">
+        </div>
+        <div class="form-group col-md-6">
+          <label>Phone</label>
+          <input type="text" class="form-control" placeholder="Phone number">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Fax Number</label>
+        <input type="text" class="form-control" placeholder="Fax number (optional)">
+      </div>
+    </div>
+  </div>
+  <hr class="my-4" />
+  <div class="alert alert-light border-left border-warning small">
+    <strong class="text-dark d-block mb-1">Note:</strong>
+    <ul class="pl-3 mb-0">
+      <li>Add and manage additional addresses from this Customers and Vendors details section.</li>
+      <li>
+        You can customise how customers' addresses are displayed in transaction PDFs.
+        To do this, go to <b>Settings → Preferences → Customers and Vendors</b>,
+        and navigate to the <b>Address Format</b> sections.
+      </li>
+    </ul>
+  </div>
+<script>
+  document.getElementById("copyBilling")?.addEventListener("click", function (e) {
+    e.preventDefault();
+    const billingFields = document.querySelectorAll(".col-md-6:first-child input, .col-md-6:first-child textarea, .col-md-6:first-child select");
+    const shippingFields = document.querySelectorAll(".col-md-6:nth-child(2) input, .col-md-6:nth-child(2) textarea, .col-md-6:nth-child(2) select");
+    billingFields.forEach((input, i) => {
+      if (shippingFields[i]) shippingFields[i].value = input.value;
+    });
+  });
+</script>
+
