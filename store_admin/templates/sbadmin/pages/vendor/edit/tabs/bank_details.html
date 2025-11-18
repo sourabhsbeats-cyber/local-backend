@@ -1,0 +1,288 @@
+<!-- ======================= -->
+<!-- BANK DETAILS FULL PAGE -->
+<!-- ======================= -->
+
+<h5 class="font-weight-bold mb-3">Bank Details</h5>
+<p class="text-muted small">Manage vendor bank accounts below.</p>
+
+<div id="bank-list">
+
+  {% for b in banks %}
+  <div class="bank-item border rounded p-2 mb-2 bg-light"
+       data-id="{{ b.id }}"
+       data-holder="{{ b.account_holder }}"
+       data-bank="{{ b.bank_name }}"
+       data-acct="{{ b.account_number }}"
+       data-bic="{{ b.bic }}">
+
+    <div class="d-flex justify-content-between">
+      <div>
+        <strong>{{ b.account_holder }}</strong>
+        <small class="d-block text-muted">{{ b.bank_name }}</small>
+      </div>
+
+      <div>
+        <button type="button" class="btn btn-sm btn-primary edit-bank" style="margin-right:5px;">
+          <i class="fas fa-edit"></i>
+        </button>
+
+        <button type="button" class="btn btn-sm btn-danger delete-bank" data-id="{{ b.id }}">
+          <i class="far fa-trash-alt"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- HIDDEN FORM FIELDS (POST DATA) -->
+    <input type="hidden" name="banks[{{ forloop.counter0 }}][id]" value="{{ b.id }}">
+    <input type="hidden" name="banks[{{ forloop.counter0 }}][account_holder]" value="{{ b.account_holder }}">
+    <input type="hidden" name="banks[{{ forloop.counter0 }}][bank_name]" value="{{ b.bank_name }}">
+    <input type="hidden" name="banks[{{ forloop.counter0 }}][account_number]" value="{{ b.account_number }}">
+    <input type="hidden" name="banks[{{ forloop.counter0 }}][account_number_confirm]" value="{{ b.account_number }}">
+    <input type="hidden" name="banks[{{ forloop.counter0 }}][bic]" value="{{ b.bic }}">
+
+  </div>
+  {% endfor %}
+
+</div>
+
+<button type="button" class="btn btn-success btn-sm mt-2" id="addBankBtn">
+  + Add Bank
+</button>
+
+
+<!-- ==================== -->
+<!-- BANK MODAL POPUP     -->
+<!-- ==================== -->
+<div class="modal fade" id="bankModal">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Bank Account</h5>
+        <button class="close" data-dismiss="modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="bank_id">
+
+        <div class="form-group">
+          <label>Account Holder Name*</label>
+          <input type="text" id="bank_holder" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Bank Name*</label>
+          <input type="text" id="bank_bankname" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Account Number*</label>
+          <input type="password" id="bank_acct" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Re-enter Account Number*</label>
+          <input type="password" id="bank_acct_confirm" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>BIC*</label>
+          <input type="text" id="bank_bic" class="form-control">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" id="saveBankBtn">Save</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+(function () {
+
+  const list = document.getElementById("bank-list");
+  const modal = $("#bankModal");
+
+  // ------------------------------
+  // OPEN ADD MODAL
+  // ------------------------------
+  document.getElementById("addBankBtn").onclick = () => {
+    fillBankModal({});
+    modal.modal("show");
+  };
+
+  // ------------------------------
+  // OPEN EDIT MODAL
+  // ------------------------------
+  list.addEventListener("click", function (e) {
+    const btn = e.target.closest(".edit-bank");
+    if (!btn) return;
+
+    const item = btn.closest(".bank-item");
+
+    fillBankModal({
+      id: item.dataset.id,
+      holder: item.dataset.holder,
+      bank: item.dataset.bank,
+      acct: item.dataset.acct,
+      bic: item.dataset.bic
+    });
+
+    modal.modal("show");
+  });
+
+  // ------------------------------
+  // SAVE (ADD/EDIT)
+  // ------------------------------
+  document.getElementById("saveBankBtn").onclick = () => {
+
+    const bank = {
+      id: document.getElementById("bank_id").value,
+      holder: document.getElementById("bank_holder").value,
+      bank: document.getElementById("bank_bankname").value,
+      acct: document.getElementById("bank_acct").value,
+      acct_confirm: document.getElementById("bank_acct_confirm").value,
+      bic: document.getElementById("bank_bic").value
+    };
+
+    if (bank.acct !== bank.acct_confirm) {
+      Swal.fire("Error", "Account numbers do not match!", "error");
+      return;
+    }
+
+    if (!bank.id) addBankUI(bank);
+    else updateBankUI(bank);
+
+    modal.modal("hide");
+  };
+
+  // ------------------------------
+  // DELETE BANK
+  // ------------------------------
+  list.addEventListener("click", function (e) {
+    const btn = e.target.closest(".delete-bank");
+    if (!btn) return;
+
+    const id = btn.dataset.id;
+    const item = btn.closest(".bank-item");
+
+    Swal.fire({
+      title: "Delete Bank?",
+      text: "This cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Delete"
+    }).then(res => {
+
+      if (!res.value) return;
+
+      // NEW (Unsaved)
+      if (!id) {
+        item.remove();
+        renumberBanks();
+        return;
+      }
+
+      // DELETE FROM DB
+      fetch(`/vendor/bank/delete/${id}/`, {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+        }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.status) {
+          item.remove();
+          Swal.fire("Deleted!", "Bank removed.", "success");
+          renumberBanks();
+        } else {
+          Swal.fire("Error", data.message, "error");
+        }
+      });
+    });
+
+  });
+
+  // ------------------------------
+  // UTILITIES
+  // ------------------------------
+  function fillBankModal(b) {
+    document.getElementById("bank_id").value = b.id || "";
+    document.getElementById("bank_holder").value = b.holder || "";
+    document.getElementById("bank_bankname").value = b.bank || "";
+    document.getElementById("bank_acct").value = b.acct || "";
+    document.getElementById("bank_acct_confirm").value = b.acct || "";
+    document.getElementById("bank_bic").value = b.bic || "";
+  }
+
+  function addBankUI(b) {
+    const idx = list.querySelectorAll(".bank-item").length;
+
+    const html = `
+      <div class="bank-item border rounded p-2 mb-2 bg-light"
+           data-id=""
+           data-holder="${b.holder}"
+           data-bank="${b.bank}"
+           data-acct="${b.acct}"
+           data-bic="${b.bic}">
+
+        <div class="d-flex justify-content-between">
+          <div>
+            <strong>${b.holder}</strong>
+            <small class="text-muted d-block">${b.bank}</small>
+          </div>
+
+          <div>
+            <button class="btn btn-sm btn-primary edit-bank" style="margin-right:5px;"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-danger delete-bank"><i class="far fa-trash-alt"></i></button>
+          </div>
+        </div>
+
+        <input type="hidden" name="banks[${idx}][id]" value="">
+        <input type="hidden" name="banks[${idx}][account_holder]" value="${b.holder}">
+        <input type="hidden" name="banks[${idx}][bank_name]" value="${b.bank}">
+        <input type="hidden" name="banks[${idx}][account_number]" value="${b.acct}">
+        <input type="hidden" name="banks[${idx}][account_number_confirm]" value="${b.acct}">
+        <input type="hidden" name="banks[${idx}][bic]" value="${b.bic}">
+      </div>
+    `;
+
+    list.insertAdjacentHTML("beforeend", html);
+    renumberBanks();
+  }
+
+  function updateBankUI(b) {
+    const item = list.querySelector(`.bank-item[data-id="${b.id}"]`);
+    if (!item) return;
+
+    item.dataset.holder = b.holder;
+    item.dataset.bank = b.bank;
+    item.dataset.acct = b.acct;
+    item.dataset.bic = b.bic;
+
+    item.querySelector("strong").innerText = b.holder;
+    item.querySelector("small").innerText = b.bank;
+
+    item.querySelector(`input[name*="[account_holder]"]`).value = b.holder;
+    item.querySelector(`input[name*="[bank_name]"]`).value = b.bank;
+    item.querySelector(`input[name*="[account_number]"]`).value = b.acct;
+    item.querySelector(`input[name*="[account_number_confirm]"]`).value = b.acct;
+    item.querySelector(`input[name*="[bic]"]`).value = b.bic;
+  }
+
+  function renumberBanks() {
+    list.querySelectorAll(".bank-item").forEach((item, idx) => {
+      item.querySelectorAll("input").forEach(input => {
+        input.name = input.name.replace(/banks\[\d+\]/, `banks[${idx}]`);
+      });
+    });
+  }
+
+})();
+</script>

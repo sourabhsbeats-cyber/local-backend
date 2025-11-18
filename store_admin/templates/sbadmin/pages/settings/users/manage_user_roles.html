@@ -1,0 +1,167 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Manage User Roles{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <h4><i class="fas fa-user-shield text-info mr-1"></i> Manage User Roles</h4>
+      <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#addRoleModal">
+        <i class="fas fa-plus-circle"></i> Add Role
+      </button>
+    </div>
+  </section>
+
+  <!-- Main Section -->
+  <section class="content">
+    <div class="card card-outline ">
+        <!-- Messages -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+          {% endfor %}
+        {% endif %}
+ <div class="card-body  p-0">
+     <div class="table-responsive">
+
+
+        <!-- Role Table -->
+        <table class="table table-responsive-sm  table-head-fixed mb-0">
+          <thead>
+            <tr>
+              <th style="width:70%">Role Name</th>
+              <th style="width:30%">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for role in roles %}
+              <tr>
+                <td>{{ role.name }}</td>
+                <td>
+                  <!-- Edit Button -->
+                  <button class="btn btn-sm btn-outline-success"
+                          data-toggle="modal" data-target="#editRoleModal{{ role.id }}">
+                    <i class="fas fa-edit"></i>
+                  </button>
+
+                  <!-- Delete Button -->
+                  <button class="btn btn-sm btn-outline-danger delete-btn"
+                          data-role-id="{{ role.id }}"
+                          data-role-name="{{ role.name }}"
+                          data-toggle="modal"
+                          data-target="#deleteConfirmModal">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- Edit Modal -->
+              <div class="modal fade" id="editRoleModal{{ role.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <form method="post" action="{% url 'manage_user_roles' %}">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="edit">
+                      <input type="hidden" name="role_id" value="{{ role.id }}">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Edit Role — {{ role.name }}</h5>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="form-group">
+                          <label>Role Name</label>
+                          <input type="text" name="name" class="form-control" value="{{ role.name }}" required>
+                        </div>
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success btn-sm">Save Changes</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            {% empty %}
+              <tr>
+                <td colspan="2" class="text-center text-muted">No roles found.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+     </div>
+    </div>
+  </section>
+
+
+<!-- Add Role Modal -->
+<div class="modal fade" id="addRoleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'manage_user_roles' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <div class="modal-header">
+          <h5 class="modal-title">Add New Role</h5>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Role Name</label>
+            <input type="text" name="name" class="form-control" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary btn-sm">Create Role</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{% url 'manage_user_roles' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" id="delete-role-id" name="role_id">
+
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Confirm Deletion</h5>
+          <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <p>Are you sure you want to delete the role:</p>
+          <p class="font-weight-bold text-danger" id="delete-role-name"></p>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger btn-sm">Yes, Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Pass role data into delete modal dynamically
+  document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+    deleteButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const roleId = this.getAttribute('data-role-id');
+        const roleName = this.getAttribute('data-role-name');
+        document.getElementById('delete-role-id').value = roleId;
+        document.getElementById('delete-role-name').textContent = roleName;
+      });
+    });
+  });
+</script>
+</div>
+{% endblock %}

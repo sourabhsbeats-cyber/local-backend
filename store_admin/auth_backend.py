@@ -11,7 +11,7 @@ User = get_user_model()
 class CustomDBAuth(BaseBackend):
     def authenticate(self, request, username=None, password=None):
         with connection.cursor() as cursor:
-            cursor.execute("SELECT id, email, password FROM store_admin_storeuser where email=%s LIMIT 1", [username])
+            cursor.execute("SELECT id, email, password FROM store_admin_user where email=%s LIMIT 1", [username])
             row = cursor.fetchone()
             if not row:
                 return None

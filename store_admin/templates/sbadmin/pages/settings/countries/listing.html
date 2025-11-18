@@ -1,0 +1,168 @@
+{% extends "sbadmin/base.html" %}
+{% load custom_tags %}  {# ✅ custom tag for dictionary lookup #}
+{% block title %}Countries{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <!-- Delete Country Modal -->
+<div class="modal fade" id="deleteCountryModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="delete_country">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title"><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h5>
+          <button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body text-center">
+          <p class="mb-0">Are you sure you want to delete</p>
+          <p class="font-weight-bold text-danger mb-0">{{ country.name }}</p>
+          <p class="small text-muted">(This will remove all related states.)</p>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="submit" class="btn btn-danger btn-sm">Yes, Delete</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+  <!-- Page Header -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1><i class="fas fa-globe-americas mr-1  text-info"></i>  Countries</h1>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="#">Settings</a></li>
+            <li class="breadcrumb-item active">All Countries</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+{% if messages %}
+<div class="container mt-3">
+  {% for message in messages %}
+  <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+    {{ message }}
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+  <!-- Main Content -->
+  <section class="content">
+    <div class="card card-outline ">
+      <div class="card-header d-flex justify-content-between align-items-center">
+
+  <form method="get" >
+    <div class="input-group input-group-sm">
+      <input
+        type="text"
+        name="q"
+        value="{{ search_query }}"
+        class="form-control"
+        placeholder="Search by name or ISO..."
+      />
+      <div class="input-group-append">
+        <button class="btn btn-primary" type="submit">
+          <i class="fas fa-search"></i>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-responsive-sm  table-head-fixed mb-0">
+            <thead >
+              <tr>
+                <th style="width:30%">Name</th>
+                <th style="width:15%">ISO2</th>
+                <th style="width:15%">ISO3</th>
+                <th style="width:15%"># of States</th>
+                <th style="width:25%">Manage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for country in countries %}
+              <tr>
+                <td>{{ country.name }}</td>
+                <td>{{ country.iso2|default:"-" }}</td>
+                <td>{{ country.iso3|default:"-" }}</td>
+                <td>{{ state_counts|get_item:country.id|default:"0" }}</td>
+                <td class="text-center">
+                  <a href="{% url 'edit_country' country.id %}" class="btn btn-sm btn-outline-success" title="Edit Country">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                   <button type="button" class="btn btn-outline-danger btn-sm" data-toggle="modal" data-target="#deleteCountryModal">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-3">No countries found.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Footer with Pagination -->
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+          Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} countries
+        </small>
+
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+
+  {# First Page #}
+  {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?q={{ search_query }}&page=1">First</a>
+    </li>
+    <li class="page-item">
+      <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+    </li>
+  {% else %}
+    <li class="page-item disabled"><span class="page-link">First</span></li>
+    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+  {% endif %}
+
+  {# Page Numbers #}
+  {% for num in page_obj.paginator.page_range %}
+    {% if num == page_obj.number %}
+      <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+      <li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ num }}">{{ num }}</a></li>
+    {% endif %}
+  {% endfor %}
+
+  {# Next Page #}
+  {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Next</a>
+    </li>
+    <li class="page-item">
+      <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+    </li>
+  {% else %}
+    <li class="page-item disabled"><span class="page-link">Next</span></li>
+    <li class="page-item disabled"><span class="page-link">Last</span></li>
+  {% endif %}
+</ul>
+        </nav>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,249 @@
+{% extends "sbadmin/base.html" %}
+{% load static %}
+
+{% block title %}Edit Country — {{ country.name }}{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+
+  <!-- Header -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <h4 class="m-0"><i class="fas fa-flag"></i> Edit Country — {{ country.name }}</h4>
+        </div>
+        <div class="col-sm-6 text-right">
+          <a href="{% url 'all_countries' %}" class="btn btn-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Back to Countries
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Content -->
+  <section class="content">
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header">
+        <h3 class="card-title mb-0">
+          <i class="fas fa-edit text-secondary mr-1"></i> Country Information
+        </h3>
+      </div>
+
+      <!-- Edit Country Form -->
+      <form method="post" class="p-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="update_country">
+
+        <div class="form-row">
+          <div class="form-group col-md-4">
+            <label>Name</label>
+            <input type="text" name="name" value="{{ country.name }}" class="form-control" required>
+          </div>
+          <div class="form-group col-md-2">
+            <label>ISO2</label>
+            <input type="text" name="iso2" value="{{ country.iso2 }}" maxlength="2" class="form-control">
+          </div>
+          <div class="form-group col-md-2">
+            <label>ISO3</label>
+            <input type="text" name="iso3" value="{{ country.iso3 }}" maxlength="3" class="form-control">
+          </div>
+
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-md-3">
+            <label>Currency</label>
+            <input type="text" name="currency" value="{{ country.currency }}" class="form-control">
+          </div>
+          <div class="form-group col-md-4">
+            <label>Currency Name</label>
+            <input type="text" name="currency_name" value="{{ country.currency_name }}" class="form-control">
+          </div>
+          <div class="form-group col-md-2">
+            <label>Symbol</label>
+            <input type="text" name="currency_symbol" value="{{ country.currency_symbol }}" class="form-control">
+          </div>
+
+        </div>
+
+
+        <div class="text-right mt-3">
+          <button type="submit" class="btn btn-success btn-sm">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+        </div>
+      </form>
+
+      <!-- State Listing Section -->
+      <div class="card-body border-top">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0 text-primary"><i class="fas fa-map-marked-alt"></i> States in {{ country.name }}</h5>
+
+          <div>
+            <form method="get" class="form-inline d-inline">
+              <div class="input-group input-group-sm">
+                <input type="text" name="q" value="{{ search_query }}" class="form-control" placeholder="Search state...">
+                <div class="input-group-append">
+                  <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+                </div>
+              </div>
+            </form>
+
+            <button type="button" class="btn btn-sm btn-success ml-2" data-toggle="modal" data-target="#addStateModal">
+              <i class="fas fa-plus"></i> Add State
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-bordered table-striped table-hover">
+            <thead class="thead-light">
+              <tr>
+                <th>Name</th>
+                <th>ISO2</th>
+                <th style="width:120px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for state in states %}
+              <tr>
+                <td>{{ state.name }}</td>
+                <td>{{ state.iso2|default:"-" }}</td>
+                <td class="text-center">
+                  <button type="button" class="btn btn-sm btn-outline-success" data-toggle="modal" data-target="#editStateModal{{ state.id }}">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#deleteStateModal{{ state.id }}">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- Edit State Modal -->
+              <div class="modal fade" id="editStateModal{{ state.id }}" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                  <div class="modal-content">
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="edit_state">
+                      <input type="hidden" name="state_id" value="{{ state.id }}">
+                      <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Edit State — {{ state.name }}</h5>
+                        <button type="button" class="close" data-dismiss="modal">&times;</button>
+                      </div>
+                      <div class="modal-body">
+                        <div class="form-group">
+                          <label>Name</label>
+                          <input type="text" name="name" value="{{ state.name }}" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                          <label>ISO2</label>
+                          <input type="text" name="iso2" value="{{ state.iso2 }}" class="form-control">
+                        </div>
+
+
+                      </div>
+                      <div class="modal-footer">
+                        <button type="submit" class="btn btn-success btn-sm">Save</button>
+                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Delete State Modal -->
+              <div class="modal fade" id="deleteStateModal{{ state.id }}" tabindex="-1" role="dialog">
+                <div class="modal-dialog modal-sm" role="document">
+                  <div class="modal-content">
+                    <form method="post">
+                      {% csrf_token %}
+                      <input type="hidden" name="action" value="delete_state">
+                      <input type="hidden" name="state_id" value="{{ state.id }}">
+                      <div class="modal-body text-center">
+                        <p>Are you sure you want to delete <strong>{{ state.name }}</strong>?</p>
+                        <div class="mt-3">
+                          <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Add State Modal -->
+        <div class="modal fade" id="addStateModal" tabindex="-1" role="dialog">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="add_state">
+                <div class="modal-header bg-success text-white">
+                  <h5 class="modal-title">Add New State</h5>
+                  <button type="button" class="close" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" name="name" class="form-control" required>
+                  </div>
+                  <div class="form-group">
+                    <label>ISO2</label>
+                    <input type="text" name="iso2" class="form-control">
+                  </div>
+
+
+                </div>
+                <div class="modal-footer">
+                  <button type="submit" class="btn btn-success btn-sm">Add</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <small class="text-muted">
+            Showing {{ page_obj.start_index }}–{{ page_obj.end_index }} of {{ page_obj.paginator.count }} states
+          </small>
+
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item"><a class="page-link" href="?q={{ search_query }}&page=1">First</a></li>
+              <li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Previous</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">First</span></li>
+              <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+              {% if num == page_obj.number %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ num }}">{{ num }}</a></li>
+              {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+              <li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Next</a></li>
+              <li class="page-item"><a class="page-link" href="?q={{ search_query }}&page={{ page_obj.paginator.num_pages }}">Last</a></li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Next</span></li>
+              <li class="page-item disabled"><span class="page-link">Last</span></li>
+            {% endif %}
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

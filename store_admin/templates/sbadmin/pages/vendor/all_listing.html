@@ -1,38 +1,198 @@
- {% extends "sbadmin/base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% extends "sbadmin/base.html" %}
+{% load custom_tags %}
+{% block title %}Vendors{% endblock %}
+
 {% block content %}
- <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <section class="content-header">
-      <div class="container-fluid">
-        <div class="row mb-2">
-          <div class="col-sm-6">
-            <h1>All Vendors</h1>
-          </div>
-          <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-right">
-              <li class="breadcrumb-item"><a href="#">Vendor</a></li>
-              <li class="breadcrumb-item active">List</li>
-            </ol>
-          </div>
+<div class="content-wrapper">
+
+  <!-- GLOBAL CSRF TOKEN (Required for delete to work) -->
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+  <!-- Page Header -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1>All Vendors</h1>
         </div>
-      </div><!-- /.container-fluid -->
-    </section>
-
-    <!-- Main content -->
-    <section class="content">
-
-      <!-- Default box -->
-      <div class="card">
-        <div class="card-body">
-
+        <div class="col-sm-6">
+          <a href="{% url 'add_new_vendor'  %}"
+             class="btn btn-primary float-right btn-sm">
+            <i class="fas fa-plus"></i> Add New
+          </a>
         </div>
-        <div class="card-footer">
-          Footer
+      </div>
+    </div>
+  </section>
+
+  <!-- success/error messages -->
+  {% if messages %}
+  <div class="container mt-3">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Main Content -->
+  <section class="content">
+    <div class="card card-outline">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <form method="get">
+          <div class="input-group input-group-sm">
+            <input type="text" name="q" value="{{ search_query }}"
+                   class="form-control"
+                   placeholder="Search by name or code...">
+            <div class="input-group-append">
+              <button class="btn btn-primary" type="submit">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-responsive-sm table-head-fixed mb-0">
+            <thead>
+              <tr>
+                <th style="width:20%">NAME</th>
+                <th style="width:15%">VENDOR CODE</th>
+                <th style="width:15%">COMPANY NAME</th>
+                <th style="width:15%">EMAIL</th>
+                <th style="width:15%">WORK PHONE</th>
+                <th class="text-center" style="width:20%">MANAGE</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% for vendor in allvendors %}
+              <tr>
+                <td>{{ vendor.name }}</td>
+                <td>{{ vendor.vendor_code }}</td>
+                <td>{{ vendor.company_name }}</td>
+                <td>{{ vendor.email_address }}</td>
+                <td>{{ vendor.work_phone }}</td>
+
+                <td class="text-center">
+                  <a href="{% url 'edit_vendor' vendor.id %}"
+                     class="btn btn-sm btn-outline-success"
+                     title="Edit Vendor">
+                    <i class="fas fa-edit"></i>
+                  </a>
+
+                  <button type="button"
+                          class="btn btn-outline-danger btn-sm"
+                          onclick="deleteSelectedVendor({{ vendor.id }})">
+                    <i class="fas fa-trash-alt"></i>
+                  </button>
+                </td>
+              </tr>
+
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">
+                  No vendors found.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+
+          </table>
         </div>
       </div>
 
-    </section>
-    <!-- /.content -->
-  </div>
- {% endblock %}
+      <!-- Pagination -->
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+          Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
+          of {{ page_obj.paginator.count }} vendors
+        </small>
+
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page=1">First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">First</span></li>
+              <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+              {% if num == page_obj.number %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                  <a class="page-link" href="?q={{ search_query }}&page={{ num }}">{{ num }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Next</span></li>
+              <li class="page-item disabled"><span class="page-link">Last</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+
+{% block footer_scripts %}
+<script>
+function deleteSelectedVendor(vendorId) {
+    Swal.fire({
+        title: "Delete Vendor?",
+        text: "This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Delete",
+        cancelButtonText: "Cancel"
+    }).then(result => {
+        if (!result.value) return;
+
+        fetch(`/vendor/delete/${vendorId}/`, {
+            method: "DELETE",
+            headers: {
+                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
+                "Accept": "application/json"
+            }
+        })
+        .then(r => r.json())
+        .then(data => {
+            if(data.status){
+                Swal.fire({
+                    title: "Deleted",
+                    text: "Vendor removed successfully",
+                    icon: "success"
+                }).then(() => window.location.reload());
+            }else{
+                Swal.fire("Error", data.message || "Something went wrong", "error");
+            }
+        })
+        .catch(() => Swal.fire("Error", "Server error", "error"));
+    });
+}
+</script>
+{% endblock %}
+
+{% endblock %}

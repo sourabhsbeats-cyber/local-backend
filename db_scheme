@@ -1,0 +1,83 @@
+CREATE TABLE vendor_master (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    -- Primary Details
+    salutation VARCHAR(20),
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100),
+    company_name VARCHAR(255),
+    display_name VARCHAR(255),
+    vendor_code VARCHAR(50) UNIQUE,
+    email_address VARCHAR(255),
+    work_phone VARCHAR(50),
+    mobile_number VARCHAR(50),
+
+    -- Other Details
+    registered_business TINYINT(1) DEFAULT 0,
+    company_abn VARCHAR(50),
+    company_acn VARCHAR(50),
+    payment_term_id INT,
+    currency VARCHAR(10),
+    documents VARCHAR(255),   -- filepath
+
+    -- Remarks
+    vendor_remarks TEXT,
+    created_by INT DEFAULT 0,
+    updated_by INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (payment_term_id) REFERENCES store_admin_payment_terms(id)
+);
+
+
+
+CREATE TABLE vendor_banks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    account_holder VARCHAR(255),
+    bank_name VARCHAR(255),
+    account_number VARCHAR(255),
+    bic VARCHAR(50),
+
+    FOREIGN KEY (vendor_id) REFERENCES vendor_master(id)
+);
+
+CREATE TABLE vendor_contacts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    department VARCHAR(100),
+    email VARCHAR(255),
+    phone VARCHAR(50),
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    description TEXT,
+    FOREIGN KEY (vendor_id) REFERENCES vendor_master(id)
+);
+
+CREATE TABLE vendor_address (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    address_type ENUM('billing','shipping') NOT NULL,
+    address_id NT NOT NULL,
+    FOREIGN KEY (vendor_id) REFERENCES vendor_master(id),
+);
+
+
+---------------------------------------------------
+CREATE TABLE addresses (
+    attention_name VARCHAR(255),
+    country_id INT,
+    street1 VARCHAR(255),
+    street2 VARCHAR(255),
+    city VARCHAR(100),
+    state_id INT,
+    zip VARCHAR(20),
+    phone VARCHAR(50),
+    fax VARCHAR(50),
+    FOREIGN KEY (country_id) REFERENCES store_admin_countries(id),
+    FOREIGN KEY (state_id) REFERENCES store_admin_states(id)
+);
+
+
+

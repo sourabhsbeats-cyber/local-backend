@@ -1,0 +1,265 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block content %}
+
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+      <h4><i class="fas fa-users text-info mr-1"></i> User Management</h4>
+      <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#userModal">
+        <i class="fas fa-plus-circle"></i> Add User
+      </button>
+    </div>
+  </section>
+
+  <div class="content">
+    <div class="card card-outline ">
+
+        {% if messages %}
+          {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="close" data-dismiss="alert">&times;</button>
+            </div>
+          {% endfor %}
+        {% endif %}
+ <div class="card-body p-0">
+      <div class="table-responsive ">
+        <table class="table table-responsive-sm  table-head-fixed mb-0">
+          <thead >
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Roles</th>
+              <th>Status</th>
+              <th>System User</th>
+              <th style="width:20%">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for user in users %}
+            <tr>
+              <td>{{ user.name }}</td>
+              <td>{{ user.email }}</td>
+              <td>
+                {% for group in user.groups.all %}
+                  <span class="badge badge-info">{{ group.name }}</span>
+                {% empty %}
+                  <span class="text-muted">No Role</span>
+                {% endfor %}
+              </td>
+              <td>
+                <span class="badge badge-{{ user.is_active|yesno:'success,danger' }}">
+                  {{ user.is_active|yesno:'Active,Inactive' }}
+                </span>
+              </td>
+              <td>
+                {% if user.is_system_user %}
+                  <span class="badge badge-warning">Yes</span>
+                {% else %}
+                  No
+                {% endif %}
+              </td>
+              <td>
+                <!-- Edit -->
+                 <button class="btn btn-sm btn-outline-warning"
+                        data-toggle="modal"
+                        data-target="#resetPasswordModal{{ user.id }}">
+                  <i class="fas fa-key"></i>
+                </button>
+
+                <button class="btn btn-sm btn-outline-success"
+                        data-toggle="modal"
+                        data-target="#editUserModal{{ user.id }}">
+                        <i class="fas fa-edit"></i></button>
+
+                <!-- Delete -->
+                {% if not user.is_system_user %}
+                <form method="post" action="{% url 'manage_users' %}" style="display:inline;">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="user_id" value="{{ user.id }}">
+                  <button class="btn btn-sm btn-outline-danger"
+                          onclick="return confirm('Delete user {{ user.name }}?');">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+
+            <!-- Edit User Modal -->
+            <div class="modal fade" id="editUserModal{{ user.id }}" tabindex="-1">
+              <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                  <form method="post" action="{% url 'manage_users' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="user_id" value="{{ user.id }}">
+                    <div class="modal-header">
+                      <h5 class="modal-title">Edit User — {{ user.name }}</h5>
+                      <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="form-row">
+                        <div class="form-group col-md-6">
+                          <label>Full Name</label>
+                          <input type="text" name="name" value="{{ user.name }}" class="form-control" required>
+                        </div>
+                        <div class="form-group col-md-6">
+                          <label>Email</label>
+                          <input type="email" name="email" value="{{ user.email }}" class="form-control" required>
+                        </div>
+                      </div>
+
+                      <div class="form-row">
+                        <div class="form-group col-md-6">
+                          <label>Roles</label>
+                          <select name="groups" class="form-control" multiple>
+                            {% for role in roles %}
+                              <option value="{{ role.id }}" {% if role in user.groups.all %}selected{% endif %}>
+                                {{ role.name }}
+                              </option>
+                            {% endfor %}
+                          </select>
+                        </div>
+                        <div class="form-group col-md-3 d-flex align-items-center">
+                          <div class="form-check">
+                            <input type="checkbox" name="is_active" class="form-check-input" id="active{{ user.id }}"
+                                   {% if user.is_active %}checked{% endif %}>
+                            <label class="form-check-label" for="active{{ user.id }}">Active</label>
+                          </div>
+                        </div>
+                        <div class="form-group col-md-3 d-flex align-items-center">
+                          <div class="form-check">
+                            <input type="checkbox" name="is_system_user" class="form-check-input"
+                                   id="system{{ user.id }}" {% if user.is_system_user %}checked{% endif %}>
+                            <label class="form-check-label" for="system{{ user.id }}">System User</label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="modal-footer">
+                      <button type="submit" class="btn btn-success btn-sm">Save Changes</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted">No users found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+    </div>
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal{{ user.id }}" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-md" role="document">
+    <div class="modal-content">
+      <form method="post" action="{% url 'manage_users' %}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reset_password">
+        <input type="hidden" name="user_id" value="{{ user.id }}">
+
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title"><i class="fas fa-key"></i> Reset Password — {{ user.name }}</h5>
+          <button type="button" class="close" data-dismiss="modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-group">
+            <label>New Password</label>
+            <input type="password" name="new_password" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Confirm New Password</label>
+            <input type="password" name="confirm_password" class="form-control" required>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="btn btn-warning btn-sm">
+            <i class="fas fa-save"></i> Reset Password
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- Add User Modal -->
+<div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-labelledby="userModalLabel" aria-hidden="true" data-backdrop="static" data-keyboard="false">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <form method="post" action="{% url 'manage_users' %}" id="addUserForm">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+
+        <div class="modal-header bg-primary text-white">
+          <h5 class="modal-title" id="userModalLabel"><i class="fas fa-user-plus"></i> Add New User</h5>
+          <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Full Name</label>
+              <input type="text" name="name" class="form-control" placeholder="Enter full name" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Email</label>
+              <input type="email" name="email" class="form-control" placeholder="Enter email" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Password</label>
+              <input type="password" name="password" class="form-control" placeholder="Set a password" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Roles</label>
+              <select name="groups" class="form-control" multiple required>
+                {% for role in roles %}
+                  <option value="{{ role.id }}">{{ role.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+              <div class="row col-sm-12">
+            <div class="col-md-6 form-check">
+              <input type="checkbox" name="is_active" class="form-check-input" id="addActive" checked>
+              <label class="form-check-label" for="addActive">Active</label>
+            </div>
+            <div class="col-md-6 form-check">
+              <input type="checkbox" name="is_system_user" class="form-check-input" id="addSystem">
+              <label class="form-check-label" for="addSystem">System User</label>
+            </div>
+               </div>
+          </div>
+        </div>
+
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="fas fa-save"></i> Create User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -51,6 +51,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'store_admin.middleware.NoCacheMiddleware',
+    'store_admin.middleware.SecurityHeadersMiddleware'
 ]
 
 ROOT_URLCONF = 'sbadmin.urls'
@@ -127,10 +129,14 @@ USE_I18N = True
 USE_TZ = True
 
 AUTH_USER_MODEL = 'store_admin.StoreUser'
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'
+LOGOUT_REDIRECT_URL = '/login/'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+#STATIC_ROOT = '/var/www/html/sbadmin/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'store_admin', 'static')]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

@@ -1,0 +1,239 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Add Vendor{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <h4 class="m-0">
+             Edit Vendor
+          </h4>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="#">Vendors</a></li>
+            <li class="breadcrumb-item active">Edit</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+  <section class="content">
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header pr-0">
+        <h3 class="card-title mb-0">
+          <i class="fas fa-building mr-2 text-info"></i> Vendor Information
+        </h3>
+        <a href="{% url 'vendor_listing' %}" class="float-right pt-2 btn btn-tool">
+          <i class="fas fa-times"></i>
+        </a>
+      </div>
+
+      <div class="card-body">
+        <form autocomplete="off"
+              action="{% url 'save_vendor'%}"
+              enctype="multipart/form-data" autocorrect="off" a
+              utocapitalize="none" spellcheck="false"  id="vendorForm" method="post">
+            {% csrf_token %}
+            {% include "sbadmin/pages/vendor/edit/tabs/primary_details.html" %}
+          <ul class="nav nav-tabs mt-4" id="vendorTabs" role="tablist">
+            <li class="nav-item">
+              <a class="nav-link active" id="tab-other" data-toggle="tab" href="#tabContent-other" role="tab">
+                  Other Details</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link " id="tab-address" data-toggle="tab" href="#tabContent-address" role="tab">
+                  Address</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" id="tab-bank" data-toggle="tab" href="#tabContent-bank" role="tab">
+                  Bank Details</a>
+            </li>
+           <li class="nav-item">
+              <a class="nav-link" id="tab-contacts" data-toggle="tab" href="#tabContent-contacts" role="tab">
+                  Contact Details</a>
+            </li>
+            <!--
+            <li class="nav-item disabled">
+              <a class="nav-link" id="tab-custom" data-toggle="tab" href="#tabContent-custom" role="tab">
+                  Custom Fields</a>
+            </li>
+            -->
+            <li class="nav-item">
+              <a class="nav-link" id="tab-remarks" data-toggle="tab" href="#tabContent-remarks" role="tab">
+                  Remarks</a>
+            </li>
+          </ul>
+          <div class="tab-content p-3 border border-top-0" id="vendorTabContent">
+            <div class="tab-pane fade show active" id="tabContent-other" role="tabpanel">
+                <div class="other_details_form">
+                    {% include "sbadmin/pages/vendor/edit/tabs/other_details.html" %}
+                </div>
+            </div>
+            <div class="tab-pane fade show " id="tabContent-address" role="tabpanel">
+                {% include "sbadmin/pages/vendor/edit/tabs/address_details.html" %}
+            </div>
+            <div class="tab-pane fade" id="tabContent-bank" role="tabpanel">
+                {% include "sbadmin/pages/vendor/edit/tabs/bank_details.html" %}
+            </div>
+            <!--
+            <div class="tab-pane fade" id="tabContent-custom" role="tabpanel">
+              <p class="text-muted">
+                  Start adding custom fields for your Customers and Vendors by going to Settings  Preferences  Customers and Vendors. You can also refine the address format of your Customers and Vendors from there..</p>
+            </div>-->
+            <div class="tab-pane fade show" id="tabContent-remarks" role="tabpanel">
+              <h5 class="font-weight-bold mb-3">Remarks <small class="text-muted">(For Internal Use)</small></h5>
+              {% include "sbadmin/pages/vendor/edit/tabs/remarks.html" %}
+            </div>
+            <div class="tab-pane fade show" id="tabContent-contacts" role="tabpanel">
+                {% include "sbadmin/pages/vendor/edit/tabs/contact_details.html" %}
+            </div>
+          </div>
+          <div class="text-left mt-4">
+            <button type="submit" id="btn_add_vendor" class="btn btn-success btn-sm">
+            Update
+            </button>
+            <button type="button" id="btn_cancel_vendor" class="btn btn-secondary btn-sm ml-2">
+             Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("vendorForm");
+
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();  // Stop normal form submit
+        let formData = new FormData(form);
+        // Button loading state
+        const saveBtn = form.querySelector("button[type=submit]");
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        fetch("{% url 'save_vendor' %}", {
+            method: "POST",
+            body: formData,
+            headers: {
+                "X-CSRFToken": getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = "Save";
+
+            if (data.status) {
+                toastr.success(data.message || "Vendor saved successfully!");
+
+                // Redirect if backend sends redirect URL
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+
+            } else {
+                toastr.error(data.message || "Something went wrong!");
+            }
+        })
+        .catch(err => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = "Save";
+            toastr.error("Server error. Please try again.");
+            console.error(err);
+        });
+
+    });
+
+});
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
+
+</script>
+{% block footer_script %}
+<script>
+
+$(document).ready(function () {
+    $('.select2').select2();
+
+    $('#billing_country').select2({
+        placeholder: "Search Country...",
+        allowClear: true,
+        minimumInputLength: 2,
+        ajax: {
+            url: "/common/list_countries/",
+            dataType: "json",
+            delay: 300,
+            data: params => ({ q: params.term }),
+            processResults: data => ({
+                results: data.results
+            })
+        }
+    });
+    $('#shipping_country').select2({
+        placeholder: "Search Country...",
+        allowClear: true,
+        minimumInputLength: 2,
+        ajax: {
+            url: "/common/list_countries/",
+            dataType: "json",
+            delay: 300,
+            data: params => ({ q: params.term }),
+            processResults: data => ({
+                results: data.results
+            })
+        }
+    });
+    $('#billing_state').select2({
+        placeholder: "Search State...",
+        allowClear: true,
+        minimumInputLength: 2,
+        ajax: {
+            url: function () {
+                return `/common/list_states/?country_id=${$('#billing_country').val()}`;
+            },
+            dataType: "json",
+            delay: 300,
+            data: params => ({ q: params.term }),
+            processResults: data => ({
+                results: data.results
+            })
+        }
+    });
+$('#shipping_state').select2({
+        placeholder: "Search State...",
+        allowClear: true,
+        minimumInputLength: 2,
+        ajax: {
+            url: function () {
+                return `/common/list_states/?country_id=${$('#shipping_country').val()}`;
+            },
+            dataType: "json",
+            delay: 300,
+            data: params => ({ q: params.term }),
+            processResults: data => ({
+                results: data.results
+            })
+        }
+    });
+    $('#billing_country').on("change", function () {
+        $('#billing_state').val(null).trigger("change");
+    });
+    $('#shipping_country').on("change", function () {
+        $('#shipping_state').val(null).trigger("change");
+    });
+
+});
+</script>
+{% endblock %}
+
+{% endblock %}

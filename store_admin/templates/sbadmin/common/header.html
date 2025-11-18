@@ -1,5 +1,6 @@
 {% load static %}
 {% load static %}
+
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/fontawesome-free/css/all.min.css' %}">
 <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css' %}">
@@ -10,9 +11,35 @@
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/overlayScrollbars/css/OverlayScrollbars.min.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/daterangepicker/daterangepicker.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/summernote/summernote-bs4.css' %}">
+ <link rel="stylesheet" href="{% static 'sbadmin/plugins/toastr/toastr.min.css' %}">
 <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
 <!--
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
 "Inter", "Source Sans Pro", Helvetica, Arial, sans-serif;-->
+<!-- Select2 CSS
+-->
+<link rel="stylesheet" href="{% static 'sbadmin/plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css' %}">
+
+<link rel="stylesheet" href="{% static 'sbadmin/plugins/select2/css/select2.min.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css" />
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="{% static 'sbadmin/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'sbadmin/plugins/jquery-ui/jquery-ui.min.js' %}"></script>
+<script>
+  $.widget.bridge('uibutton', $.ui.button)
+</script>
+<!--
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>-->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- SweetAlert + Full JS -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.js"></script>
+
+
+

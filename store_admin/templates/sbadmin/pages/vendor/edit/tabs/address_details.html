@@ -1,0 +1,156 @@
+<div class="row">
+
+    <!-- ========================= BILLING ADDRESS ========================= -->
+    <div class="col-md-6">
+        <h5 class="mb-3 font-weight-bold">Billing Address</h5>
+
+        <div class="form-group">
+            <label>Attention</label>
+            <input type="text" name="billing_attention_name"
+                   class="form-control"
+                   value="{{ billing.attention_name }}">
+        </div>
+
+        <div class="form-group">
+            <label>Country / Region</label>
+             <select name="billing_country" id="billing_country"
+                    class="form-control select2bs4" style="width: 100%">
+                <option value="">-- Select Country --</option>
+                {% for c in countries_list %}
+                    <option value="{{ c.id }}"
+                            {% if billing.country_id == c.id %}selected{% endif %}>
+                        {{ c.name }}
+                    </option>
+                {% endfor %}
+            </select>
+
+        </div>
+
+        <div class="form-group">
+            <label>Building / Street</label>
+            <textarea name="billing_street1" class="form-control mb-2" rows="2">{{ billing.street1 }}</textarea>
+            <textarea name="billing_street2" class="form-control" rows="2">{{ billing.street2 }}</textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>State</label>
+                <select name="billing_state" id="billing_state" style="width: 100%" class="form-control">
+                    {% if billing.state_id %}
+                        <option value="{{ billing.state_id }}" selected>{{ billing.state.name }}</option>
+                    {% else %}
+                        <option value="">Select State</option>
+                    {% endif %}
+                </select>
+            </div>
+
+            <div class="form-group col-md-6">
+                <label>City</label>
+                <input type="text" class="form-control"
+                       name="billing_city" value="{{ billing.city }}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>ZIP Code</label>
+                <input type="text" class="form-control"
+                       name="billing_zip" value="{{ billing.zip }}">
+            </div>
+
+            <div class="form-group col-md-6">
+                <label>Phone</label>
+                <input type="text" class="form-control"
+                       name="billing_phone" value="{{ billing.phone }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Fax Number</label>
+            <input type="text" class="form-control"
+                   name="billing_fax" value="{{ billing.fax }}">
+        </div>
+    </div>
+
+    <!-- ========================= SHIPPING ADDRESS ========================= -->
+    <div class="col-md-6">
+
+        <div class="d-flex align-items-center mb-3">
+            <h5 class="mb-0 font-weight-bold">Shipping Address</h5>
+            <a href="#" id="copyBilling" class="ml-2 text-primary small">
+                <i class="fas fa-arrow-down"></i> Copy billing address
+            </a>
+        </div>
+
+        <div class="form-group">
+            <label>Attention</label>
+            <input type="text" name="shipping_attention_name"
+                   class="form-control"
+                   value="{{ shipping.attention_name }}">
+        </div>
+
+        <div class="form-group">
+            <label>Country / Region</label>
+            <select name="shipping_country" id="shipping_country"
+                    class="form-control select2bs4" style="width: 100%">
+                <option value="">-- Select Country --</option>
+                {% for c in countries_list %}
+                    <option value="{{ c.id }}"
+                            {% if shipping.country_id == c.id %}selected{% endif %}>
+                        {{ c.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Building / Street</label>
+            <textarea name="shipping_street1" class="form-control mb-2" rows="2">{{ shipping.street1 }}</textarea>
+            <textarea name="shipping_street2" class="form-control" rows="2">{{ shipping.street2 }}</textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>State</label>
+                <select name="shipping_state" id="shipping_state" style="width: 100%" class="form-control">
+                    {% if shipping.state_id %}
+                        <option value="{{ shipping.state_id }}" selected>{{ shipping.state.name }}</option>
+                    {% else %}
+                        <option value="">Select State</option>
+                    {% endif %}
+                </select>
+            </div>
+
+            <div class="form-group col-md-6">
+                <label>City</label>
+                <input type="text" name="shipping_city"
+                       class="form-control"
+                       value="{{ shipping.city }}">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group col-md-6">
+                <label>ZIP Code</label>
+                <input type="text" name="shipping_zip"
+                       class="form-control"
+                       value="{{ shipping.zip }}">
+            </div>
+
+            <div class="form-group col-md-6">
+                <label>Phone</label>
+                <input type="text" name="shipping_phone"
+                       class="form-control"
+                       value="{{ shipping.phone }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Fax Number</label>
+            <input type="text" name="shipping_fax"
+                   class="form-control"
+                   value="{{ shipping.fax }}">
+        </div>
+
+    </div>
+</div>
