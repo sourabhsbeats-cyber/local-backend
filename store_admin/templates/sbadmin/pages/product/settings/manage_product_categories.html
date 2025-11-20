@@ -1,6 +1,6 @@
 {% extends "sbadmin/base.html" %}
 {% load static %}
-{% block title %}Manage Payment Terms{% endblock %}
+{% block title %}Manage Categories{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
@@ -49,7 +49,7 @@
             <thead class="thead-light">
               <tr>
                 <th>Name</th>
-                <th>Frequency</th>
+                <th>Is Primary</th>
                 <th>Status</th>
                 <th style="width:150px;">Actions</th>
               </tr>
@@ -58,85 +58,133 @@
               {% for term in terms %}
               <tr>
                 <td>{{ term.name }}</td>
-                <td>{{ term.frequency }}</td>
                 <td>
-                  {% if term.status == "Active" %}
+                    {% if term.is_primary == 1 %}
+                    <span class="badge badge-success">Yes</span>
+                  {% else %}
+                    <span class="badge badge-secondary">No</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if term.status == 1 %}
                     <span class="badge badge-success">Active</span>
                   {% else %}
                     <span class="badge badge-secondary">Inactive</span>
                   {% endif %}
                 </td>
                 <td class="text-center">
-                  <button class="btn btn-sm btn-outline-success" data-toggle="modal" data-target="#editTermModal{{ term.id }}">
+                  <button class="btn btn-sm btn-outline-success"
+                          onclick="editCategoryModal(
+    {{ term.category_id }},
+    '{{ term.name|escapejs }}',
+    {{ term.is_primary }},
+    {{ term.parent_category_id|default:'null' }},
+    '{{ term.status }}'
+)">
                     <i class="fas fa-edit"></i>
                   </button>
-                  <button class="btn btn-sm btn-outline-danger" data-toggle="modal" data-target="#deleteTermModal{{ term.id }}">
+                  <button class="btn btn-sm btn-outline-danger"
+                          data-toggle="modal" data-target="#deleteCategoryModal{{ term.category_id }}">
                     <i class="fas fa-trash"></i>
                   </button>
                 </td>
               </tr>
 
               <!-- Edit Modal -->
-              <div class="modal fade" id="editTermModal{{ term.id }}" tabindex="-1">
-                <div class="modal-dialog">
-                  <div class="modal-content">
-                    <form method="post">
-                      {% csrf_token %}
-                      <input type="hidden" name="action" value="edit">
-                      <input type="hidden" name="term_id" value="{{ term.id }}">
-                      <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">Edit Payment Term</h5>
-                        <button type="button" class="close" data-dismiss="modal">&times;</button>
-                      </div>
-                      <div class="modal-body">
-                          <div class="form-group">
-                    <label>Type</label>
-                    <select name="type" class="form-control">
-                      <option value="1" {% if term.type == 1 %}selected{% endif %}>Prepaid</option>
-                      <option value="2" {% if term.type == 2 %}selected{% endif %}>Postpaid</option>
-                    </select>
-                  </div>
+         <div class="modal fade" id="editCategoryModal{{ term.category_id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
 
-                        <div class="form-group">
-                          <label>Name</label>
-                          <input type="text" name="name" value="{{ term.name }}" class="form-control" required>
-                        </div>
-                        <div class="form-group">
-                          <label>Frequency</label>
-                          <input type="number" name="frequency" value="{{ term.frequency }}" class="form-control" min="0" step="1" required placeholder="e.g., 30">
-  <small class="form-text text-muted">Enter number of days (e.g., 7, 15, 30, 60)</small>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="edit">
+                <input type="hidden" name="category_id" value="{{ term.category_id }}">
 
-                        </div>
-                        <div class="form-group">
-                          <label>Status</label>
-                          <select name="status" class="form-control">
-                            <option value="Active" {% if term.status == 'Active' %}selected{% endif %}>Active</option>
-                            <option value="Inactive" {% if term.status == 'Inactive' %}selected{% endif %}>Inactive</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div class="modal-footer">
-                        <button type="submit" class="btn btn-success btn-sm">Save</button>
-                        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
-                      </div>
-                    </form>
-                  </div>
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Category</h5>
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
-              </div>
+
+                <div class="modal-body">
+
+                    <!-- NAME -->
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text"
+                               id="editName{{ term.category_id }}"
+                               name="name"
+                               class="form-control"
+                               value="{{ term.name }}"
+                               required>
+                    </div>
+
+                    <!-- IS SECONDARY -->
+                    <div class="form-group">
+                        <label class="ml-1">
+                            <input type="checkbox"
+                                   id="editSecondary{{ term.category_id }}"
+                                   name="is_secondary"
+                                   class="mr-2">
+                            Its Subcategory
+                        </label>
+                    </div>
+
+                    <!-- PARENT SELECT -->
+                    <div class="form-group"
+                         id="primarySelectBox{{ term.category_id }}">
+                        <label>Select Parent</label>
+                        <select name="primary_category_id"
+                                id="editParentSelect{{ term.category_id }}"
+                                class="form-control">
+                            <option value="">Select</option>
+                            {% for cat in main_categories %}
+                                <option value="{{ cat.category_id }}"
+                                    {% if term.primary_category_id == cat.category_id %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- STATUS -->
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select name="status"
+                                id="editStatus{{ term.category_id }}"
+                                class="form-control">
+                            <option value="1">Active</option>
+                            <option value="0">Inactive</option>
+                        </select>
+                    </div>
+
+                </div>
+
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success btn-sm">Save</button>
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+</div>
+
 
               <!-- Delete Modal -->
-              <div class="modal fade" id="deleteTermModal{{ term.id }}" tabindex="-1">
+              <div class="modal fade" id="deleteCategoryModal{{ term.category_id }}" tabindex="-1">
                 <div class="modal-dialog modal-sm">
                   <div class="modal-content">
                     <form method="post">
                       {% csrf_token %}
                       <input type="hidden" name="action" value="delete">
-                      <input type="hidden" name="term_id" value="{{ term.id }}">
+                      <input type="hidden" name="category_id" value="{{ term.category_id }}">
                       <div class="modal-body text-center py-4">
                         <p>Delete <strong>{{ term.name }}</strong>?</p>
                         <div class="d-flex justify-content-center">
                           <button type="submit" class="btn btn-danger btn-sm mr-2">Delete</button>
-                          <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                          <button type="button"
+                                  class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
                         </div>
                       </div>
                     </form>
@@ -154,34 +202,39 @@
               <form method="post">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="create">
-                <div class="modal-header bg-success text-white">
+                <div class="modal-header ">
                   <h5 class="modal-title">Add New</h5>
                   <button type="button" class="close" data-dismiss="modal">&times;</button>
                 </div>
                 <div class="modal-body">
                   <div class="form-group">
-                    <label>Type</label>
-                    <select name="type" class="form-control">
-                      <option value="1">Prepaid</option>
-                      <option value="2">Postpaid</option>
-                    </select>
-                  </div>
-
-                  <div class="form-group">
                     <label>Name</label>
                     <input type="text" name="name" class="form-control" required>
                   </div>
-                  <div class="form-group">
-                    <label>Frequency</label>
-                      <input type="number" name="frequency"  class="form-control" min="0" step="1" required placeholder="e.g., 30">
-  <small class="form-text text-muted">Enter number of days (e.g., 7, 15, 30, 60)</small>
+                   <div class="form-group ">
+                        <div class="offset-sm-0 ml-1">
+                            <input type="checkbox" value="1"
+                                   class="mr-2 is_primary" name="is_primary">Its Subcategory
+                        </div>
+                    </div>
 
-                  </div>
+                    <div class="form-group primary_select_box" style="display:none;">
+                        <label>Select Parent</label>
+                        <select name="primary_category_id" class="form-control">
+                            <option value="">Select</option>
+                            {% for cat in main_categories %}
+                             <option value="{{ cat.category_id }}">
+                                {{ cat.name }}
+                             </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                   <div class="form-group">
                     <label>Status</label>
                     <select name="status" class="form-control">
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
+                      <option value="1">Active</option>
+                      <option value="0">Inactive</option>
                     </select>
                   </div>
                 </div>
@@ -228,4 +281,47 @@
     </div>
   </section>
 </div>
+
+
+<script>
+    function editCategoryModal(category_id, name,is_primary,parent_category_id ,status ){
+       $("#editCategoryModal" + category_id).modal("show");
+
+    // SET NAME
+    $("#editName" + category_id).val(name);
+
+    // SET CHECKBOX (subcategory = 1, primary = 0)
+    let checkbox = $("#editSecondary" + category_id);
+    checkbox.prop("checked", is_primary == 0);
+
+    // PARENT SELECT BOX
+    let box = $("#primarySelectBox" + category_id);
+
+    if (is_primary == 0) {
+        box.show();
+    } else {
+        box.hide();
+    }
+
+    // SET PARENT CATEGORY
+    $("#editParentSelect" + category_id).val(parent_category_id);
+
+    // SET STATUS
+    $("#editStatus" + category_id).val(status);
+
+    // ENABLE RUNTIME TOGGLE
+    checkbox.off("change").on("change", function () {
+        if ($(this).is(":checked")) {
+            box.show();
+        } else {
+            box.hide();
+        }
+    });
+    }
+    $(document).ready(function () {
+    $(".is_primary").on("change", function () {
+        $(".primary_select_box").toggle($(this).is(":checked"));
+    });
+});
+</script>
 {% endblock %}

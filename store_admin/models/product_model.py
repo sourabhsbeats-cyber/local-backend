@@ -20,8 +20,8 @@ class Product(models.Model):
     short_description = models.TextField(blank=True, null=True)
 
     # IDENTIFIERS
-    brand_id = models.PositiveIntegerField(default=0)
-    manufacturer_id = models.PositiveIntegerField(default=0)
+    brand_id = models.PositiveIntegerField(default=0, null=True)
+    manufacturer_id = models.PositiveIntegerField(default=0, null=True)
     ean = models.CharField(max_length=50, blank=True, null=True)
     upc = models.CharField(max_length=50, blank=True, null=True)
     isbn = models.CharField(max_length=50, blank=True, null=True)
@@ -34,7 +34,7 @@ class Product(models.Model):
         ("refurbished", "Refurbished"),
         ("open_box", "Open Box"),
     ]
-    condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default="new")
+    status_condition = models.CharField(max_length=20, choices=CONDITION_CHOICES, default="new")
 
     # AMAZON IDENTIFIERS
     asin = models.CharField(max_length=50, blank=True, null=True)
@@ -102,7 +102,7 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product_id = models.PositiveIntegerField()
-    image = models.ImageField(upload_to="product_images/")
+    #image = models.ImageField(upload_to="product_images/")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

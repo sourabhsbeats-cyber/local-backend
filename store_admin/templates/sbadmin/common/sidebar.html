@@ -1,4 +1,7 @@
 {% load static %}
+{% url 'all_products' as all_products_url %}
+{% url 'vendor_listing' as all_vendors_url %}
+
 <aside class="main-sidebar sidebar-light-primary elevation-1">
     <!-- Brand Logo -->
     <a href="" class="brand-link">
@@ -118,72 +121,31 @@
           <!--
           <li class="nav-header">MISCELLANEOUS</li>-->
           <li class="nav-item">
-            <a href="/vendors" class="nav-link">
+            <a href="{{ all_vendors_url }}" class="nav-link {% if request.path == all_vendors_url %}active{% endif %}">
               <i class="nav-icon fas fa-file"></i>
               <p>Vendor</p>
             </a>
           </li>
 
           <li class="nav-item">
-            <a href="/vendors" class="nav-link">
-              <i class="nav-icon fas fa-calendar-alt"></i>
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-tag"></i>
               <p>Purchase Order</p>
             </a>
           </li>
-          <li class="nav-item has-treeview">
-            <a href="#" class="nav-link">
-              <i class="nav-icon far fa-plus-square"></i>
-              <p>
-                Settings
-                <i class="fas fa-angle-left right"></i>
-              </p>
-            </a>
-            <ul class="nav nav-treeview">
-              <li class="nav-item">
-                <a href="/all_countries" class="nav-link">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Country</p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="/payment_terms" class="nav-link">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Payment Terms</p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="/users" class="nav-link">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Users</p>
-                </a>
-              </li>
-              <li class="nav-item">
-                <a href="/roles" class="nav-link">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Roles</p>
-                </a>
-              </li>
-              <!--<li class="nav-item">
-                <a href="/departments" class="nav-link">
-                  <i class="far fa-circle nav-icon"></i>
-                  <p>Department</p>
-                </a>
-              </li>-->
-            </ul>
-          </li>
 
-
-             <li class="nav-item has-treeview">
-            <a href="#" class="nav-link">
-              <i class="nav-icon far fa-plus-square"></i>
+            <li class="nav-item has-treeview">
+            <a href="#" class="nav-link {% if request.path == all_products_url %}active{% endif %}">
+              <i class="nav-icon fas fa-shopping-bag"></i>
               <p>
                 Product
                 <i class="fas fa-angle-left right"></i>
               </p>
             </a>
             <ul class="nav nav-treeview">
-                <li class="nav-item">
-                <a href="{% url 'all_products' %}" class="nav-link">
+
+                <li class="nav-item ">
+                <a href="{{ all_products_url }}" class="nav-link">
                    <i class="far fa-circle nav-icon"></i>
                   <p>All Products</p>
                 </a>
@@ -206,10 +168,70 @@
                   <p>Manufactures</p>
                 </a>
               </li>
+            </ul>
+          </li>
 
+
+
+             <li class="nav-item has-treeview">
+            <a href="#" class="nav-link">
+              <i class="nav-icon  fas fa-shield-alt"></i>
+              <p>
+                Security
+                <i class="fas fa-angle-left right"></i>
+              </p>
+            </a>
+            <ul class="nav nav-treeview">
+
+              <li class="nav-item">
+                <a href="/users" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Users</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/roles" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Roles</p>
+                </a>
+              </li>
 
             </ul>
           </li>
+
+
+          <li class="nav-item has-treeview">
+            <a href="#" class="nav-link">
+              <i class="nav-icon fas fa-cog"></i>
+              <p>
+                Settings
+                <i class="fas fa-angle-left right"></i>
+              </p>
+            </a>
+            <ul class="nav nav-treeview">
+              <li class="nav-item">
+                <a href="/all_countries" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Country</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="/payment_terms" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Payment Terms</p>
+                </a>
+              </li>
+              <!--<li class="nav-item">
+                <a href="/departments" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Department</p>
+                </a>
+              </li>-->
+            </ul>
+          </li>
+
+
+
 
         </ul>
       </nav>

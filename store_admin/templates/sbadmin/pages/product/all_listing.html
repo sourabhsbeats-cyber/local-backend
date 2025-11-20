@@ -16,10 +16,22 @@
           <h1>Products</h1>
         </div>
         <div class="col-sm-6">
-          <a href="{% url 'add_new_product'  %}"
-             class="btn btn-primary float-right btn-sm">
-            <i class="fas fa-plus"></i> Add New
-          </a>
+            <div class="float-right">
+             <div class="btn-group float-right">
+                    <button type="button" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1"></i>Actions</button>
+                    <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span class="sr-only">Toggle Dropdown</span>
+                    </button>
+
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item" href="{% url 'add_new_product' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
+                        <a class="dropdown-item" href="{% url 'import_product' %}""><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
+                        <a class="dropdown-item" href="#"><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+
+                    </div>
+                </div>
+          </div>
         </div>
       </div>
     </div>
@@ -40,7 +52,9 @@
   <!-- Main Content -->
   <section class="content">
     <div class="card card-outline">
-      <div class="card-header d-flex justify-content-between align-items-center">
+       <div class="card-header">
+          <div class="col-sm-3 float-left">
+
         <form method="get">
           <div class="input-group input-group-sm">
             <input type="text" name="q" value="{{ search_query }}"
@@ -53,6 +67,14 @@
             </div>
           </div>
         </form>
+          </div>
+          <div class="mb-2 float-right">
+            <button type="button" style="display: none;"  id="bulkDeleteBtn"
+                    class="btn btn-outline-danger btn-sm"
+                    onclick="deleteSelected()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
       </div>
 
       <div class="card-body p-0">
@@ -60,34 +82,52 @@
           <table class="table table-responsive-sm table-head-fixed mb-0">
             <thead>
               <tr>
-                <th style="width:20%">NAME</th>
-                <th style="width:15%">VENDOR CODE</th>
+                <th style="width:2%">
+                     <div class="custom-control custom-checkbox">
+                      <input class="custom-control-input" type="checkbox" id="select_all"/>
+                      <label for="select_all" class="custom-control-label"></label>
+                  </div>
+
+                </th>
+                <th style="width:20%">TITLE</th>
+                <th style="width:15%">SKU</th>
                 <th style="width:15%">COMPANY NAME</th>
-                <th style="width:15%">EMAIL</th>
-                <th style="width:15%">WORK PHONE</th>
+                <th style="width:15%">TYPE</th>
                 <th class="text-center" style="width:20%">MANAGE</th>
               </tr>
             </thead>
 
             <tbody>
-              {% for vendor in allvendors %}
+
+            <!--
+            'product_id','product_type',
+            'company_name','brand_id', 'manufacturer_id',
+            'status_condition', 'stock_status', 'publish_status', 'status', 'created_at' -->
+
+              {% for product in allproducts %}
               <tr>
-                <td>{{ vendor.name }}</td>
-                <td>{{ vendor.vendor_code }}</td>
-                <td>{{ vendor.company_name }}</td>
-                <td>{{ vendor.email_address }}</td>
-                <td>{{ vendor.work_phone }}</td>
+                <td>
+                    <div class="custom-control custom-checkbox">
+                         <input class="product-check custom-control-input" value="{{ product.product_id }}"
+                             type="checkbox" id="product_check_{{ product.product_id }}" />
+                      <label for="product_check_{{ product.product_id }}" class="custom-control-label"></label>
+                    </div>
+                </td>
+                <td>{{ product.title }}</td>
+                <td>{{ product.sku }}</td>
+                <td>{{ product.brand_name }}</td>
+                <td>{{ product.product_type_name }}</td>
 
                 <td class="text-center">
-                  <a href="{% url 'edit_vendor' vendor.id %}"
+                  <a href="{% url 'edit_product' product.product_id %}"
                      class="btn btn-sm btn-outline-success"
-                     title="Edit Vendor">
+                     title="Edit Product">
                     <i class="fas fa-edit"></i>
                   </a>
 
                   <button type="button"
                           class="btn btn-outline-danger btn-sm"
-                          onclick="deleteSelectedVendor({{ vendor.id }})">
+                          onclick="deleteSelectedProduct({{ product.product_id }})">
                     <i class="fas fa-trash-alt"></i>
                   </button>
                 </td>
@@ -95,8 +135,8 @@
 
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center text-muted py-3">
-                  No vendors found.
+                <td colspan="5" class="text-center text-muted py-3">
+                  No records found.
                 </td>
               </tr>
               {% endfor %}
@@ -110,7 +150,7 @@
       <div class="card-footer d-flex justify-content-between align-items-center">
         <small class="text-muted">
           Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
-          of {{ page_obj.paginator.count }} vendors
+          of {{ page_obj.paginator.count }} products
         </small>
 
         <nav>
@@ -156,40 +196,130 @@
   </section>
 </div>
 
-
 {% block footer_scripts %}
 <script>
-function deleteSelectedVendor(vendorId) {
+document.addEventListener("DOMContentLoaded", function() {
+    const selectAllCb = document.getElementById("select_all");
+    const bulkBtn = document.getElementById("bulkDeleteBtn");
+    const itemCheckboxes = document.querySelectorAll(".product-check");
+
+    // --- 1. VISIBILITY LOGIC ---
+
+    function toggleBulkButton() {
+        // Count how many are checked
+        const checkedCount = document.querySelectorAll(".product-check:checked").length;
+
+        // Show button if at least 1 is checked
+        if (checkedCount > 0) {
+            bulkBtn.style.display = "inline-block";
+        } else {
+            bulkBtn.style.display = "none";
+        }
+    }
+
+    // --- 2. SELECT ALL EVENT ---
+
+    if(selectAllCb){
+        selectAllCb.addEventListener("change", function() {
+            const isChecked = this.checked;
+            // Check/Uncheck all individual boxes
+            itemCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+            // Update button visibility immediately
+            toggleBulkButton();
+        });
+    }
+
+    // --- 3. INDIVIDUAL CHECKBOX EVENTS ---
+
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener("change", function() {
+            // If one is unchecked, uncheck "Select All"
+            if (!this.checked) {
+                if(selectAllCb) selectAllCb.checked = false;
+            }
+            toggleBulkButton();
+        });
+    });
+});
+
+// --- 4. BULK DELETE FUNCTION ---
+
+function deleteSelected() {
+    let selectedIds = [];
+    document.querySelectorAll(".product-check:checked").forEach(cb => {
+        selectedIds.push(cb.value);
+    });
+
+    if (selectedIds.length === 0) return;
+
     Swal.fire({
-        title: "Delete Vendor?",
+        title: "Delete Selected?",
+        text: `You are about to delete ${selectedIds.length} products. This cannot be undone.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Yes, delete them!"
+    }).then((result) => {
+        if (!result.value) return;
+        if (result.value) {
+            fetch("{% url 'delete_products_bulk' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ ids: selectedIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    Swal.fire("Deleted!", "Products have been deleted.", "success")
+                    .then(() => location.reload());
+                } else {
+                    Swal.fire("Error", data.message || "Failed to delete.", "error");
+                }
+            })
+            .catch(error => Swal.fire("Error", "Server error occurred.", "error"));
+        }
+    });
+}
+
+// --- 5. SINGLE DELETE FUNCTION (Trash Icon) ---
+
+function deleteSelectedProduct(productId) { // Kept function name consistent with your loop
+
+
+    Swal.fire({
+        title: "Delete Product?",
         text: "This action cannot be undone.",
         icon: "warning",
         showCancelButton: true,
-        confirmButtonText: "Delete",
-        cancelButtonText: "Cancel"
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Delete"
     }).then(result => {
         if (!result.value) return;
-
-        fetch(`/vendor/delete/${vendorId}/`, {
-            method: "DELETE",
-            headers: {
-                "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value,
-                "Accept": "application/json"
-            }
-        })
-        .then(r => r.json())
-        .then(data => {
-            if(data.status){
-                Swal.fire({
-                    title: "Deleted",
-                    text: "Vendor removed successfully",
-                    icon: "success"
-                }).then(() => window.location.reload());
-            }else{
-                Swal.fire("Error", data.message || "Something went wrong", "error");
-            }
-        })
-        .catch(() => Swal.fire("Error", "Server error", "error"));
+        if (result.value) {
+            // Note: Ensure this URL matches your urls.py pattern perfectly
+            fetch(`/product/delete/${productId}/`, {
+                method: "DELETE",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Accept": "application/json"
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status){
+                    Swal.fire("Deleted", "Product removed successfully", "success")
+                    .then(() => window.location.reload());
+                } else {
+                    Swal.fire("Error", data.message || "Something went wrong", "error");
+                }
+            })
+            .catch(() => Swal.fire("Error", "Server error", "error"));
+        }
     });
 }
 </script>

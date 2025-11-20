@@ -1,0 +1,105 @@
+{% extends "sbadmin/base.html" %}
+{% load custom_filters %}
+{% block title %}Import Product{% endblock %}
+{% block content %}
+
+<style>
+    .import-steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+        margin-bottom: 40px;
+    }
+    .step-item {
+        display: flex;
+        align-items: center;
+        margin: 0 20px;
+        color: #999;
+        font-size: 15px;
+        font-weight: 500;
+    }
+    .step-circle {
+        display: flex;
+        align-items: center;
+    }
+    .step-item.active {
+        color: #000;
+    }
+    .step-item.active .step-circle {
+        background: #4a90e2;
+        color: #fff;
+        border-color: #4a90e2;
+    }
+    .step-divider {
+        width: 50px;
+        height: 2px;
+        background: #e6e6e6;
+    }
+
+    .upload-wrapper {
+        width: 55%;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+.preview-table {
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fff;
+    }
+    .import-steps {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+    }
+    .step-item { margin: 0 20px; text-align: center; }
+    .step-circle i { font-size: 28px; }
+</style>
+
+<div class="content-wrapper">
+
+    <div class="container mt-4">
+        <h4 class="text-center mb-4"> Confirm</h4>
+
+        <!-- Steps -->
+        <div class="import-steps">
+            <div class="step-item">
+                <div class="step-circle">
+                    <i class="fas fa-check-circle text-success mr-2"></i>
+                </div>
+                <div>Configure</div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-circle">
+                    <i class="fas fa-check-circle text-success mr-2"></i>
+                </div>
+                <div>Map Fields</div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-circle">
+                    <i class="fas fa-check-circle text-success mr-2"></i>
+                </div>
+                <div>Preview</div>
+            </div>
+        </div>
+
+        <div class="alert alert-success d-flex align-items-center">
+            <i class="fas fa-info-circle fa-lg mr-2"></i>
+            <div>
+                <strong>Total Records:</strong> {{ imported_count }} <br>
+            </div>
+        </div>
+        <div class="mt-4 d-flex justify-content-center mb-5">
+            <a href="{% url 'all_products' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-check mr-1"></i> Ok
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -4,6 +4,12 @@
 {% block content %}
 
 <style>
+    .no-select {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
     .bg-badges-tag{
         background-color: #b9b9b9;
     }
@@ -48,7 +54,7 @@
         </div>
         <div class="col-sm-6">
           <ol class="breadcrumb float-sm-right">
-            <li class="breadcrumb-item"><a href="#">Product</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'all_products' %}">Product</a></li>
             <li class="breadcrumb-item active">Add</li>
           </ol>
         </div>
@@ -62,7 +68,7 @@
         <h3 class="card-title mb-0">
           <i class="fas fa-building mr-2 text-info"></i> Product Information
         </h3>
-        <a href="{% url 'vendor_listing' %}" class="float-right pt-2 btn btn-tool">
+        <a href="{% url 'all_products' %}" class="float-right pt-2 btn btn-tool">
           <i class="fas fa-times"></i>
         </a>
       </div>
@@ -73,6 +79,7 @@
               enctype="multipart/form-data"
               class="form-horizontal"
               id="productForm" method="post">
+
             {% csrf_token %}
             <div class="row col-md-12">
                 <div class="col-md-8 float-left">
@@ -82,9 +89,10 @@
                         <div class="mb-4"><h5>Product Type</h5></div>
 
                         <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Product Type</label>
+                            <label class="col-sm-2 col-form-label ">Product Type</label>
                             <div class="col-sm-10">
-                              <select name="product_type" class="form-control custom-select">
+                              <select name="product_type" class="form-control custom-select select2" placeholder="Select product type">
+                                  <option value="">Select product type</option>
                                   <option value="1">Standard</option>
                                   <option value="2">Parent</option>
                                   <option value="3">Child</option>
@@ -92,24 +100,28 @@
                               </select>
                             </div>
                         </div>
-                        <!-- Required if Product Type = Child. -->
+
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Parent SKU</label>
                             <div class="col-sm-10">
-                              <input type="text" name="parent_sku" class="form-control">
+                              <input type="text" name="parent_sku" class="form-control" placeholder="Enter parent SKU">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Bundle SKU</label>
                             <div class="col-sm-10">
-                              <input type="text" name="bundle_sku" class="form-control">
+                              <input type="text" name="bundle_sku" class="form-control" placeholder="Enter bundle SKU">
                             </div>
                         </div>
-                       <!-- Required; select which SKUs form this bundle. -->
-                        <div class="form-group row">
+                        <div class="form-group row icheck-primary d-inline">
                             <div class="offset-sm-2 col-sm-10">
-                                <input type="checkbox" name="is_alias"> Alias Product
+                                <div class="icheck-primary d-inline no-select">
+                                    <input type="checkbox" id="checkboxPrimary2" name="is_alias">
+                                    <label for="checkboxPrimary2" >Alias Product
+                                    </label>
+                                </div>
+
                             </div>
                         </div>
                     </div>
@@ -123,35 +135,36 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">SKU</label>
                             <div class="col-sm-10">
-                              <input type="text" name="sku" class="form-control">
+                              <input type="text" name="sku" class="form-control" placeholder="Enter unique SKU">
                             </div>
                         </div>
-                        <!-- Required -->
+
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Title</label>
                             <div class="col-sm-10">
-                              <input type="text" name="title" class="form-control">
+                              <input type="text" name="title" class="form-control" placeholder="Enter product title">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Subtitle</label>
                             <div class="col-sm-10">
-                              <input type="text" name="subtitle" class="form-control">
+                              <input type="text" name="subtitle" class="form-control" placeholder="Enter subtitle">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Description</label>
                             <div class="col-sm-10">
-                              <textarea name="description" class="form-control"></textarea>
+                              <textarea name="description" rows="4" class="form-control"
+                                        placeholder="Enter detailed description"></textarea>
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Short Desc</label>
                             <div class="col-sm-10">
-                              <textarea name="short_description" class="form-control"></textarea>
+                              <textarea name="short_description" rows="4" class="form-control" placeholder="Enter short summary"></textarea>
                             </div>
                         </div>
                     </div>
@@ -165,8 +178,11 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Brand</label>
                             <div class="col-sm-10">
-                                <select name="brand_id" class="form-control select2">
+                                <select name="brand_id" class="form-control select2" placeholder="Select brand">
                                     <option value="">Select brand</option>
+                                    {% for brand in brands %}
+                                        <option value="{{ brand.brand_id }}">{{ brand.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -174,8 +190,11 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Manufacturer</label>
                             <div class="col-sm-10">
-                                <select name="manufacturer_id" class="form-control select2">
+                                <select name="manufacturer_id" class="form-control select2" placeholder="Select manufacturer">
                                     <option value="">Select manufacturer</option>
+                                    {% for manufactur in manufacturers %}
+                                        <option value="{{ manufactur.manufacturer_id }}">{{ manufactur.name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                         </div>
@@ -183,51 +202,51 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">EAN</label>
                             <div class="col-sm-10">
-                              <input type="text" name="ean" class="form-control">
+                              <input type="text" name="ean" class="form-control" placeholder="Enter EAN code">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">UPC</label>
                             <div class="col-sm-10">
-                              <input type="text" name="upc" class="form-control">
+                              <input type="text" name="upc" class="form-control" placeholder="Enter UPC code">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">ISBN</label>
                             <div class="col-sm-10">
-                              <input type="text" name="isbn" class="form-control">
+                              <input type="text" name="isbn" class="form-control" placeholder="Enter ISBN number">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">MPN</label>
                             <div class="col-sm-10">
-                              <input type="text" name="mpn" class="form-control">
+                              <input type="text" name="mpn" class="form-control" placeholder="Enter manufacturer part number">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Country of Origin</label>
                             <div class="col-sm-10">
+
                                 <select name="country_origin_id"
                                         id="country_origin_id"
-                                        class="form-control ">
-                                    <option value=""></option>
+                                        class="form-control"
+                                        placeholder="Select country">
+                                    <option value="">Select country</option>
                                     {% for term in countries_list %}
-                                        <option value="{{ term.id }}" >
-                                            {{ term.name }}
-                                        </option>
+                                        <option value="{{ term.id }}">{{ term.name }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
                         </div>
-
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Condition</label>
                             <div class="col-sm-10">
-                                <select name="condition" class="form-control custom-select">
+                                <select name="condition" class="form-control custom-select select2" placeholder="Select condition">
+                                    <option value="">Select condition</option>
                                     <option value="new">New</option>
                                     <option value="used">Used</option>
                                     <option value="refurbished">Refurbished</option>
@@ -246,34 +265,45 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">ASIN</label>
                             <div class="col-sm-10">
-                                <input type="text" name="asin" class="form-control">
+                                <input type="text" name="asin" class="form-control" placeholder="Enter ASIN">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">FNSKU</label>
                             <div class="col-sm-10">
-                                <input type="text" name="fnsku" class="form-control">
+                                <input type="text" name="fnsku" class="form-control" placeholder="Enter FNSKU">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">FBA SKU</label>
                             <div class="col-sm-10">
-                                <input type="text" name="fba_sku" class="form-control">
+                                <input type="text" name="fba_sku" class="form-control" placeholder="Enter FBA SKU">
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <div class="offset-sm-2 col-sm-10">
-                                <input type="checkbox" name="is_fba"> FBA
+
+
+                                 <div class="icheck-primary d-inline no-select">
+                                    <input type="checkbox" id="is_fba" name="is_fba">
+                                    <label for="is_fba" >FBA
+                                    </label>
+                                </div>
+
+
+
+
                             </div>
                         </div>
 
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">ISBN Type</label>
                             <div class="col-sm-10">
-                                <select name="isbn_type" class="form-control custom-select">
+                                <select name="isbn_type" class="form-control custom-select" placeholder="Select ISBN type">
+                                    <option value="">Select ISBN type</option>
                                     <option value="standard">Standard</option>
                                     <option value="oversize">Oversize</option>
                                 </select>
@@ -283,7 +313,8 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Barcode Type</label>
                             <div class="col-sm-10">
-                                <select name="barcode_label_type" class="form-control custom-select">
+                                <select name="barcode_label_type" class="form-control custom-select" placeholder="Select barcode type">
+                                    <option value="">Select barcode type</option>
                                     <option value="manufacturer">Manufacturer</option>
                                     <option value="amazon_barcode">Amazon Barcode</option>
                                 </select>
@@ -293,7 +324,8 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Prep Type</label>
                             <div class="col-sm-10">
-                                <select name="prep_type" class="form-control custom-select">
+                                <select name="prep_type" class="select2 form-control custom-select" placeholder="Select prep type">
+                                    <option value="">Select prep type</option>
                                     <option value="no_prep_needed">No Prep Needed</option>
                                     <option value="polybag">Polybagging</option>
                                     <option value="bubble_wrap">Bubble Wrap</option>
@@ -312,7 +344,8 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Stock</label>
                             <div class="col-sm-10">
-                                <select name="stock_status" class="form-control custom-select">
+                                <select name="stock_status" class="form-control custom-select select2" placeholder="Select stock status">
+                                    <option value="">Select stock status</option>
                                     <option value="1">In Stock</option>
                                     <option value="2">Out of Stock</option>
                                     <option value="3">Preorder</option>
@@ -324,7 +357,8 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Status</label>
                             <div class="col-sm-10">
-                                <select name="status" class="form-control custom-select">
+                                <select name="status" class="select2 form-control custom-select" placeholder="Select status">
+                                    <option value="">Select status</option>
                                     <option value="1">Active</option>
                                     <option value="2">Draft</option>
                                     <option value="3">Discontinued</option>
@@ -336,7 +370,8 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Publish</label>
                             <div class="col-sm-10">
-                                <select name="publish_status" class="form-control custom-select">
+                                <select name="publish_status" class="form-control custom-select" placeholder="Select publish status">
+                                    <option value="">Select publish status</option>
                                     <option value="1">Yes</option>
                                     <option value="0">No</option>
                                 </select>
@@ -353,22 +388,30 @@
                         <div class="form-group row">
                             <label class="col-sm-2 col-form-label">Warranty</label>
                             <div class="col-sm-10">
-                                <input type="number" name="warranty" class="form-control">
+                                <input type="number" name="warranty" class="form-control" placeholder="Enter warranty in months">
                             </div>
                         </div>
 
                         <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Product Tags</label>
-                            <div class="col-sm-10">
+    <label class="col-sm-2 col-form-label">Product Tags</label>
+    <div class="col-sm-10">
 
-                                <input type="hidden" name="product_tags" id="product_tags_id">
-                                <input type="text" id="tagInput" class="form-control mt-2" placeholder="Type and press Enter">
-                                <div id="tagContainer" class="form-control p-2 mt-3 "
-                                     style="min-height: 45px;background-color: #e4e4e4; display: flex; flex-wrap: wrap; gap: 5px;">
-                                </div>
+        <!-- hidden input to save final CSV value -->
+        <input type="hidden" name="product_tags" id="product_tags_id">
 
-                            </div>
-                        </div>
+        <!-- input where user types tag -->
+        <input type="text" id="tagInput" class="form-control mt-2"
+               placeholder="Type a tag and press Enter, Unique values only">
+
+        <!-- tag container -->
+        <div id="tagContainer"
+             class="form-control p-2 mt-3"
+             style="min-height: 45px; background-color:#e4e4e4; display:flex; flex-wrap:wrap; gap:5px;">
+        </div>
+
+    </div>
+</div>
+
                     </div>
 
                 </div>
@@ -401,7 +444,7 @@
 
             <div class="text-left mt-5">
                 <button type="submit" id="btn_add_product" class="btn btn-success btn-sm">Save</button>
-                <button type="button" class="btn btn-secondary btn-sm ml-2" onclick="window.history.back();">Cancel</button>
+                <a href="{% url 'all_products' %}" class="btn btn-secondary btn-sm ml-2" >Cancel</a>
             </div>
 
         </form>
@@ -411,72 +454,6 @@
 </div>
 
 {% block footer_script %}
-
-<script>
-
-$(document).ready(function () {
-    $('#country_origin_id').select2({
-        placeholder: "Search Country...",
-        allowClear: true,
-       });
-    $('#country_origin_id').trigger('change');
-   /* $('#country_origin_id').select2({
-        placeholder: "Search Country...",
-        allowClear: true,
-        minimumInputLength: 2,
-        ajax: {
-            url: "/common/list_countries/",
-            dataType: "json",
-            delay: 300,
-            data: params => ({ q: params.term }),
-            processResults: data => ({
-                results: data.results
-            })
-        }
-    });*/
-});
-
-document.addEventListener("DOMContentLoaded", function () {
-
-    const form = document.getElementById("productForm");
-    form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        let formData = new FormData(form);
-        const saveBtn = document.getElementById("btn_add_product");
-        saveBtn.disabled = true;
-        const originalHTML = saveBtn.innerHTML;
-        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
-        fetch("{% url 'create_new_product' %}", {
-            method: "POST",
-            body: formData,
-            headers: { "X-CSRFToken": getCSRFToken() }
-        })
-        .then(response => response.json())
-        .then(data => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalHTML;
-
-            if (data.status === "success") {
-                toastr.success(data.message || "Product saved!");
-                if (data.redirect_url) window.location.href = data.redirect_url;
-            } else {
-                toastr.error(data.message || "Something went wrong!");
-            }
-        })
-        .catch(err => {
-            saveBtn.disabled = false;
-            saveBtn.innerHTML = originalHTML;
-            toastr.error("Server error. Try again.");
-            console.error(err);
-        });
-    });
-});
-
-function getCSRFToken() {
-    return document.querySelector('[name=csrfmiddlewaretoken]').value;
-}
-</script>
 
 <script>
 Dropzone.autoDiscover = false;
@@ -547,18 +524,80 @@ function createHiddenFields() {
     });
 }
 </script>
+
 <script>
+
+$(document).ready(function () {
+    /*$('#country_origin_id').select2({
+        placeholder: "Search Country...",
+        allowClear: true,
+        minimumInputLength: 2,
+        ajax: {
+            url: "/common/list_countries/",
+            dataType: "json",
+            delay: 300,
+            data: params => ({ q: params.term }),
+            processResults: data => ({
+                results: data.results
+            })
+        }
+    });*/
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+
+    const form = document.getElementById("productForm");
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        let formData = new FormData(form);
+        const saveBtn = document.getElementById("btn_add_product");
+        saveBtn.disabled = true;
+        const originalHTML = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        fetch("{% url 'create_new_product' %}", {
+            method: "POST",
+            body: formData,
+            headers: { "X-CSRFToken": getCSRFToken() }
+        })
+        .then(response => response.json())
+        .then(data => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalHTML;
+
+            if (data.status === "success") {
+                toastr.success(data.message || "Product saved!");
+                if (data.redirect_url) window.location.href = data.redirect_url;
+            } else {
+                toastr.error(data.message || "Something went wrong!");
+            }
+        })
+        .catch(err => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalHTML;
+            toastr.error("Server error. Try again.");
+            console.error(err);
+        });
+    });
+});
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
+
 let tags = [];
 
 const tagInput = document.getElementById("tagInput");
 const tagContainer = document.getElementById("tagContainer");
 const hiddenTagInput = document.getElementById("product_tags_id");
 
-// Add chip when pressing Enter
+// Add tag on ENTER
 tagInput.addEventListener("keydown", function(e) {
     if (e.key === "Enter") {
         e.preventDefault();
         const val = tagInput.value.trim();
+
         if (val !== "" && !tags.includes(val)) {
             tags.push(val);
             renderTags();
@@ -576,7 +615,7 @@ function renderTags() {
 
         chip.innerHTML = `
             ${tag}
-            <span class="ml-2" style="cursor:pointer; font-weight:bold;" onclick="removeTag('${tag}')">×</span>
+            <span class="ml-2" style="cursor:pointer;font-weight:bold;" onclick="removeTag('${tag}')">×</span>
         `;
         tagContainer.appendChild(chip);
     });
@@ -589,5 +628,6 @@ function removeTag(tag) {
     renderTags();
 }
 </script>
+
 {% endblock %}
 {% endblock %}

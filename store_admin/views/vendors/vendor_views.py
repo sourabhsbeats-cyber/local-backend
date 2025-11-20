@@ -1,18 +1,7 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponseBadRequest
-
 from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
@@ -21,6 +10,11 @@ from django.db import transaction
 from django.db.models import Min
 from django.db.models import Value as V
 from django.db.models.functions import Concat
+from django.db.models import Min, Value as V
+from django.db.models.functions import Concat
+from django.core.paginator import Paginator
+from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 
 
 @login_required
@@ -40,7 +34,6 @@ def add_new_vendor(request):
         'currency_list':currency_list
     }
     return render(request, 'sbadmin/pages/vendor/add_new.html', context)
-
 
 @login_required
 def edit_vendor(request, vendor_id):
@@ -77,35 +70,59 @@ def edit_vendor(request, vendor_id):
 @login_required
 def all_vendors(request):
     payment_terms = PaymentTerm.objects.all()
+
     countries_list = Country.objects.values('currency').annotate(
-        id=Min('id'),  # pick country with smallest ID per currency
+        id=Min('id'),
         currency_name=Min('currency_name')
     )
+
     currency_list = Country.objects.values('currency').annotate(
-        id=Min('id'),  # pick country with smallest ID per currency
+        id=Min('id'),
         currency_name=Min('currency_name')
     )
-    allvendors = Vendor.objects.annotate(
+
+    search_query = request.GET.get("q", "").strip()
+
+    # Base queryset
+    vendors = Vendor.objects.annotate(
         name=Concat(
             'salutation', V(' '),
             'first_name', V(' '),
             'last_name'
         )
-    ).values('id', 'name', 'company_name', 'email_address', 'vendor_code', 'work_phone')
-    # context = locals()
+    ).values(
+        'id', 'name', 'company_name',
+        'email_address', 'vendor_code',
+        'work_phone'
+    ).order_by('id')
+
+    # Searching support
+    if search_query:
+        vendors = vendors.filter(
+            Q(name__icontains=search_query) |
+            Q(company_name__icontains=search_query) |
+            Q(email_address__icontains=search_query) |
+            Q(vendor_code__icontains=search_query)
+        )
+
+    # Pagination
+    paginator = Paginator(vendors, 10)  # 10 rows per page
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
     context = {
         'user': request.user.id,
         'payment_terms': payment_terms,
         'countries_list': countries_list,
-        'currency_list':currency_list,
-        'allvendors': allvendors
+        'currency_list': currency_list,
+        'allvendors': page_obj.object_list,  # Data for table
+        'page_obj': page_obj,  # Data for pagination
+        'search_query': search_query,
     }
-    print(allvendors)
 
     return render(request, 'sbadmin/pages/vendor/all_listing.html', context)
 
 
-@csrf_exempt
 @login_required
 def save_vendor(request):
     if request.method != "POST":
@@ -247,7 +264,6 @@ def save_vendor(request):
             "detail": str(e)
         }, status=500)
 
-
 def save_address(request, type, vendor_id):
     try:
         field_prefix = f"{type}_"
@@ -317,7 +333,6 @@ def extract_bank_details(request):
 
     return banks
 
-
 def extract_contacts(request):
     contacts = []
     index = 0
@@ -342,7 +357,6 @@ def extract_contacts(request):
 
     return contacts
 
-
 @login_required
 def delete_vendor_contact(request, contact_id):
     try:
@@ -355,8 +369,6 @@ def delete_vendor_contact(request, contact_id):
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)})
 
-
-
 @login_required
 def delete_vendor_bank(request, bank_id):
     try:
@@ -368,7 +380,6 @@ def delete_vendor_bank(request, bank_id):
         return JsonResponse({"status": True, "message": "Bank details deleted"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)})
-
 
 @login_required
 def delete_vendor(request, vendor_id):
@@ -389,3 +400,20 @@ def delete_vendor(request, vendor_id):
         return JsonResponse({"status": True, "message": "Vendor deleted successfully"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)}, status=500)
+
+from django.http import JsonResponse
+import json
+@login_required
+def delete_vendors_bulk(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request"})
+
+    data = json.loads(request.body)
+    ids = data.get("ids", [])
+
+    if not ids:
+        return JsonResponse({"status": "error", "message": "No vendors selected"})
+
+    Vendor.objects.filter(id__in=ids).delete()
+
+    return JsonResponse({"status": "success", "deleted": len(ids)})

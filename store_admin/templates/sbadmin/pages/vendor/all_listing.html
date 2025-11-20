@@ -16,10 +16,22 @@
           <h1>All Vendors</h1>
         </div>
         <div class="col-sm-6">
-          <a href="{% url 'add_new_vendor'  %}"
-             class="btn btn-primary float-right btn-sm">
-            <i class="fas fa-plus"></i> Add New
-          </a>
+          <div class="float-right">
+             <div class="btn-group float-right">
+                    <button type="button" class="btn btn-success"><i class="fas fa-bars fa-sm mr-1"></i>Actions</button>
+
+                    <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span class="sr-only">Toggle Dropdown</span>
+                    </button>
+
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item text-sm" href="{% url 'add_new_vendor' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
+                        <a class="dropdown-item text-sm" href="{% url 'import_vendor' %}"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
+                        <a class="dropdown-item text-sm" href="#"><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+                    </div>
+                </div>
+          </div>
         </div>
       </div>
     </div>
@@ -40,7 +52,9 @@
   <!-- Main Content -->
   <section class="content">
     <div class="card card-outline">
-      <div class="card-header d-flex justify-content-between align-items-center">
+      <div class="card-header">
+          <div class="col-sm-3 float-left">
+
         <form method="get">
           <div class="input-group input-group-sm">
             <input type="text" name="q" value="{{ search_query }}"
@@ -53,6 +67,15 @@
             </div>
           </div>
         </form>
+          </div>
+          <div class="mb-2 float-right">
+            <button type="button"
+                    class="btn btn-danger btn-sm"
+                    onclick="deleteSelectedVendors()">
+                Delete Selected
+            </button>
+        </div>
+
       </div>
 
       <div class="card-body p-0">
@@ -60,7 +83,13 @@
           <table class="table table-responsive-sm table-head-fixed mb-0">
             <thead>
               <tr>
-                <th style="width:20%">NAME</th>
+              <th style="width:2%">
+                  <div class="custom-control custom-checkbox">
+                      <input class="custom-control-input" type="checkbox" id="select_all" />
+                      <label for="select_all" class="custom-control-label"></label>
+                  </div>
+              </th>
+                <th style="width:18%">NAME</th>
                 <th style="width:15%">VENDOR CODE</th>
                 <th style="width:15%">COMPANY NAME</th>
                 <th style="width:15%">EMAIL</th>
@@ -72,6 +101,13 @@
             <tbody>
               {% for vendor in allvendors %}
               <tr>
+                <td>
+                     <div class="custom-control custom-checkbox">
+                      <input class="vendor-check custom-control-input" value="{{ vendor.id }}"
+                             type="checkbox" id="vendor_check_{{ vendor.id }}" />
+                      <label for="vendor_check_{{ vendor.id }}" class="custom-control-label"></label>
+                    </div>
+                </td>
                 <td>{{ vendor.name }}</td>
                 <td>{{ vendor.vendor_code }}</td>
                 <td>{{ vendor.company_name }}</td>
@@ -193,6 +229,48 @@ function deleteSelectedVendor(vendorId) {
     });
 }
 </script>
+<script>
+document.getElementById("select_all").addEventListener("change", function () {
+    let checked = this.checked;
+    document.querySelectorAll(".vendor-check").forEach(cb => cb.checked = checked);
+});
+
+// Bulk delete
+function deleteSelectedVendors() {
+    let selected = [];
+    document.querySelectorAll(".vendor-check:checked").forEach(cb => {
+        selected.push(cb.value);
+    });
+
+    if (selected.length === 0) {
+        alert("Please select at least one vendor.");
+        return;
+    }
+
+    if (!confirm("Are you sure you want to delete selected vendors?")) {
+        return;
+    }
+
+    fetch("{% url 'delete_vendors_bulk' %}", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": "{{ csrf_token }}"
+        },
+        body: JSON.stringify({ ids: selected })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === "success") {
+            alert("Selected vendors deleted successfully.");
+            location.reload();
+        } else {
+            alert("Error deleting vendors.");
+        }
+    });
+}
+</script>
+
 {% endblock %}
 
 {% endblock %}

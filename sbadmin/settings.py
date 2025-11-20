@@ -14,7 +14,7 @@ from pathlib import Path
 import os
 
 from django.conf.global_settings import AUTHENTICATION_BACKENDS
-
+from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -23,12 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-&&5t4y23g7@do1+al$_48*8qzzpg9g=m-i%50$g#1-^##e&#rh'
+SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config("ALLOWED_HOSTS").split(",")
 
 
 # Application definition
@@ -89,11 +89,11 @@ DATABASES = {
    # }
    'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'sb_commerce_b2b_dev',
-        'USER': 'root',
-        'PASSWORD': 'Apple2025$123',
-        'HOST': 'localhost',
-        'PORT': '3306',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT'),
     }
 }
 
@@ -136,9 +136,24 @@ LOGOUT_REDIRECT_URL = '/login/'
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+if os.environ.get("DJANGO_ENV") == "production":
+    # Server mode
+    STATIC_ROOT = '/var/www/html/sbadmin/static/'
+    STATICFILES_DIRS = []
+else:
+    # Local development
+    STATICFILES_DIRS = [
+        os.path.join(BASE_DIR, 'store_admin', 'static'),
+    ]
+
 #STATIC_ROOT = '/var/www/html/sbadmin/static/'
-STATICFILES_DIRS = [os.path.join(BASE_DIR, 'store_admin', 'static')]
+#STATICFILES_DIRS = [os.path.join(BASE_DIR, 'store_admin', 'static')]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_URL = "/media/"

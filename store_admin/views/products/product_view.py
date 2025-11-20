@@ -1,3 +1,5 @@
+from xmlrpc.client import Boolean
+
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
@@ -15,64 +17,165 @@ from django.http import HttpResponseBadRequest
 
 from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
+from store_admin.models.product_model import Product
+from store_admin.models.setting_model import Category, Brand, Manufacturer
 from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
 from store_admin.models.address_model import Addresses
 from django.db import transaction
 from django.db.models import Min
 from django.db.models import Value as V
 from django.db.models.functions import Concat
+from django.db import IntegrityError
+from django.db.models import Subquery, OuterRef, Value, CharField, When, Case
+from django.db.models.functions import Coalesce
+from django.core.paginator import Paginator
 
-
+'''
+Product Type	Product Type	Dropdown	Parent, Child, Standard, Bundle	Default = Standard; determines product hierarchy.
+	Parent SKU	Text Field	—	Required if Product Type = Child.
+	Bundle SKU	Text Field		Required; select which SKUs form this bundle.
+	Alias Product	Checkbox	TRUE / FALSE	If checked, product is treated as alias (duplicate listing).
+				
+Basic Info	SKU	Text Field	—	Unique ID, required.
+	Title	Text Field	—	Required; product name.
+	Subtitle	Text Field	—	Optional.
+	Description	Text Area	—	Full description with formatting allowed 
+	Short Description	Text Area	—	Specially for trade me  which don't allow bigger description
+				
+Identifiers	Brand	Dropdown	From Brand Master	Required; populates from Brand Master sheet.
+	Manufacturer	Text Field	—	Optional; can be same as Brand.
+	EAN	Text Field	—	Numeric only (13 digits).
+	UPC	Text Field	—	Numeric only (12 digits).
+	ISBN	Text Field	—	Required for books only.
+	Country of Origin	Dropdown	From country of orgin Master	Must be selected.
+				
+Amazon Identifiers	ASIN	Text Field	—	Amazon-linked items.
+	FNSKU	Text Field	—	Auto-filled if FBA = Yes.
+	FBA SKU	Text Field	—	Optional.
+	FBA	Checkbox	TRUE / FALSE	If TRUE, FBA fields enabled.
+	Amazon Size	Dropdown	Standard, Oversize	Default = Standard.
+	Barcode Label Type	Dropdown	Manufacturer, Amazon Barcode	Required if FBA = TRUE.
+	Prep Type	Dropdown	No Prep Needed, Polybagging, Bubble Wrap, Labeling	Only visible if FBA = TRUE.
+				
+Stock & Status	Stock Status	Dropdown	In Stock, Out of Stock, Preorder, Discontinued	Required.
+	Publish	Dropdown	Yes, No	Determines if product syncs to store.
+	'''
 @login_required
 def add_new(request):
-    payment_terms = PaymentTerm.objects.all()
-    currency_list = Country.objects.values('currency').annotate(
-                        id=Min('id'),  # pick country with smallest ID per currency
-                        currency_name=Min('currency_name')
-                    )
-    countries_list = Country.objects.values('name','id')
-
-    # context = locals()
-    context = {
-        'user': request.user.id,
-        'payment_terms': payment_terms,
-        'countries_list': countries_list,
-        'currency_list':currency_list
-    }
-    return render(request, 'sbadmin/pages/product/add/addnew_form.html', context)
-
-
-@login_required
-def edit(request, vendor_id):
-    vendor = get_object_or_404(Vendor, id=vendor_id)
-
-
-    payment_terms = PaymentTerm.objects.all()
+    category = Category.objects.filter(status=1).all()
+    brand = Brand.objects.filter(status=1).all()
+    manufacturers = Manufacturer.objects.filter(status=1).all()
 
     currency_list = Country.objects.values('currency').annotate(
         id=Min('id'),  # pick country with smallest ID per currency
         currency_name=Min('currency_name')
     )
-    countries_list = Country.objects.values('name','id')
+    countries_list = Country.objects.values('name', 'id')
 
-    billing_rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type="billing").first()
-    billing_address =  Addresses.objects.filter(id=billing_rel.address_id).first() if billing_rel else None
-    shipping_rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type="shipping").first()
-    shipping_address = Addresses.objects.filter(id=shipping_rel.address_id).first() if shipping_rel else None
+    if request.method == 'POST':
+        data = request.POST  # request.POST is a QueryDict
+        is_alias_value = 'on' in data.getlist('is_alias', []) or False
+        is_alias_checked = 'is_alias' in data
+        try:
+            brand_id = int(data.get('brand_id')) if data.get('brand_id') else 0
+        except ValueError:
+            brand_id = 0  # Handle non-integer input gracefully
 
-    bank_details = VendorBank.objects.filter(vendor_id=vendor.id)
-    contact_details = VendorContact.objects.filter(vendor_id=vendor.id)
+        try:
+            manufacturer_id = int(data.get('manufacturer_id')) if data.get('manufacturer_id') else 0
+            country_origin_id = int(data.get('country_origin_id')) if data.get('country_origin_id') else 0
+            warranty = int(data.get('warranty')) if data.get('warranty') else None
+            stock_status = int(data.get('stock_status')) if data.get('stock_status') else 1  # Default is 1
+            status = int(data.get('status')) if data.get('status') else 1  # Default is 1
+            publish_status = int(data.get('publish_status')) if data.get('publish_status') else 1  # Default is 1
+        except ValueError:
+            return render(request, 'product_form.html', {'error': 'Invalid number input.'})
+
+        try:
+            new_product = Product.objects.create(
+                product_type=data.get('product_type', ''),
+                parent_sku=data.get('parent_sku', ''),
+                bundle_sku=data.get('bundle_sku', ''),
+                is_alias=is_alias_checked,
+                sku=data.get('sku'),
+                title=data.get('title'),
+                subtitle=data.get('subtitle'),
+                description=data.get('description'),
+                short_description=data.get('short_description'),
+                brand_id=brand_id,
+                manufacturer_id=manufacturer_id,
+                ean=data.get('ean'),
+                upc=data.get('upc'),
+                isbn=data.get('isbn'),
+                mpn=data.get('mpn'),
+                country_origin_id=country_origin_id,
+                status_condition=data.get('condition', 'new'),
+
+                asin=data.get('asin'),
+                fnsku=data.get('fnsku'),
+                fba_sku=data.get('fba_sku'),
+                is_fba='is_fba' in data,
+                isbn_type=data.get('isbn_type'),
+                barcode_label_type=data.get('barcode_label_type'),
+                prep_type=data.get('prep_type', 'no_prep_needed'),
+
+                stock_status=stock_status,
+                status=status,
+                publish_status=publish_status,
+
+                warranty=warranty,
+                product_tags=data.get('product_tags'),
+            )
+            return JsonResponse({"status": True, "message": "Product added successfully", "product_id":
+                                 new_product.product_id})
+
+        except IntegrityError:
+            error_message = f"Product creation failed. The SKU '{data.get('sku')}' may already exist."
+            return render(request, 'product_form.html', {'error': error_message})
+        except Exception as e:
+            error_message = f"An unexpected error occurred: {e}"
+            return render(request, 'product_form.html', {'error': error_message})
+
+
+    if request.method == "GET":
+        # context = locals()
+        context = {
+            'user': request.user.id,
+            'brands': brand,
+            'manufacturers': manufacturers,
+            'countries_list': countries_list,
+            'currency_list':currency_list
+        }
+        return render(request, 'sbadmin/pages/product/add/addnew_form.html', context)
+
+
+@login_required
+def edit_product(request, product_id):
+    product = get_object_or_404(Product, product_id=product_id)
+    brand = Brand.objects.filter(status=1).all()
+    manufacturers = Manufacturer.objects.filter(status=1).all()
+
+    currency_list = Country.objects.values('currency').annotate(
+        id=Min('id'),  # pick country with smallest ID per currency
+        currency_name=Min('currency_name')
+    )
+    countries_list = Country.objects.values('name', 'id')
+    product_types = [
+        (1, 'Standard'),
+        (2, 'Parent'),
+        (3, 'Child'),
+        (4, 'Bundle'),
+    ]
     context = {
-        'vendor': vendor,
-        'payment_terms': payment_terms,
+        'user': request.user.id,
+        'product':product,
+        'brands': brand,
+        'manufacturers': manufacturers,
         'countries_list': countries_list,
-        'billing': billing_address,
-        'shipping': shipping_address,
-        'banks': bank_details,
-        'contacts': contact_details,
-        'currency_list':currency_list
+        'currency_list': currency_list,
+        'product_types': product_types,
     }
-    return render(request, 'sbadmin/pages/vendor/edit_vendor.html', context)
+    return render(request, 'sbadmin/pages/product/edit/edit_form.html', context)
 
 @login_required
 def delete(request, contact_id):
@@ -86,272 +189,200 @@ def delete(request, contact_id):
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)})
 
-
 @login_required
 def listing(request):
-    payment_terms = PaymentTerm.objects.all()
-    countries_list = Country.objects.values('currency').annotate(
-        id=Min('id'),  # pick country with smallest ID per currency
-        currency_name=Min('currency_name')
+    products = Product.objects.annotate(
+        brand_name=Coalesce(
+            Subquery(
+                Brand.objects.filter(brand_id=OuterRef('brand_id'))
+                .values('name')[:1]
+            ),
+            Value("", output_field=CharField())
+        ),
+        manufacturer_name=Coalesce(
+            Subquery(
+                Manufacturer.objects.filter(manufacturer_id=OuterRef('manufacturer_id'))
+                .values('name')[:1]
+            ),
+            Value("", output_field=CharField())
+        ),
+        product_type_name=Case(
+            When(product_type=1, then=Value("Standard")),
+            When(product_type=2, then=Value("Parent")),
+            When(product_type=3, then=Value("Child")),
+            When(product_type=4, then=Value("Bundle")),
+            default=Value("Unknown"),
+            output_field=CharField()
+        )
+    ).values(
+        'product_id',
+        'title',
+        'sku',
+        'product_type',
+        'product_type_name',
+        'brand_id',
+        'brand_name',
+        'manufacturer_id',
+        'manufacturer_name',
+        'stock_status',
+        'publish_status',
+        'status',
+        'created_at'
     )
+
+    # ---- Search ----
+    search_query = request.GET.get("q", "").strip()
+
+    if search_query:
+        products = products.filter(
+            Q(title__icontains=search_query) |
+            Q(sku__icontains=search_query) |
+            Q(brand_name__icontains=search_query) |
+            Q(manufacturer_name__icontains=search_query)
+        )
+
+    # ---- Pagination ----
+    paginator = Paginator(products, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    # ---- Context ----
+    context = {
+        "user": request.user.id,
+        "allproducts": page_obj,  # for listing loop
+        "page_obj": page_obj,  # for pagination UI
+        "search_query": search_query,
+    }
+    return render(request, 'sbadmin/pages/product/all_listing.html', context)
+
+@login_required
+def save(request):
+
+    if request.method != "POST":
+        return JsonResponse({"status": False, "message": "Invalid request"}, status=400)
+
+    category = Category.objects.filter(status=1).all()
+    brand = Brand.objects.filter(status=1).all()
+    manufacturers = Manufacturer.objects.filter(status=1).all()
+
     currency_list = Country.objects.values('currency').annotate(
         id=Min('id'),  # pick country with smallest ID per currency
         currency_name=Min('currency_name')
     )
-    allvendors = Vendor.objects.annotate(
-        name=Concat(
-            'salutation', V(' '),
-            'first_name', V(' '),
-            'last_name'
-        )
-    ).values('id', 'name', 'company_name', 'email_address', 'vendor_code', 'work_phone')
-    # context = locals()
-    context = {
-        'user': request.user.id,
-        'payment_terms': payment_terms,
-        'countries_list': countries_list,
-        'currency_list':currency_list,
-        'allvendors': allvendors
-    }
-    print(allvendors)
+    countries_list = Country.objects.values('name', 'id')
+    product_id = request.POST.get('product_id')
 
-    return render(request, 'sbadmin/pages/product/all_listing.html', context)
+    if request.method == 'POST':
+        data = request.POST  # request.POST is a QueryDict
+        try:
+            brand_id = int(data.get('brand_id')) if data.get('brand_id') else None
+        except ValueError:
+            brand_id = None  # Handle non-integer input gracefully
+
+        try:
+            manufacturer_id = int(data.get('manufacturer_id')) if data.get('manufacturer_id') else None
+            country_origin_id = int(data.get('country_origin_id')) if data.get('country_origin_id') else 0
+            warranty = int(data.get('warranty')) if data.get('warranty') else None
+            stock_status = int(data.get('stock_status')) if data.get('stock_status') else 1  # Default is 1
+            status = int(data.get('status')) if data.get('status') else 1  # Default is 1
+            publish_status = int(data.get('publish_status')) if data.get('publish_status') else 1  # Default is 1
+            is_alias_checked = True if data.get('is_alias') else False
+        except ValueError:
+            return JsonResponse({"status": True, "message": "Invalid number input.", "product_id":
+                product_id, 'error': 'Invalid number input.'})
+        try:
+            product_details = Product.objects.get(product_id=product_id)
+            if not product_details:
+                return JsonResponse({"status": False, "message": "Invalid product details"})
+
+            product_details.product_type = data.get('product_type', '')
+            product_details.parent_sku = data.get('parent_sku', '')
+            product_details.bundle_sku = data.get('bundle_sku', '')
+
+            product_details.is_alias = is_alias_checked
+
+            product_details.sku = data.get('sku')
+            product_details.title = data.get('title')
+            product_details.subtitle = data.get('subtitle')
+            product_details.description = data.get('description')
+            product_details.short_description = data.get('short_description')
+
+            product_details.brand_id = brand_id
+            product_details.manufacturer_id = manufacturer_id
+
+            product_details.ean = data.get('ean')
+            product_details.upc = data.get('upc')
+            product_details.isbn = data.get('isbn')
+            product_details.mpn = data.get('mpn')
+
+            product_details.country_origin_id = country_origin_id
+            product_details.status_condition = data.get('condition', 'new')
+
+            product_details.asin = data.get('asin')
+            product_details.fnsku = data.get('fnsku')
+            product_details.fba_sku = data.get('fba_sku')
+
+            product_details.is_fba = True if data.get('is_fba') else False
+
+            product_details.isbn_type = data.get('isbn_type')
+            product_details.barcode_label_type = data.get('barcode_label_type')
+            product_details.prep_type = data.get('prep_type', 'no_prep_needed')
+
+            product_details.stock_status = stock_status
+            product_details.status = status
+            product_details.publish_status = publish_status
+
+            product_details.warranty = warranty
+            product_details.product_tags = data.get('product_tags')
+
+            product_details.updated_by = request.user.id
+
+            product_details.save()
+
+            return JsonResponse({"status": True, "message": "Product details updated successfully", "product_id":
+                product_details.product_id})
+
+        except IntegrityError:
+            error_message = f"Product creation failed. The SKU '{data.get('sku')}' may already exist."
+            return JsonResponse({"status": False, "message": error_message, "product_id":
+                product_id})
+
+        except Exception as e:
+            print(str(e))
+            error_message = f"An unexpected error occurred: {e}"
+            return JsonResponse({"status": False, "message": error_message, "product_id":
+                product_id})
 
 
-@csrf_exempt
+
 @login_required
-def save(request):
+def delete_product(request, product_id):
+    if request.method != "DELETE":
+        return JsonResponse({"status": False, "message": "Invalid request method"}, status=400)
+    product = Product.objects.filter(product_id=product_id).first()
+
+    if not product:
+        return JsonResponse({"status": False, "message": "Product not found"}, status=404)
+
+    try:
+        product.delete()
+        return JsonResponse({"status": True, "message": "Product deleted successfully"})
+    except Exception as e:
+        return JsonResponse({"status": False, "message": str(e)}, status=500)
+
+from django.http import JsonResponse
+import json
+@login_required
+def delete_product_bulk(request):
     if request.method != "POST":
-        return JsonResponse({"status": False, "message": "Invalid request"}, status=400)
+        return JsonResponse({"status": "error", "message": "Invalid request"})
 
-    action_type = request.POST.get('delete_vendor', None)
-    vendor_id = request.POST.get("vendor_id")
+    data = json.loads(request.body)
+    ids = data.get("ids", [])
 
-    try:
-        sid = transaction.savepoint()
-        with (transaction.atomic()):   #  ROLLBACK STARTS HERE
-            if vendor_id:
-                vendor = Vendor.objects.get(id=vendor_id)
-            else:
-                vendor = Vendor()
+    if not ids:
+        return JsonResponse({"status": "error", "message": "No products selected"})
 
-            vendor.salutation = request.POST.get("saluation")
-            vendor.first_name = request.POST.get("first_name")
-            vendor.last_name = request.POST.get("last_name")
-            vendor.company_name = request.POST.get("company_name")
-            vendor.display_name = request.POST.get("display_name")
-            vendor.vendor_code = request.POST.get("vendor_code")
-            vendor.email_address = request.POST.get("email_address")
-            vendor.work_phone = request.POST.get("work_phone")
-            vendor.mobile_number = request.POST.get("mobile_number")
-            vendor.registered_business = bool(request.POST.get("registeredBusiness"))
-            vendor.company_abn = request.POST.get("company_abn")
-            vendor.company_acn = request.POST.get("company_acn")
-            vendor.currency = request.POST.get("currency")
-            vendor.vendor_remarks = request.POST.get("vendor_remarks")
-            vendor.created_by = request.user.id
-            vendor.status = 1
+    Product.objects.filter(product_id__in=ids).delete()
 
-            if request.POST.get("payment_term"):
-                vendor.payment_term = PaymentTerm.objects.get(id=int(request.POST["payment_term"]))
-
-            if request.FILES.get("documents"):
-                vendor.documents = request.FILES["documents"]
-
-            vendor.save()
-
-            #return JsonResponse({"status": True, "vendor_id": vendor.id})
-            #{"status": true, "vendor_id": 20}
-            if request.POST["billing_country"]:
-                status = save_address(request, "billing", vendor.id)
-                #billing_relation.address = billing_address
-                #billing_relation.save()
-
-            if request.POST["shipping_country"]:
-                status = save_address(request, "shipping", vendor.id)
-                #shipping_relation.address = shipping_address
-                #shipping_relation.save()
-
-            # --- CONTACT DETAILS SAVE ---
-            contacts = extract_contacts(request)
-            active_contact_ids = []
-            for c in contacts:
-                # Skip blank rows
-                if not c["first_name"] and not c["last_name"]:
-                    continue
-                contact_id = c.get("id")
-
-                if contact_id is not None:  # UPDATE existing contact
-                    con = VendorContact.objects.filter(id=contact_id, vendor_id=vendor.id).first()
-                    if con:
-                        con.department = c["department"]
-                        con.email = c["email"]
-                        con.phone = c["phone"]
-                        con.first_name = c["first_name"]
-                        con.last_name = c["last_name"]
-                        con.description = c["description"]
-                        con.created_by = request.user.id
-                        con.save()
-                        active_contact_ids.append(con.id)
-                        continue
-
-                # CREATE new contact
-                new_con = VendorContact.objects.create(
-                    vendor_id=vendor.id,
-                    department=c["department"],
-                    email=c["email"],
-                    phone=c["phone"],
-                    first_name=c["first_name"],
-                    last_name=c["last_name"],
-                    description=c["description"],
-                    created_by=request.user.id
-                )
-                active_contact_ids.append(new_con.id)
-            # DELETE removed contacts
-            VendorContact.objects.filter(vendor_id=vendor.id).exclude(id__in=active_contact_ids).delete()
-
-            #BANK Details
-            bank_details = extract_bank_details(request)
-            active_ids = []
-            for b in bank_details:
-                # Skip empty record
-                if not b["account_holder"] and not b["bank_name"]:
-                    continue
-
-                # Validate account numbers
-                if b["account_number"] != b["account_number_confirm"]:
-                    return JsonResponse(
-                        {"status": False, "message": "Account number mismatch"},
-                        status=400
-                    )
-
-                bank_id = b.get("id")
-                if bank_id and str(bank_id).isdigit():
-                    bank = VendorBank.objects.filter(id=bank_id, vendor_id=vendor.id).first()
-                    if bank:
-                        bank.account_holder = b["account_holder"]
-                        bank.bank_name = b["bank_name"]
-                        bank.account_number = b["account_number"]
-                        bank.bic = b["bic"]
-                        bank.created_by = request.user.id
-                        bank.save()
-                        active_ids.append(bank.id)
-                        continue
-
-                new_bank = VendorBank.objects.create(
-                    vendor_id=vendor.id,
-                    account_holder=b["account_holder"],
-                    bank_name=b["bank_name"],
-                    account_number=b["account_number"],
-                    bic=b["bic"],
-                    created_by=request.user.id
-                )
-                active_ids.append(new_bank.id)
-
-            VendorBank.objects.filter(vendor_id=vendor.id).exclude(id__in=active_ids).delete()
-            #EOF Bank details
-
-        return JsonResponse({"status": True, "vendor_id": vendor.id})
-
-    except Exception as e:
-        return JsonResponse({
-            "status": False,
-            "message": "Error in vendor create",
-            "detail": str(e)
-        }, status=500)
-
-
-def save_address(request, type, vendor_id):
-    try:
-        field_prefix = f"{type}_"
-
-        relation = VendorAddress.objects.filter(
-            vendor_id=vendor_id,
-            address_type=type
-        ).first()
-
-        if relation:
-            address_obj = Addresses.objects.get(id=relation.address_id)
-            is_new = False
-        else:
-            address_obj = Addresses()
-            is_new = True
-
-        address_obj.attention_name = request.POST.get(field_prefix + "attention_name")
-        address_obj.street1 = request.POST.get(field_prefix + "street1")
-        address_obj.street2 = request.POST.get(field_prefix + "street2")
-        address_obj.city = request.POST.get(field_prefix + "city")
-        address_obj.zip = request.POST.get(field_prefix + "zip")
-        address_obj.phone = request.POST.get(field_prefix + "phone")
-        address_obj.fax = request.POST.get(field_prefix + "fax")
-
-        country_id = request.POST.get(field_prefix + "country")
-        state_id = request.POST.get(field_prefix + "state")
-
-        address_obj.country = Country.objects.get(id=country_id) if country_id else None
-        address_obj.state = State.objects.get(id=state_id) if state_id else None
-
-        address_obj.created_by = request.user.id
-        address_obj.save()
-
-        if is_new:
-            VendorAddress.objects.create(
-                vendor_id=vendor_id,
-                address_id=address_obj.id,
-                address_type=type,
-                created_by=request.user.id
-            )
-
-        return True
-    except Exception as e:
-        raise e
-
-def extract_bank_details(request):
-    banks = []
-    index = 0
-
-    while True:
-        prefix = f"banks[{index}]"
-
-        # Exit loop if row does not exist
-        if f"{prefix}[account_holder]" not in request.POST:
-            break
-
-        banks.append({
-            "id": request.POST.get(f"{prefix}[id]"),
-            "account_holder": request.POST.get(f"{prefix}[account_holder]", "").strip(),
-            "bank_name": request.POST.get(f"{prefix}[bank_name]", "").strip(),
-            "account_number": request.POST.get(f"{prefix}[account_number]", "").strip(),
-            "account_number_confirm": request.POST.get(f"{prefix}[account_number_confirm]", "").strip(),
-            "bic": request.POST.get(f"{prefix}[bic]", "").strip(),
-        })
-
-        index += 1
-
-    return banks
-
-
-def extract_contacts(request):
-    contacts = []
-    index = 0
-
-    while True:
-        prefix = f"contacts[{index}]"
-
-        # Stop if contact is missing
-        if not request.POST.get(f"{prefix}[first_name]"):
-            break
-
-        contacts.append({
-            "department": request.POST.get(f"{prefix}[department]"),
-            "email": request.POST.get(f"{prefix}[email]"),
-            "phone": request.POST.get(f"{prefix}[phone]"),
-            "first_name": request.POST.get(f"{prefix}[first_name]"),
-            "last_name": request.POST.get(f"{prefix}[last_name]"),
-            "description": request.POST.get(f"{prefix}[description]"),
-        })
-
-        index += 1
-
-    return contacts
-
+    return JsonResponse({"status": "success", "deleted": len(ids)})

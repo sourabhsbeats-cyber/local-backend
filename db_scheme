@@ -79,5 +79,68 @@ CREATE TABLE addresses (
     FOREIGN KEY (state_id) REFERENCES store_admin_states(id)
 );
 
+use sb_commerce_b2b_dev;
+CREATE TABLE store_admin_category (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
 
+    is_primary INT DEFAULT 0,
+    primary_category_id INT NULL,
+
+    status INT DEFAULT 0,
+
+    created_at INT,
+    created_by DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+use sb_commerce_b2b_dev;
+CREATE TABLE store_admin_product (
+    product_id INT UNSIGNED NOT NULL UNIQUE AUTO_INCREMENT,
+
+    product_type VARCHAR(120) NULL,
+    parent_sku VARCHAR(120) NULL,
+    bundle_sku VARCHAR(120) NULL,
+    is_alias BOOL NOT NULL,
+
+    sku VARCHAR(120) NOT NULL ,
+    title VARCHAR(255) NOT NULL,
+    subtitle VARCHAR(255) NULL,
+    description LONGTEXT NULL, -- Using LONGTEXT for large text fields
+    short_description LONGTEXT NULL,
+
+    -- IDENTIFIERS (Using UNSIGNED for PositiveIntegerField)
+    brand_id INT UNSIGNED NOT NULL,
+    manufacturer_id INT UNSIGNED NOT NULL,
+    ean VARCHAR(50) NULL,
+    upc VARCHAR(50) NULL,
+    isbn VARCHAR(50) NULL,
+    mpn VARCHAR(120) NULL,
+    country_origin_id INT UNSIGNED NOT NULL,
+    status_condition VARCHAR(20) NOT NULL,
+
+    -- AMAZON IDENTIFIERS
+    asin VARCHAR(50) NULL,
+    fnsku VARCHAR(50) NULL,
+    fba_sku VARCHAR(50) NULL,
+    is_fba BOOL NOT NULL,
+    isbn_type VARCHAR(20) NULL,
+    barcode_label_type VARCHAR(20) NULL,
+    prep_type VARCHAR(20) NOT NULL,
+
+    -- INVENTORY (Using UNSIGNED for PositiveSmallIntegerField/PositiveIntegerField)
+    stock_status SMALLINT UNSIGNED NOT NULL,
+    status SMALLINT UNSIGNED NOT NULL,
+    publish_status INT UNSIGNED NOT NULL,
+
+    -- OTHER
+    warranty INT NULL,
+    product_tags LONGTEXT NULL,
+
+    -- SYSTEM (MySQL TIMESTAMP automatically handles auto_now_add/auto_now behavior)
+    created_at DATETIME(6) NOT NULL, -- DATETIME(6) for microsecond precision
+    updated_at DATETIME(6) NOT NULL,
+    created_by INT UNSIGNED NOT NULL,
+    updated_by INT UNSIGNED NOT NULL
+
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

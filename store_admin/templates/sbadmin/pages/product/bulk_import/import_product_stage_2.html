@@ -1,0 +1,141 @@
+{% extends "sbadmin/base.html" %}
+{% load custom_filters %}
+{% block title %}Import Products{% endblock %}
+{% block content %}
+
+<style>
+    .import-steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+        margin-bottom: 40px;
+    }
+    .step-item {
+        display: flex;
+        align-items: center;
+        margin: 0 20px;
+        color: #999;
+        font-size: 15px;
+        font-weight: 500;
+    }
+    .step-circle {
+        display: flex;
+        align-items: center;
+    }
+    .step-item.active {
+        color: #000;
+    }
+    .step-item.active .step-circle {
+        background: #4a90e2;
+        color: #fff;
+        border-color: #4a90e2;
+    }
+    .step-divider {
+        width: 50px;
+        height: 2px;
+        background: #e6e6e6;
+    }
+
+    .upload-wrapper {
+        width: 55%;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+.preview-table {
+        max-height: 350px;
+        overflow-y: auto;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #fff;
+    }
+    .import-steps {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 30px;
+    }
+    .step-item { margin: 0 20px; text-align: center; }
+    .step-circle i { font-size: 28px; }
+</style>
+
+<div class="content-wrapper">
+
+    <div class="container mt-4">
+        <h4 class="text-center mb-4">Preview</h4>
+
+        <!-- Steps -->
+        <div class="import-steps">
+            <div class="step-item">
+                <div class="step-circle">
+                    <i class="fas fa-check-circle text-success"></i>
+                </div>
+                <div>Configure</div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-circle">
+                    <i class="fas fa-check-circle text-success"></i>
+                </div>
+                <div>Map Fields</div>
+            </div>
+
+            <div class="step-item">
+                <div class="step-circle">
+                    <i class="fas fa-info-circle text-primary"></i>
+                </div>
+                <div>Preview</div>
+            </div>
+        </div>
+
+        <!-- Alert Box -->
+        <div class="alert alert-info d-flex align-items-center">
+            <i class="fas fa-info-circle fa-lg mr-2"></i>
+            <div>
+                <strong>Total Valid Records:</strong> {{ valid_count }} <br>
+                Below is a preview of the first 10 validated rows.
+            </div>
+        </div>
+
+        <!-- Hidden fields -->
+        <form method="post" action="{% url 'final_product_import' %}">
+            {% csrf_token %}
+
+            <input type="hidden" name="cleaned_filename" value="{{ cleaned_filename }}">
+            <input type="hidden" name="dup_option" value="{{ dup_option }}">
+
+            <!-- Preview Table -->
+            <div class="preview-table mt-4 p-3">
+                <table class="table table-bordered table-sm">
+                    <thead class="thead-light">
+                        <tr>
+                            {% for h in headers %}
+                                <th>{{ h }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in records_preview %}
+                        <tr>
+                            {% for h in headers %}
+                                <td>{{ row|get_item:h|default_if_none:"" }}</td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div class="mt-4 d-flex justify-content-between mb-5">
+                <a href="{% url 'import_product_stage_map' %}" class="btn btn-secondary btn-sm">Previous</a>
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="fas fa-check mr-1"></i> Confirm & Import
+                </button>
+            </div>
+
+        </form>
+    </div>
+</div>
+
+{% endblock %}

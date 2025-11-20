@@ -1,0 +1,615 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Edit Product{% endblock %}
+
+{% block content %}
+
+<style>
+    .no-select {
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+    }
+    .bg-badges-tag{
+        background-color: #b9b9b9;
+    }
+    .dropzone {
+        border: 2px dashed #6c7ae0 !important;
+        border-radius: 10px;
+        background: #f7f9ff;
+        padding: 25px;
+        text-align: center;
+        cursor: pointer;
+    }
+    .dz-message {
+        font-size: 15px;
+        color: #666;
+    }
+    .uploaded-list {
+        margin-top: 20px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        max-height: 250px;
+        overflow-y: auto;
+        padding: 10px;
+    }
+    .uploaded-item {
+        padding: 6px 10px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+    }
+    .uploaded-item:last-child { border-bottom: none; }
+    .remove-file { cursor: pointer; color: red; }
+</style>
+
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <h4 class="m-0">New Product</h4>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="#">Product</a></li>
+            <li class="breadcrumb-item active">Add</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="content">
+    <div class="card card-outline card-primary shadow-sm">
+      <div class="card-header pr-0">
+        <h3 class="card-title mb-0">
+          <i class="fas fa-building mr-2 text-info"></i> Product Information
+        </h3>
+        <a href="{% url 'all_products' %}" class="float-right pt-2 btn btn-tool">
+          <i class="fas fa-times"></i>
+        </a>
+      </div>
+
+      <div class="card-body">
+        <form autocomplete="off"
+              action="{% url 'update_product' %}"
+              enctype="multipart/form-data"
+              class="form-horizontal"
+              id="productForm" method="post">
+
+            {% csrf_token %}
+             <input type="hidden" name="product_id" value="{{ product.product_id }}" />
+            <div class="row col-md-12">
+                <div class="col-md-8 float-left">
+
+                    <!-- PRODUCT TYPE -->
+                    <div>
+                        <div class="mb-4"><h5>Product Type</h5></div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label ">Product Type</label>
+                            <div class="col-sm-10">
+                              <select name="product_type" class="form-control custom-select select2" placeholder="Select product type">
+                                  <option value="">Select product type</option>
+                                  {% for value, label in product_types %}
+                                        <option value="{{ value }}" {% if product.product_type == value|stringformat:"d" %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                              </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Parent SKU</label>
+                            <div class="col-sm-10">
+                              <input type="text" value="{{ product.parent_sku }}" name="parent_sku" class="form-control" placeholder="Enter parent SKU">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Bundle SKU</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="bundle_sku" value="{{ product.bundle_sku }}" class="form-control" placeholder="Enter bundle SKU">
+                            </div>
+                        </div>
+                        <div class="form-group row icheck-primary d-inline">
+                            <div class="offset-sm-2 col-sm-10">
+                                <div class="icheck-primary d-inline no-select">
+                                    <input type="checkbox" value="1" {% if product.is_alias == 1 %}checked{% endif %} id="checkboxPrimary2" name="is_alias">
+                                    <label for="checkboxPrimary2" >Alias Product
+                                    </label>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="mb-2"/>
+
+                    <!-- BASIC INFO -->
+                    <div>
+                        <div class="mb-4"><h5>Basic Info</h5></div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">SKU</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="sku" value="{{ product.sku }}" class="form-control" placeholder="Enter unique SKU">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Title</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="title" value="{{ product.title }}" class="form-control" placeholder="Enter product title">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Subtitle</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="subtitle" value="{{ product.subtitle }}" class="form-control" placeholder="Enter subtitle">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Description</label>
+                            <div class="col-sm-10">
+                              <textarea name="description" rows="4" class="form-control"
+                                        placeholder="Enter detailed description"> {{ product.description }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Short Desc</label>
+                            <div class="col-sm-10">
+                              <textarea name="short_description" rows="4" class="form-control"
+                                        placeholder="Enter short summary">{{ product.short_description }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <hr class="mb-2"/>
+                    <div>
+                        <div class="mb-4"><h5>Identifiers</h5></div>
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Brand</label>
+                            <div class="col-sm-10">
+                                <select name="brand_id" class="form-control select2" placeholder="Select brand">
+                                    <option value="">Select brand</option>
+                                    {% for brand in brands %}
+                                        <option {% if brand.brand_id == product.brand_id %}selected{% endif %} value="{{ brand.brand_id }}">{{ brand.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Manufacturer</label>
+                            <div class="col-sm-10">
+                                <select name="manufacturer_id" class="form-control select2" placeholder="Select manufacturer">
+                                    <option value="">Select manufacturer</option>
+                                    {% for manufactur in manufacturers %}
+                                        <option {% if manufactur.manufacturer_id == product.manufacturer_id %}selected{% endif %} value="{{ manufactur.manufacturer_id }}">{{ manufactur.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">EAN</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="ean" value="{{ product.ean }}" class="form-control" placeholder="Enter EAN code">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">UPC</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="upc" value="{{ product.upc }}"  class="form-control" placeholder="Enter UPC code">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">ISBN</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="isbn" value="{{ product.isbn }}" class="form-control" placeholder="Enter ISBN number">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">MPN</label>
+                            <div class="col-sm-10">
+                              <input type="text" name="mpn" value="{{ product.mpn }}" class="form-control" placeholder="Enter manufacturer part number">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Country of Origin</label>
+                            <div class="col-sm-10">
+
+                                <select name="country_origin_id"
+                                        id="country_origin_id"
+                                        class="form-control"
+                                        placeholder="Select country">
+                                    <option value="">Select country</option>
+                                    {% for term in countries_list %}
+                                        <option {% if term.id == product.country_origin_id %}selected{% endif %} value="{{ term.id }}">{{ term.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Condition</label>
+                            <div class="col-sm-10">
+                                <select name="status_condition" class="form-control custom-select select2" placeholder="Select condition">
+                                    <option value="">Select condition</option>
+                                    <option {% if product.status_condition == 'new' %}selected{% endif %} value="new">New</option>
+                                    <option {% if product.status_condition == 'used' %}selected{% endif %} value="used">Used</option>
+                                    <option {% if product.status_condition == 'refurbished' %}selected{% endif %} value="refurbished">Refurbished</option>
+                                    <option {% if product.status_condition == 'open_box' %}selected{% endif %} value="open_box">Open Box</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="mb-2"/>
+
+                    <!-- AMAZON IDENTIFIERS -->
+                    <div>
+                        <div class="mb-4"><h5>Amazon Identifiers</h5></div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">ASIN</label>
+                            <div class="col-sm-10">
+                                <input type="text" name="asin" value="{{ product.asin }}"  class="form-control" placeholder="Enter ASIN">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">FNSKU</label>
+                            <div class="col-sm-10">
+                                <input type="text" name="fnsku" value="{{ product.fnsku }}"  class="form-control" placeholder="Enter FNSKU">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">FBA SKU</label>
+                            <div class="col-sm-10">
+                                <input type="text" name="fba_sku" value="{{ product.fba_sku }}"  class="form-control" placeholder="Enter FBA SKU">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <div class="offset-sm-2 col-sm-10">
+                                 <div class="icheck-primary d-inline no-select">
+                                    <input type="checkbox"
+                                           {% if product.is_fba == 1 %}checked{% endif %} id="is_fba" value="1" name="is_fba">
+                                    <label for="is_fba" >FBA
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">ISBN Type</label>
+                            <div class="col-sm-10">
+                                <select name="isbn_type" class="form-control custom-select" placeholder="Select ISBN type">
+                                    <option value="">Select ISBN type</option>
+                                    <option {% if product.isbn_type == 'standard' %}selected{% endif %} value="standard">Standard</option>
+                                    <option {% if product.isbn_type == 'oversize' %}selected{% endif %} value="oversize">Oversize</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Barcode Type</label>
+                            <div class="col-sm-10">
+                                <select name="barcode_label_type" class="form-control custom-select" placeholder="Select barcode type">
+                                    <option value="">Select barcode type</option>
+                                    <option {% if product.barcode_label_type == 'manufacturer' %}selected{% endif %} value="manufacturer">Manufacturer</option>
+                                    <option {% if product.barcode_label_type == 'amazon_barcode' %}selected{% endif %} value="amazon_barcode">Amazon Barcode</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Prep Type</label>
+                            <div class="col-sm-10">
+                                <select name="prep_type" class="select2 form-control custom-select" placeholder="Select prep type">
+                                    <option value="">Select prep type</option>
+                                    <option {% if product.prep_type == 'no_prep_needed' %}selected{% endif %} value="no_prep_needed">No Prep Needed</option>
+                                    <option {% if product.prep_type == 'polybag' %}selected{% endif %} value="polybag">Polybagging</option>
+                                    <option {% if product.prep_type == 'bubble_wrap' %}selected{% endif %} value="bubble_wrap">Bubble Wrap</option>
+                                    <option {% if product.prep_type == 'labeling' %}selected{% endif %} value="labeling">Labeling</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="mb-2"/>
+
+                    <!-- INVENTORY -->
+                    <div>
+                        <div class="mb-4"><h5>Inventory & Status</h5></div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Stock</label>
+                            <div class="col-sm-10">
+                                <select name="stock_status" class="form-control custom-select select2" placeholder="Select stock status">
+                                    <option value="">Select stock status</option>
+                                    <option {% if product.stock_status == 1 %}selected{% endif %} value="1">In Stock</option>
+                                    <option {% if product.stock_status == 2 %}selected{% endif %} value="2">Out of Stock</option>
+                                    <option {% if product.stock_status == 3 %}selected{% endif %} value="3">Preorder</option>
+                                    <option {% if product.stock_status == 3 %}selected{% endif %} value="4">Discontinued</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Status</label>
+                            <div class="col-sm-10">
+                                <select name="status" class="select2 form-control custom-select" placeholder="Select status">
+                                    <option value="">Select status</option>
+                                    <option {% if product.status == 1 %}selected{% endif %}  value="1">Active</option>
+                                    <option {% if product.status == 2 %}selected{% endif %}  value="2">Draft</option>
+                                    <option {% if product.status == 3 %}selected{% endif %}  value="3">Discontinued</option>
+                                    <option {% if product.status == 4 %}selected{% endif %}  value="4">Archived</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Publish</label>
+                            <div class="col-sm-10">
+                                <select name="publish_status" class="form-control custom-select" placeholder="Select publish status">
+                                    <option value="">Select publish status</option>
+                                    <option {% if product.status == 1 %}selected{% endif %} value="1">Yes</option>
+                                    <option {% if product.status == 0 %}selected{% endif %} value="0">No</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr class="mb-2"/>
+
+                    <!-- OTHER INFO -->
+                    <div>
+                        <div class="mb-4"><h5>Other Info</h5></div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Warranty</label>
+                            <div class="col-sm-10">
+                                <input type="number" value="{{ product.warranty }}"  name="warranty" class="form-control" placeholder="Enter warranty in months">
+                            </div>
+                        </div>
+
+                        <div class="form-group row">
+                            <label class="col-sm-2 col-form-label">Product Tags</label>
+                            <div class="col-sm-10">
+                                <input type="hidden"
+                                       name="product_tags"
+                                       value="{{ product.product_tags }}"
+                                       id="product_tags_id"
+                                       />
+
+                                <input type="text"
+                                       id="tagInput"
+                                       class="form-control mt-2"
+                                       placeholder="Type a tag and press Enter, Unique values only" />
+
+                                <div id="tagContainer"
+                                     class="form-control p-2 mt-3"
+                                     style="min-height: 45px; background-color:#e4e4e4; display:flex; flex-wrap:wrap; gap:5px;">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- IMAGES -->
+                <div class="col-md-4">
+                    <div class="ml-md-3">
+                        <div class="mb-4"><h5>Images</h5></div>
+
+                        <div class="form-group row clearfix">
+                            <div id="productDropzone" class="dropzone">
+                                <div class="dz-message">
+                                    <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i><br>
+                                    <b>Drag & drop images here</b><br>
+                                    or click to browse
+                                </div>
+                            </div>
+                            <div id="imageInputs"></div>
+                            <div class="row">
+                                <h6 class="mt-4">Uploaded Files</h6>
+                                <div id="uploadedList" class="uploaded-list">
+                                    <div class="text-muted small">No images uploaded yet.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="text-left mt-5">
+                <button type="submit" id="btn_add_product" class="btn btn-success btn-sm">Save</button>
+                <a href="{% url 'all_products' %}" class="btn btn-secondary btn-sm ml-2" >Cancel</a>
+            </div>
+
+        </form>
+      </div>
+    </div>
+  </section>
+</div>
+
+{% block footer_script %}
+
+<script>
+Dropzone.autoDiscover = false;
+var uploadedFiles = [];
+var dz = new Dropzone("#productDropzone", {
+    url: "#",
+    autoProcessQueue: false,
+    uploadMultiple: true,
+    addRemoveLinks: true,
+    acceptedFiles: "image/*",
+    parallelUploads: 10,
+    init: function () {
+
+        this.on("addedfile", function (file) {
+            uploadedFiles.push(file);
+            refreshList();
+            createHiddenFields();
+        });
+
+        this.on("removedfile", function (file) {
+            uploadedFiles = uploadedFiles.filter(f => f.name !== file.name);
+            refreshList();
+            createHiddenFields();
+        });
+    }
+});
+
+function refreshList() {
+    let box = document.getElementById("uploadedList");
+    box.innerHTML = "";
+
+    if (uploadedFiles.length === 0) {
+        box.innerHTML = `<div class="text-muted small">No images uploaded yet.</div>`;
+        return;
+    }
+
+    uploadedFiles.forEach(f => {
+        box.innerHTML += `
+            <div class="uploaded-item">
+                <span>${f.name}</span>
+                <span class="remove-file" onclick="removeFile('${f.name}')">Remove</span>
+            </div>
+        `;
+    });
+}
+
+function removeFile(name) {
+    let file = dz.files.find(f => f.name === name);
+    dz.removeFile(file);
+}
+
+function createHiddenFields() {
+    let holder = document.getElementById("imageInputs");
+    holder.innerHTML = "";
+
+    uploadedFiles.forEach(file => {
+        let input = document.createElement("input");
+        input.type = "file";
+        input.name = "images";
+        input.hidden = true;
+
+        let dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+
+        holder.appendChild(input);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("productForm");
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        let formData = new FormData(form);
+        const saveBtn = document.getElementById("btn_add_product");
+        saveBtn.disabled = true;
+        const originalHTML = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        fetch("{% url 'update_product' %}", {
+            method: "POST",
+            body: formData,
+            headers: { "X-CSRFToken": getCSRFToken() }
+        })
+        .then(response => response.json())
+        .then(data => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalHTML;
+            if (data.status ) {
+                toastr.success(data.message || "Product saved!");
+               // if (data.redirect_url) window.location.href = data.redirect_url;
+            } else {
+                toastr.error(data.message || "Error updating product details!");
+            }
+        })
+        .catch(err => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalHTML;
+            toastr.error("Server error. Try again.");
+            console.error(err);
+        });
+    });
+});
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+
+let tags = [];
+
+const tagInput = document.getElementById("tagInput");
+const tagContainer = document.getElementById("tagContainer");
+const hiddenTagInput = document.getElementById("product_tags_id");
+
+// Add tag when pressing Enter
+tagInput.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        const val = tagInput.value.trim();
+
+        if (val !== "" && !tags.includes(val)) {
+            tags.push(val);
+            renderTags();
+        }
+        tagInput.value = "";
+    }
+});
+
+// Render chips + update hidden input
+function renderTags() {
+    tagContainer.innerHTML = "";
+
+    tags.forEach(tag => {
+        const chip = document.createElement("span");
+        chip.className = "badge bg-badges-tag p-2 d-flex align-items-center";
+
+        chip.innerHTML = `
+            ${tag}
+            <span class="ml-2" style="cursor:pointer;font-weight:bold;" onclick="removeTag('${tag}')">×</span>
+        `;
+
+        tagContainer.appendChild(chip);
+    });
+
+    hiddenTagInput.value = tags.join(",");
+}
+
+// Remove chip
+function removeTag(tag) {
+    tags = tags.filter(t => t !== tag);
+    renderTags();
+}
+
+// PRELOAD EXISTING TAGS ON EDIT PAGE
+document.addEventListener("DOMContentLoaded", function () {
+    let existing = hiddenTagInput.value.trim();
+    if (existing !== "") {
+        tags = existing.split(",").map(t => t.trim());
+        renderTags();
+    }
+});
+</script>
+
+{% endblock %}
+{% endblock %}

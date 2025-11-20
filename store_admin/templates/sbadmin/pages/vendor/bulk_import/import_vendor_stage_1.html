@@ -1,0 +1,204 @@
+{% extends "sbadmin/base.html" %}
+{% load custom_filters %}
+{% block title %}Import Contacts{% endblock %}
+{% block content %}
+
+<!-- DROPZONE CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css"/>
+
+<style>
+    .import-steps {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 10px;
+        margin-bottom: 40px;
+    }
+    .step-item {
+        display: flex;
+        align-items: center;
+        margin: 0 20px;
+        color: #999;
+        font-size: 15px;
+        font-weight: 500;
+    }
+    .step-circle {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #e8e8e8;
+        color: #666;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-right: 8px;
+        border: 1px solid #dcdcdc;
+        font-size: 14px;
+    }
+    .step-item.active {
+        color: #000;
+    }
+    .step-item.active .step-circle {
+        background: #4a90e2;
+        color: #fff;
+        border-color: #4a90e2;
+    }
+    .step-divider {
+        width: 50px;
+        height: 2px;
+        background: #e6e6e6;
+    }
+
+    .upload-wrapper {
+        width: 55%;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    /* dropzone box */
+    #vendorDropzone {
+        border: 2px dashed #cdd6e2 !important;
+        background: #fafbff;
+        border-radius: 10px;
+        padding: 45px;
+        cursor: pointer;
+    }
+    #vendorDropzone:hover {
+        background: #f1f6ff;
+        border-color: #8ab4f8 !important;
+    }
+</style>
+
+
+<div class="content-wrapper">
+
+    <div class="container mt-4">
+        <h4 class="text-center mb-4">Map fields</h4>
+
+        <!-- Steps -->
+        <div class="import-steps">
+            <div class="step-item ">
+                <div class="step-circle bg-success">
+                    <i class="fas fa-primary text-success"></i>1
+                </div> Configure
+            </div>
+            <div class="step-divider"></div>
+
+            <div class="step-item active">
+                <div class="step-circle">2</div> Map Fields
+            </div>
+            <div class="step-divider"></div>
+
+            <div class="step-item">
+                <div class="step-circle">3</div> Preview
+            </div>
+        </div>
+
+        <!-- FORM -->
+        <form id="importForm" method="post" enctype="multipart/form-data"
+              action="{% url 'preview_import' %}">
+                {% csrf_token %}
+
+            <input type="hidden" name="dest_filename" value="{{ cleaned_filename }}" />
+            <input type="hidden" name="duplicate_option" value="{{ dup_option }}" />
+
+            <div class="upload-wrapper">
+                <div class="alert border-outline-info bg-white  alert-info d-flex align-items-center" role="alert">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    <div class="text-left pl-3 text-sm">
+                        Your Selected File : {{uploaded_filename}}<br/>
+                        The best match to each field on the selected file have been auto-selected.
+                    </div>
+                </div>
+                <!-- Duplicate Handling -->
+                <div class="mt-4 mb-3 px-5">
+                    {% for field in mapping_fields %}
+                        <div class="row mt-1 mb-2">
+                            <div class="col-sm-6 text-left">
+                                <label>{{ field|replace:"_, "|title }}</label>
+                            </div>
+                            <div class="col-sm-6 text-left">
+                                <select class="form-control  form-control-sm select2 w-80" name="map_{{ field }}">
+                                    <option value="">-- Select Column --</option>
+                                    {% for opt in select_options %}
+                                        {% if field == opt.value %}
+                                            <option selected value="{{ opt.value }}">{{ opt.label }}</option>
+                                        {% else %}
+                                            <option value="{{ opt.value }}">{{ opt.label }}</option>
+                                        {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="mt-4 mb-5 d-flex justify-content-between">
+                    <a href="{% url 'import_vendor' %}" class="btn btn-secondary btn-sm ">Previous</a>
+                    <button type="submit" class="btn btn-primary btn-sm">Next</button>
+                </div>
+            </div>
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- DROPZONE SCRIPT -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.js"></script>
+
+<script>
+Dropzone.autoDiscover = false;
+
+var selectedFile = null;
+
+// Init Dropzone
+var dz = new Dropzone("#vendorDropzone", {
+    url: "#",
+    autoProcessQueue: false,
+    maxFiles: 1,
+    addRemoveLinks: true,
+    acceptedFiles: ".csv,.tsv,.xls,.xlsx",
+    dictRemoveFile: "Remove",
+
+    init: function () {
+
+        // When file added
+        this.on("addedfile", function(file) {
+            selectedFile = file;
+            document.getElementById("uploaded_file_name").value = file.name;
+        });
+
+        // When file removed
+        this.on("removedfile", function() {
+            selectedFile = null;
+            document.getElementById("uploaded_file_name").value = "";
+        });
+    }
+});
+
+
+// Attach file to form on submit
+document.getElementById("importForm").addEventListener("submit", function (e) {
+
+    if (!selectedFile) {
+        alert("Please upload a file before proceeding.");
+        e.preventDefault();
+        return false;
+    }
+
+    // Convert dropzone file → real input file
+    var dt = new DataTransfer();
+    dt.items.add(selectedFile);
+
+    var input = document.createElement("input");
+    input.type = "file";
+    input.name = "import_file";
+    input.files = dt.files;
+    input.hidden = true;
+
+    this.appendChild(input);
+});
+</script>
+
+{% endblock %}
