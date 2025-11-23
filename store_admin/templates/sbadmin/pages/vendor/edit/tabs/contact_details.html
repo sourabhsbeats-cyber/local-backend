@@ -3,57 +3,15 @@
      COMPLETE WORKING FILE
 ============================= -->
 
-<h5 class="font-weight-bold mb-3">Contact Persons</h5>
+<h6 class="font-weight-bold mb-3">Contact Persons</h6>
 <p class="text-muted small">Manage vendor contacts below.</p>
 
 <!-- Contact List -->
 <div id="contact-list">
-
-  {% for c in contacts %}
-  <div class="contact-item border rounded p-2 mb-2 bg-light"
-       data-id="{{ c.id }}"
-       data-first="{{ c.first_name }}"
-       data-last="{{ c.last_name }}"
-       data-email="{{ c.email }}"
-       data-phone="{{ c.phone }}"
-       data-dept="{{ c.department }}"
-       data-desc="{{ c.description }}">
-
-    <div class="d-flex justify-content-between">
-      <div>
-        <strong>{{ c.first_name }} {{ c.last_name }}</strong>
-        <small class="text-muted d-block">{{ c.department }}</small>
-      </div>
-
-      <div>
-        <button type="button" class="btn btn-sm btn-primary edit-contact"
-                style="margin-right:5px;">
-            <i class="fas fa-edit"></i>
-        </button>
-
-        <button type="button" class="btn btn-sm btn-danger delete-contact"
-                data-id="{{ c.id }}">
-            <i class="far fa-trash-alt"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Hidden fields so form submits correctly -->
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][id]" value="{{ c.id }}">
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][first_name]" value="{{ c.first_name }}">
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][last_name]" value="{{ c.last_name }}">
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][email]" value="{{ c.email }}">
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][phone]" value="{{ c.phone }}">
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][department]" value="{{ c.department }}">
-    <input type="hidden" name="contacts[{{ forloop.counter0 }}][description]" value="{{ c.description }}">
-
-  </div>
-  {% endfor %}
-
 </div>
 
 <!-- Add Button -->
-<button type="button" class="btn btn-success btn-sm mt-2" id="addContactBtn">
+<button type="button" class="btn btn-link btn-sm mt-2" id="addContactBtn">
   + Add Contact
 </button>
 
@@ -68,20 +26,25 @@
       </div>
 
       <div class="modal-body">
-
-        <!-- Hidden ID -->
-        <input type="hidden" id="contact_id">
-
+        <input type="hidden" id="vendor_id" >
         <div class="form-row">
-          <div class="form-group col-md-6">
+          <div class="form-group col-md-4">
             <label>First Name</label>
             <input type="text" id="contact_first_name" class="form-control">
           </div>
 
-          <div class="form-group col-md-6">
+          <div class="form-group col-md-4">
             <label>Last Name</label>
             <input type="text" id="contact_last_name" class="form-control">
           </div>
+            <div class="form-group col-md-4">
+            <label>Role</label>
+            <select id="contact_role" class="form-control">
+              <option value="">Select</option>
+              <option value="CEO">CEO</option>
+            </select>
+          </div>
+
         </div>
 
         <div class="form-row">
@@ -99,10 +62,10 @@
             <label>Department</label>
             <select id="contact_department" class="form-control">
               <option value="">Select</option>
-              <option>Account Manager</option>
-              <option>Sales</option>
-              <option>Account (Finance)</option>
-              <option>Customer Service</option>
+              <option value="Account Manager">Account Manager</option>
+              <option value="Sales">Sales</option>
+              <option value="Account (Finance)">Account (Finance)</option>
+              <option value="Customer Service">Customer Service</option>
             </select>
           </div>
 
@@ -116,8 +79,82 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-        <button class="btn btn-primary" id="saveContactBtn">Save</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary" id="saveNewContactBtn">Save</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="update_contactModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Contact Details</h5>
+        <button class="close" data-dismiss="modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="edit_vendor_id" value="{{vendor.id}}" />
+          <input type="hidden" id="edit_contact_id" />
+
+        <div class="form-row">
+          <div class="form-group col-md-4">
+            <label>First Name</label>
+            <input type="text" id="edit_contact_first_name" class="form-control">
+          </div>
+
+          <div class="form-group col-md-4">
+            <label>Last Name</label>
+            <input type="text" id="edit_contact_last_name" class="form-control">
+          </div>
+            <div class="form-group col-md-4">
+            <label>Role</label>
+            <select id="edit_contact_role" class="form-control">
+              <option value="">Select</option>
+              <option value="CEO">CEO</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="form-row">
+          <div class="form-group col-md-4">
+            <label>Email</label>
+            <input type="email" id="edit_contact_email" class="form-control">
+          </div>
+
+          <div class="form-group col-md-4">
+            <label>Phone</label>
+            <input type="text" id="edit_contact_phone" class="form-control">
+          </div>
+
+          <div class="form-group col-md-4">
+            <label>Department</label>
+            <select id="edit_contact_department" class="form-control">
+              <option value="">Select</option>
+              <option value="Account Manager">Account Manager</option>
+              <option value="Sales">Sales</option>
+              <option value="Account (Finance)">Account (Finance)</option>
+              <option value="Customer Service">Customer Service</option>
+            </select>
+          </div>
+
+        </div>
+
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="edit_contact_description" class="form-control" rows="2"></textarea>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary" id="saveEditContactBtn">Update</button>
       </div>
 
     </div>
@@ -125,203 +162,158 @@
 </div>
 
 <script>
-(function() {
+document.addEventListener("DOMContentLoaded", () => {
 
-  const list = document.getElementById("contact-list");
-  const modal = $("#contactModal");
+    const list = document.getElementById("contact-list");
+    const csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const vendorId = {{ vendor.id }};
+    const addModal = $("#contactModal");
+    const editModal = $("#update_contactModal");
 
-  // -------------------------------
-  // OPEN MODAL FOR ADDING
-  // -------------------------------
-  document.getElementById("addContactBtn").onclick = function() {
-    fillModal({});
-    modal.modal("show");
-  };
+    const DETAIL_URL = "{% url 'get_single_vendor_contact' vendor.id 9999 %}";
+    const UPDATE_URL = "{% url 'update_newvendor_contact' 9999 %}";
+    const ADD_URL = "{% url 'add_newvendor_contact' vendor.id %}";
 
-  // -------------------------------
-  // OPEN MODAL FOR EDITING
-  // -------------------------------
-  list.addEventListener("click", function(e) {
-    const editBtn = e.target.closest(".edit-contact");
-    if (!editBtn) return;
-
-    const item = editBtn.closest(".contact-item");
-
-    fillModal({
-      id: item.dataset.id,
-      first_name: item.dataset.first,
-      last_name: item.dataset.last,
-      email: item.dataset.email,
-      phone: item.dataset.phone,
-      department: item.dataset.dept,
-      description: item.dataset.desc
-    });
-
-    modal.modal("show");
-  });
-
-  // -------------------------------
-  // SAVE (ADD OR UPDATE)
-  // -------------------------------
-  document.getElementById("saveContactBtn").onclick = function() {
-    const c = {
-      id: document.getElementById("contact_id").value,
-      first: document.getElementById("contact_first_name").value,
-      last: document.getElementById("contact_last_name").value,
-      email: document.getElementById("contact_email").value,
-      phone: document.getElementById("contact_phone").value,
-      dept: document.getElementById("contact_department").value,
-      desc: document.getElementById("contact_description").value
+    const addFields = {
+      first_name: "contact_first_name",
+      last_name: "contact_last_name",
+      email: "contact_email",
+      phone: "contact_phone",
+      department: "contact_department",
+      description: "contact_description",
+      role: "contact_role"
     };
-    if (c.id) {
-      updateContactUI(c);
-    } else {
-      addContactUI(c);
+
+    const editFields = {
+      id: "edit_contact_id",
+      first_name: "edit_contact_first_name",
+      last_name: "edit_contact_last_name",
+      email: "edit_contact_email",
+      phone: "edit_contact_phone",
+      department: "edit_contact_department",
+      description: "edit_contact_description",
+      role: "edit_contact_role"
+    };
+
+    const formToData = (fields) => {
+      const fd = new FormData();
+      Object.entries(fields).forEach(([key, id]) => {
+        fd.append(key, document.getElementById(id).value);
+      });
+      return fd;
+    };
+
+    const resetForm = (fields) => {
+      Object.values(fields).forEach(id => document.getElementById(id).value = "");
+    };
+
+    const alertBox = (title, message, icon) =>
+      Swal.fire(title, message, icon);
+
+    // ------------- LOAD -------------
+    function loadContacts() {
+      list.innerHTML = "";
+      fetch("{% url 'get_all_vendor_contacts' vendor.id %}")
+        .then(r => r.json())
+        .then(data => {
+          if (!data.status) return;
+          data.data.forEach(c => {
+            list.insertAdjacentHTML("beforeend", `
+              <div class="contact-item border rounded p-2 mb-2 bg-light" data-id="${c.id}">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <strong>${c.first_name} ${c.last_name}</strong>
+                    <small class="text-muted d-block">${c.role || ""} | ${c.department || ""}</small>
+                  </div>
+                  <div>
+                    <button type="button" class="btn btn-sm btn-primary edit-contact"><i class="fas fa-pen"></i></button>
+                    <button type="button" class="btn btn-sm btn-danger delete-contact-btn"><i class="far fa-trash-alt"></i></button>
+                  </div>
+                </div>
+              </div>`);
+          });
+        });
     }
-    modal.modal("hide");
-  };
 
-  // -------------------------------
-  // DELETE CONTACT
-  // -------------------------------
-  list.addEventListener("click", function(e) {
-    const btn = e.target.closest(".delete-contact");
-    if (!btn) return;
+    // ------------- ADD -------------
+    document.getElementById("addContactBtn").onclick = () => addModal.modal("show");
 
-    const id = btn.dataset.id;
-    const item = btn.closest(".contact-item");
+    document.getElementById("saveNewContactBtn").onclick = () => {
+      const fd = formToData(addFields);
+      fd.append("vendor_id", vendorId);
 
-    Swal.fire({
-      title: "Delete Contact?",
-      text: "This action cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Delete"
-    }).then(result => {
+      fetch(ADD_URL, { method: "POST", body: fd, headers: { "X-CSRFToken": csrf } })
+        .then(r => r.json())
+        .then(data => {
+          alertBox(data.status ? "Added" : "Error", data.message, data.status ? "success" : "error");
+          if (data.status) {
+            addModal.modal("hide");
+            resetForm(addFields);
+            loadContacts();
+          }
+        });
+    };
 
-      if (!result.value) return;
+    // ------------- EDIT UI -------------
+    list.addEventListener("click", (e) => {
+      const parent = e.target.closest(".contact-item");
+      if (!parent) return;
+      const id = parent.dataset.id;
 
-      // NEW (NOT SAVED TO DB)
-      if (!id) {
-        item.remove();
-        renumber();
-        return;
+      if (e.target.closest(".edit-contact")) {
+        fetch(DETAIL_URL.replace("9999", id))
+          .then(r => r.json())
+          .then(data => {
+            if (!data.status) return;
+            Object.entries(editFields).forEach(([key, idName]) => {
+              document.getElementById(idName).value = data.data[key] || "";
+            });
+            editModal.modal("show");
+          });
       }
 
-      // AJAX DELETE
-      fetch(`/vendor/contact/delete/${id}/`, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-        }
+      // ------------- DELETE -------------
+      if (e.target.closest(".delete-contact-btn")) {
+        Swal.fire({
+          title: "Delete Contact?",
+          text: "This cannot be undone.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Delete"
+        }).then(res => {
+          if (!res.value) return;
+          fetch(`/vendor/contact/delete/${id}/${vendorId}`, {
+            method: "DELETE",
+            headers: { "X-CSRFToken": csrf }
+          })
+          .then(r => r.json())
+          .then(data => {
+            alertBox(data.status ? "Deleted" : "Error", data.message, data.status ? "success" : "error");
+            if (data.status) loadContacts();
+          });
+        });
+      }
+    });
+
+    // ------------- EDIT SUBMIT -------------
+    document.getElementById("saveEditContactBtn").onclick = () => {
+      const id = document.getElementById("edit_contact_id").value;
+      const fd = formToData(editFields);
+
+      fetch(UPDATE_URL.replace("9999", id), {
+        method: "POST", body: fd, headers: { "X-CSRFToken": csrf }
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.status) {
-          item.remove();
-          Swal.fire("Deleted", "Contact removed.", "success");
-          renumber();
-        } else {
-          Swal.fire("Error", data.message, "error");
-        }
-      });
+        .then(r => r.json())
+        .then(data => {
+          alertBox(data.status ? "Updated" : "Error", data.message, data.status ? "success" : "error");
+          if (data.status) {
+            editModal.modal("hide");
+            resetForm(editFields);
+            loadContacts();
+          }
+        });
+    };
 
-    });
-  });
-
-  // -------------------------------
-  // FILL MODAL VALUES
-  // -------------------------------
-  function fillModal(d) {
-    document.getElementById("contact_id").value = d.id || "";
-    document.getElementById("contact_first_name").value = d.first_name || "";
-    document.getElementById("contact_last_name").value = d.last_name || "";
-    document.getElementById("contact_email").value = d.email || "";
-    document.getElementById("contact_phone").value = d.phone || "";
-    document.getElementById("contact_department").value = d.department || "";
-    document.getElementById("contact_description").value = d.description || "";
-  }
-
-  // -------------------------------
-  // ADD CONTACT TO UI
-  // -------------------------------
-  function addContactUI(c) {
-    const idx = list.querySelectorAll(".contact-item").length;
-
-    const html = `
-      <div class="contact-item border rounded p-2 mb-2 bg-light"
-           data-id=""
-           data-first="${c.first}"
-           data-last="${c.last}"
-           data-email="${c.email}"
-           data-phone="${c.phone}"
-           data-dept="${c.dept}"
-           data-desc="${c.desc}">
-
-        <div class="d-flex justify-content-between">
-          <div>
-            <strong>${c.first} ${c.last}</strong>
-            <small class="text-muted d-block">${c.dept}</small>
-          </div>
-
-          <div>
-            <button class="btn btn-sm btn-primary edit-contact" style="margin-right:5px;">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-danger delete-contact"><i class="far fa-trash-alt"></i></button>
-          </div>
-
-        </div>
-
-        <input type="hidden" name="contacts[${idx}][id]" value="">
-        <input type="hidden" name="contacts[${idx}][first_name]" value="${c.first}">
-        <input type="hidden" name="contacts[${idx}][last_name]" value="${c.last}">
-        <input type="hidden" name="contacts[${idx}][email]" value="${c.email}">
-        <input type="hidden" name="contacts[${idx}][phone]" value="${c.phone}">
-        <input type="hidden" name="contacts[${idx}][department]" value="${c.dept}">
-        <input type="hidden" name="contacts[${idx}][description]" value="${c.desc}">
-      </div>
-    `;
-
-    list.insertAdjacentHTML("beforeend", html);
-    renumber();
-  }
-
-  // -------------------------------
-  // UPDATE CONTACT UI
-  // -------------------------------
-  function updateContactUI(c) {
-    const item = list.querySelector(`.contact-item[data-id="${c.id}"]`);
-    if (!item) return;
-
-    item.dataset.first = c.first;
-    item.dataset.last = c.last;
-    item.dataset.email = c.email;
-    item.dataset.phone = c.phone;
-    item.dataset.dept = c.dept;
-    item.dataset.desc = c.desc;
-
-    item.querySelector("strong").innerText = `${c.first} ${c.last}`;
-    item.querySelector("small").innerText = c.dept;
-
-    item.querySelector(`input[name*="[first_name]"]`).value = c.first;
-    item.querySelector(`input[name*="[last_name]"]`).value = c.last;
-    item.querySelector(`input[name*="[email]"]`).value = c.email;
-    item.querySelector(`input[name*="[phone]"]`).value = c.phone;
-    item.querySelector(`input[name*="[department]"]`).value = c.dept;
-    item.querySelector(`input[name*="[description]"]`).value = c.desc;
-  }
-
-  // -------------------------------
-  // RENUMBER HIDDEN INPUT NAMES
-  // -------------------------------
-  function renumber() {
-    document.querySelectorAll("#contact-list .contact-item").forEach((item, idx) => {
-      item.querySelectorAll("input").forEach(input => {
-        input.name = input.name.replace(/contacts\[\d+\]/, `contacts[${idx}]`);
-      });
-    });
-  }
-
-})();
+    loadContacts();
+});
 </script>

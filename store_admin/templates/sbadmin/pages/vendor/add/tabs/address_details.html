@@ -1,15 +1,15 @@
 <div class="row">
     <div class="col-md-6">
-      <h5 class="mb-3 font-weight-bold">Billing Address</h5>
+      <h6 class="mb-3 font-weight-bold">Billing Address</h6>
       <div class="form-group">
         <label>Attention</label>
-        <input type="text" name="billing_attention_name"  class="form-control" placeholder="Enter attention name">
+        <input type="text" name="billing_attention_name"  class="form-control-sm form-control" placeholder="Enter attention name">
       </div>
 
       <div class="form-group">
         <label>Country / Region</label>
         <select name="billing_country" id="billing_country"
-                class=" form-control" style="width:100%">
+                class=" form-control select2 form-control-sm " style="width:100%">
             <option value="">-- Select Country --</option>
             {% for term in countries_list %}
                 <option value="{{ term.id }}">{{ term.name }}</option>
@@ -21,43 +21,45 @@
 
       <div class="form-group">
         <label>Building / Street</label>
-        <textarea name="billing_street1" class="form-control mb-2" rows="2" placeholder="Street 1"></textarea>
-        <textarea name="billing_street2" class="form-control" rows="2" placeholder="Street 2"></textarea>
+        <textarea name="billing_street1" class="form-control-sm form-control mb-2" rows="2" placeholder="Street 1"></textarea>
+        <textarea name="billing_street2" class="form-control-sm form-control" rows="2" placeholder="Street 2"></textarea>
       </div>
 
       <div class="form-row">
         <div class="form-group col-md-6">
           <label>State</label>
-          <select name="billing_state" style="width:100%"  id="billing_state" class="form-control">
+          <select name="billing_state" style="width:100%"
+                  id="billing_state" class="form-control select2 form-control-sm ">
             <option value="">Select country</option>
           </select>
         </div>
         <div class="form-group col-md-6">
           <label>City</label>
-          <input type="text" class="form-control" placeholder="City" name="billing_city">
+          <input type="text" class="form-control form-control-sm "
+                 placeholder="City" name="billing_city">
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group col-md-6">
           <label>ZIP Code</label>
-          <input type="text" class="form-control" name="billing_zip" placeholder="Postal code">
+          <input type="text" class="form-control form-control-sm " name="billing_zip" placeholder="Postal code">
         </div>
         <div class="form-group col-md-6">
           <label>Phone</label>
-          <input type="text" name="billing_phone" class="form-control" placeholder="Phone number">
+          <input type="text" name="billing_phone" class="form-control form-control-sm " placeholder="Phone number">
         </div>
       </div>
 
       <div class="form-group">
         <label>Fax Number</label>
-        <input type="text" name="billing_fax" class="form-control" placeholder="Fax number (optional)">
+        <input type="text" name="billing_fax" class="form-control-sm  form-control" placeholder="Fax number (optional)">
       </div>
     </div>
     <!-- Shipping Address -->
     <div class="col-md-6">
       <div class="d-flex align-items-center mb-3">
-        <h5 class="mb-0 font-weight-bold">Shipping Address</h5>
+        <h6 class="mb-0 font-weight-bold">Shipping Address</h6>
         <a href="#" id="copyBilling" class="ml-2 text-primary small">
           <i class="fas fa-arrow-down"></i> Copy billing address
         </a>
@@ -65,13 +67,13 @@
 
       <div class="form-group">
         <label>Attention</label>
-        <input type="text" name="shipping_attention_name"  class="form-control" placeholder="Enter attention name">
+        <input type="text" name="shipping_attention_name"  class="form-control-sm  form-control" placeholder="Enter attention name">
       </div>
 
       <div class="form-group">
         <label>Country / Region</label>
         <select name="shipping_country" id="shipping_country" style="width:100%"
-               class="select2bs4  select2-ajax form-control" >
+               class="select2 form-control-sm select2-ajax form-control" >
             <option value="">-- Select Country --</option>
             {% for term in countries_list %}
                 <option value="{{ term.id }}">{{ term.name }}  </option>
@@ -81,37 +83,38 @@
 
       <div class="form-group">
         <label>Building / Street</label>
-        <textarea name="shipping_street1"  class="form-control mb-2" rows="2" placeholder="Street 1"></textarea>
-        <textarea name="shipping_street2"  class="form-control" rows="2" placeholder="Street 2"></textarea>
+        <textarea name="shipping_street1"  class="form-control form-control-sm  mb-2" rows="2" placeholder="Street 1"></textarea>
+        <textarea name="shipping_street2"  class="form-control form-control-sm " rows="2" placeholder="Street 2"></textarea>
       </div>
 
       <div class="form-row">
           <div class="form-group col-md-6">
           <label>State</label>
-          <select name="shipping_state" style="width:100%" id="shipping_state" class="select2 form-control">
+          <select name="shipping_state" style="width:100%"
+                  id="shipping_state" class="select2 form-control-sm  form-control">
             <option value="">Select shipping country</option>
           </select>
         </div>
         <div class="form-group col-md-6">
           <label>City</label>
-          <input name="shipping_city"  type="text" class="form-control" placeholder="City">
+          <input name="shipping_city"  type="text" class="form-control-sm form-control" placeholder="City">
         </div>
       </div>
 
       <div class="form-row">
         <div class="form-group col-md-6">
           <label>ZIP Code</label>
-          <input name="shipping_zip"  type="text" class="form-control" placeholder="Postal code">
+          <input name="shipping_zip"  type="text" class="form-control-sm form-control" placeholder="Postal code">
         </div>
         <div class="form-group col-md-6">
           <label>Phone</label>
-          <input name="shipping_phone"  type="text" class="form-control" placeholder="Phone number">
+          <input name="shipping_phone"  type="text" class="form-control-sm form-control" placeholder="Phone number">
         </div>
       </div>
 
       <div class="form-group">
         <label>Fax Number</label>
-        <input name="shipping_fax"  type="text" class="form-control" placeholder="Fax number (optional)">
+        <input name="shipping_fax"  type="text" class="form-control-sm form-control" placeholder="Fax number (optional)">
       </div>
     </div>
   </div>

@@ -4,11 +4,7 @@
 
 {% block content %}
 <div class="content-wrapper">
-
-  <!-- GLOBAL CSRF TOKEN (Required for delete to work) -->
   <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
-
-  <!-- Page Header -->
   <section class="content-header">
     <div class="container-fluid">
       <div class="row mb-2">
@@ -17,27 +13,28 @@
         </div>
         <div class="col-sm-6">
           <div class="float-right">
-             <div class="btn-group float-right">
-                    <button type="button" class="btn btn-success"><i class="fas fa-bars fa-sm mr-1"></i>Actions</button>
 
-                    <button type="button" class="btn btn-success dropdown-toggle dropdown-toggle-split"
+               <div class="btn-group float-right">
+                    <button type="button" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
+                    <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="sr-only">Toggle Dropdown</span>
                     </button>
 
                     <div class="dropdown-menu dropdown-menu-right">
-                        <a class="dropdown-item text-sm" href="{% url 'add_new_vendor' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
-                        <a class="dropdown-item text-sm" href="{% url 'import_vendor' %}"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
-                        <a class="dropdown-item text-sm" href="#"><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+                        <a class="dropdown-item" href="{% url 'add_new_vendor' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
+                        <a class="dropdown-item" href="{% url 'import_vendor' %}""><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
+                        <a class="dropdown-item" href="#"><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+
                     </div>
-                </div>
+             </div>
+
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- success/error messages -->
   {% if messages %}
   <div class="container mt-3">
     {% for message in messages %}
@@ -49,7 +46,6 @@
   </div>
   {% endif %}
 
-  <!-- Main Content -->
   <section class="content">
     <div class="card card-outline">
       <div class="card-header">
@@ -69,10 +65,10 @@
         </form>
           </div>
           <div class="mb-2 float-right">
-            <button type="button"
-                    class="btn btn-danger btn-sm"
-                    onclick="deleteSelectedVendors()">
-                Delete Selected
+            <button type="button"  style="display: none;"
+                    class="btn btn-outline-danger btn-sm" id="bulkDeleteBtn"
+                    onclick="deleteSelectedVendors()" title="Delete selected records">
+                <i class="fas fa-trash"></i> Delete
             </button>
         </div>
 
@@ -118,7 +114,7 @@
                   <a href="{% url 'edit_vendor' vendor.id %}"
                      class="btn btn-sm btn-outline-success"
                      title="Edit Vendor">
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-pen"></i>
                   </a>
 
                   <button type="button"
@@ -131,7 +127,7 @@
 
               {% empty %}
               <tr>
-                <td colspan="6" class="text-center text-muted py-3">
+                <td colspan="7" class="text-center text-muted py-3">
                   No vendors found.
                 </td>
               </tr>
@@ -198,6 +194,9 @@
 function deleteSelectedVendor(vendorId) {
     Swal.fire({
         title: "Delete Vendor?",
+        customClass: {
+            popup: 'swal2-compact-design' // The custom class
+        },
         text: "This action cannot be undone.",
         icon: "warning",
         showCancelButton: true,
@@ -217,12 +216,14 @@ function deleteSelectedVendor(vendorId) {
         .then(data => {
             if(data.status){
                 Swal.fire({
-                    title: "Deleted",
+                    title: "Deleted", customClass: {
+                        popup: 'swal2-compact-design' // The custom class
+                    },
                     text: "Vendor removed successfully",
                     icon: "success"
                 }).then(() => window.location.reload());
             }else{
-                Swal.fire("Error", data.message || "Something went wrong", "error");
+                Swal.fire( "Error", "Something went wrong");
             }
         })
         .catch(() => Swal.fire("Error", "Server error", "error"));
@@ -230,6 +231,54 @@ function deleteSelectedVendor(vendorId) {
 }
 </script>
 <script>
+
+document.addEventListener("DOMContentLoaded", function() {
+    const selectAllCb = document.getElementById("select_all");
+    const bulkBtn = document.getElementById("bulkDeleteBtn");
+    const itemCheckboxes = document.querySelectorAll(".vendor-check");
+
+    // --- 1. VISIBILITY LOGIC ---
+
+    function toggleBulkButton() {
+        // Count how many are checked
+        const checkedCount = document.querySelectorAll(".vendor-check:checked").length;
+
+        // Show button if at least 1 is checked
+        if (checkedCount > 0) {
+            bulkBtn.style.display = "inline-block";
+        } else {
+            bulkBtn.style.display = "none";
+        }
+    }
+
+    // --- 2. SELECT ALL EVENT ---
+
+    if(selectAllCb){
+        selectAllCb.addEventListener("change", function() {
+            const isChecked = this.checked;
+            // Check/Uncheck all individual boxes
+            itemCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+            // Update button visibility immediately
+            toggleBulkButton();
+        });
+    }
+
+    // --- 3. INDIVIDUAL CHECKBOX EVENTS ---
+
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener("change", function() {
+            // If one is unchecked, uncheck "Select All"
+            if (!this.checked) {
+                if(selectAllCb) selectAllCb.checked = false;
+            }
+            toggleBulkButton();
+        });
+    });
+});
+
+
 document.getElementById("select_all").addEventListener("change", function () {
     let checked = this.checked;
     document.querySelectorAll(".vendor-check").forEach(cb => cb.checked = checked);
@@ -247,11 +296,21 @@ function deleteSelectedVendors() {
         return;
     }
 
-    if (!confirm("Are you sure you want to delete selected vendors?")) {
-        return;
-    }
 
-    fetch("{% url 'delete_vendors_bulk' %}", {
+    Swal.fire({
+        title: "Are you sure you want to delete selected vendors?",
+        customClass: {
+            popup: 'swal2-compact-design' // The custom class
+        },
+        text: "This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Delete",
+        cancelButtonText: "Cancel"
+    }).then(result => {
+        if (!result.value) return;
+        if(result.value){
+            fetch("{% url 'delete_vendors_bulk' %}", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -262,12 +321,26 @@ function deleteSelectedVendors() {
     .then(response => response.json())
     .then(data => {
         if (data.status === "success") {
-            alert("Selected vendors deleted successfully.");
-            location.reload();
+           Swal.fire({
+                  title: "Deleted!",
+                  customClass: {
+                    popup: 'swal2-compact-design' // The custom class for smaller design
+                  },
+                  text: "Selected vendors deleted successfully.",
+                  icon: "success"
+                })
+                .then(() => {
+                  location.reload();
+                });
+
         } else {
-            alert("Error deleting vendors.");
+            Swal.fire( "Error","Failed to delete.");
+        }
+    }).catch(error => Swal.fire("Error", "Failed to delete."));
         }
     });
+
+
 }
 </script>
 

@@ -143,4 +143,36 @@ CREATE TABLE store_admin_product (
     updated_by INT UNSIGNED NOT NULL
 
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+----Modified new version ----
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendor`
+ADD COLUMN `vendor_type` VARCHAR(50) NULL AFTER `status`;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendor`
+ADD COLUMN `payment_method` VARCHAR(45) NULL DEFAULT NULL AFTER `vendor_type`;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendor`
+CHANGE COLUMN `salutation` `salutation` VARCHAR(20) NULL DEFAULT NULL ,
+CHANGE COLUMN `first_name` `first_name` VARCHAR(100) NULL DEFAULT NULL ,
+CHANGE COLUMN `last_name` `last_name` VARCHAR(100) NULL DEFAULT NULL ,
+CHANGE COLUMN `company_abn` `company_abn` VARCHAR(50) NULL DEFAULT NULL ,
+CHANGE COLUMN `company_acn` `company_acn` VARCHAR(50) NULL DEFAULT NULL ,
+CHANGE COLUMN `vendor_remarks` `vendor_remarks` LONGTEXT NULL DEFAULT NULL ;
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_addresses`
+CHANGE COLUMN `attention_name` `attention_name` VARCHAR(255) NULL DEFAULT NULL ,
+CHANGE COLUMN `street1` `street1` VARCHAR(255) NULL DEFAULT NULL ,
+CHANGE COLUMN `street2` `street2` VARCHAR(255) NULL DEFAULT NULL ,
+CHANGE COLUMN `city` `city` VARCHAR(100) NULL DEFAULT NULL ,
+CHANGE COLUMN `zip` `zip` VARCHAR(20) NULL DEFAULT NULL ,
+CHANGE COLUMN `phone` `phone` VARCHAR(50) NULL DEFAULT NULL ,
+CHANGE COLUMN `fax` `fax` VARCHAR(50) NULL ,
+CHANGE COLUMN `company_name` `company_name` VARCHAR(255) NULL DEFAULT NULL ;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendorcontact`
+ADD COLUMN `role` VARCHAR(100) NULL DEFAULT NULL AFTER `created_by`;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendorcontact`
+ADD COLUMN `created_at` DATETIME(6) NULL AFTER `role`;
 

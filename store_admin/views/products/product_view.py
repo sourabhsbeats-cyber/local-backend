@@ -1,34 +1,33 @@
 from xmlrpc.client import Boolean
-
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseBadRequest
-
-from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
+from store_admin.models.address_model import Addresses
+from django.db import transaction
+from django.db.models import Value as V
+from django.db.models.functions import Concat
+
+from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404
+from django.contrib.auth.decorators import login_required
 from store_admin.models.product_model import Product
 from store_admin.models.setting_model import Category, Brand, Manufacturer
 from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
-from store_admin.models.address_model import Addresses
-from django.db import transaction
 from django.db.models import Min
-from django.db.models import Value as V
-from django.db.models.functions import Concat
 from django.db import IntegrityError
 from django.db.models import Subquery, OuterRef, Value, CharField, When, Case
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator
+from store_admin.models import Country, State
 
 '''
 Product Type	Product Type	Dropdown	Parent, Child, Standard, Bundle	Default = Standard; determines product hierarchy.

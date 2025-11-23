@@ -2,7 +2,7 @@
 <!-- CONTACT PERSONS (EDIT PAGE) -->
 <!-- ============================ -->
 
-<h5 class="font-weight-bold mb-3">Contact Persons</h5>
+<h6 class="font-weight-bold mb-3">Contact Persons</h6>
 <p class="text-muted small">Add or edit vendor contact persons.</p>
 
 <div id="contact-list">
@@ -45,9 +45,11 @@
   {% endfor %}
 </div>
 
-<button type="button" class="btn btn-success btn-sm mt-2" id="addContactBtn">
-  + Add Contact
+
+<button type="button" id="addContactBtn" class="btn-sm btn btn-link px-0 mt-2">
+  <i class="fas fa-plus"></i> Add Contact
 </button>
+
 
 <!-- CONTACT MODAL -->
 <div class="modal fade" id="contactModal">
@@ -55,7 +57,7 @@
     <div class="modal-content">
 
       <div class="modal-header">
-        <h5 class="modal-title">Contact Details</h5>
+        <h6 class="modal-title">Contact Details</h6>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
 
@@ -65,48 +67,49 @@
 
         <div class="form-group">
           <label>Department</label>
-          <select class="form-control" id="contact_department">
-            <option value="">Select</option>
-            <option>Account Manager</option>
-            <option>Sales</option>
-            <option>Account (Finance)</option>
-            <option>Customer Service</option>
+          <select class="form-control  form-control-sm" id="contact_department">
+            <option value="Select">Select</option>
+            <option value="Account Manager">Account Manager</option>
+            <option value="Sales">Sales</option>
+            <option value="Account (Finance)">Account (Finance)</option>
+            <option value="Customer Service">Customer Service</option>
           </select>
         </div>
 
         <div class="form-row">
           <div class="form-group col-md-6">
             <label>First Name</label>
-            <input type="text" id="contact_first_name" class="form-control">
+            <input type="text" id="contact_first_name"
+                 placeholder="First Name"  class="form-control form-control-sm">
           </div>
           <div class="form-group col-md-6">
             <label>Last Name</label>
-            <input type="text" id="contact_last_name" class="form-control">
+            <input type="text" placeholder="Last Name" id="contact_last_name" class="form-control form-control-sm">
           </div>
         </div>
 
         <div class="form-group">
           <label>Email</label>
-          <input type="text" id="contact_email" class="form-control">
+          <input type="text" placeholder="Email" id="contact_email" class=" form-control-sm form-control">
         </div>
 
         <div class="form-group">
           <label>Phone</label>
-          <input type="text" id="contact_phone" class="form-control">
+          <input type="text" placeholder="Phone" id="contact_phone" class="form-control">
         </div>
 
         <div class="form-group">
           <label>Description</label>
-          <textarea class="form-control" id="contact_desc" rows="2"></textarea>
+          <textarea class="form-control" placeholder="Description" id="contact_desc" rows="2"></textarea>
         </div>
 
       </div>
 
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">
           Cancel
         </button>
-        <button type="button" class="btn btn-primary" id="save-contact">
+        <button type="button" class="btn btn-sm btn-primary" id="save-contact">
           Save
         </button>
       </div>

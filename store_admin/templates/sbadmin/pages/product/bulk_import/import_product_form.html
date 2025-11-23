@@ -1,5 +1,5 @@
 {% extends "sbadmin/base.html" %}
-{% block title %}Import Contacts{% endblock %}
+{% block title %}Import Product{% endblock %}
 {% block content %}
 
 <style>
@@ -83,7 +83,9 @@
     </div>
   </section>
 
-
+<a href="{% url 'vendor_listing' %}" class="float-right pt-2 btn btn-tool">
+          <i class="fas fa-times"></i>
+        </a>
 
     <div class="container mt-4">
         <h4 class="text-center mb-4">Products - Select File</h4>

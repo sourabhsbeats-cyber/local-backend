@@ -4,7 +4,7 @@
         name="vendor_remarks"
         rows="4"
         placeholder="Enter any internal notes or remarks related to this vendor (not visible to vendor)."
-    >{{ vendor.vendor_remarks }}</textarea>
+    >{{ vendor.vendor_remarks  | hide_none}}</textarea>
 </div>
 
 <div class="alert alert-light border-left border-info small mt-3">

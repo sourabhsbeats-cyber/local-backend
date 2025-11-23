@@ -38,66 +38,63 @@
               utocapitalize="none" spellcheck="false"  id="vendorForm" method="post">
             {% csrf_token %}
             {% include "sbadmin/pages/vendor/add/tabs/primary_details.html" %}
-          <ul class="nav nav-tabs mt-4" id="vendorTabs" role="tablist">
-            <li class="nav-item">
-              <a class="nav-link active" id="tab-other" data-toggle="tab" href="#tabContent-other" role="tab">
-                  Other Details</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link " id="tab-address" data-toggle="tab" href="#tabContent-address" role="tab">
-                  Address</a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" id="tab-bank" data-toggle="tab" href="#tabContent-bank" role="tab">
-                  Bank Details</a>
-            </li>
-           <li class="nav-item">
-              <a class="nav-link" id="tab-contacts" data-toggle="tab" href="#tabContent-contacts" role="tab">
-                  Contact Details</a>
-            </li>
+            <section id="tabs" class="project-tab col-md-9 mt-3 col-sm-12 ">
+                <nav class="nav-justified ">
+                  <div class="nav nav-tabs " id="nav-tab" role="tablist">
+                    <a class="nav-item nav-link active" id="pop1-tab"
+                       data-toggle="tab" href="#pop1" role="tab" aria-controls="pop1" aria-selected="true">
+                        Other Details</a>
+                    <a class="nav-item nav-link" id="pop2-tab" data-toggle="tab" href="#pop2" role="tab" aria-controls="pop2" aria-selected="false">Address</a>
+                    <a class="nav-item nav-link" id="pop3-tab" data-toggle="tab" href="#pop3" role="tab" aria-controls="pop3" aria-selected="false">Bank Details</a>
+
+                   <a class="nav-item nav-link" id="pop4-tab" data-toggle="tab" href="#pop4" role="tab" aria-controls="pop4" aria-selected="false">Contact Details</a>
+                   <a class="nav-item nav-link" id="pop5-tab" data-toggle="tab" href="#pop5" role="tab" aria-controls="pop5" aria-selected="false">Remarks</a>
+                  </div>
+                </nav>
+                <div class="tab-content" id="nav-tabContent">
+                  <div class="tab-pane fade show active" id="pop1" role="tabpanel" aria-labelledby="pop1-tab">
+                        <div class="pt-4"></div>
+                        {% include "sbadmin/pages/vendor/add/tabs/other_details.html" %}
+                      </div>
+                  <div class="tab-pane fade" id="pop2" role="tabpanel" aria-labelledby="pop2-tab">
+                       <div class="pt-4"></div>
+                        {% include "sbadmin/pages/vendor/add/tabs/address_details.html" %}
+                  </div>
+                  <div class="tab-pane fade" id="pop3" role="tabpanel" aria-labelledby="pop3-tab">
+                       <div class="pt-4"></div>
+                        {% include "sbadmin/pages/vendor/add/tabs/bank_details.html" %}
+
+                  </div>
+                    <div class="tab-pane fade" id="pop4" role="tabpanel" aria-labelledby="pop4-tab">
+                       <div class="pt-4"></div>
+                       {% include "sbadmin/pages/vendor/add/tabs/contact_details.html" %}
+                  </div>
+                    <div class="tab-pane fade" id="pop5" role="tabpanel" aria-labelledby="pop5-tab">
+                       <div class="pt-3"></div>
+                         <h6 class="font-weight-bold mb-3"><small class="text-muted">(For Internal Use)</small></h6>
+                        {% include "sbadmin/pages/vendor/add/tabs/remarks.html" %}
+
+                  </div>
+                </div>
+            </section>
             <!--
             <li class="nav-item disabled">
               <a class="nav-link" id="tab-custom" data-toggle="tab" href="#tabContent-custom" role="tab">
                   Custom Fields</a>
             </li>
             -->
-            <li class="nav-item">
-              <a class="nav-link" id="tab-remarks" data-toggle="tab" href="#tabContent-remarks" role="tab">
-                  Remarks</a>
-            </li>
-          </ul>
-          <div class="tab-content p-3 border border-top-0" id="vendorTabContent">
-            <div class="tab-pane fade show active" id="tabContent-other" role="tabpanel">
-                <div class="other_details_form">
-                    {% include "sbadmin/pages/vendor/add/tabs/other_details.html" %}
-                </div>
-            </div>
-            <div class="tab-pane fade show " id="tabContent-address" role="tabpanel">
-                {% include "sbadmin/pages/vendor/add/tabs/address_details.html" %}
-            </div>
-            <div class="tab-pane fade" id="tabContent-bank" role="tabpanel">
-                {% include "sbadmin/pages/vendor/add/tabs/bank_details.html" %}
-            </div>
             <!--
             <div class="tab-pane fade" id="tabContent-custom" role="tabpanel">
               <p class="text-muted">
                   Start adding custom fields for your Customers and Vendors by going to Settings  Preferences  Customers and Vendors. You can also refine the address format of your Customers and Vendors from there..</p>
             </div>-->
-            <div class="tab-pane fade show" id="tabContent-remarks" role="tabpanel">
-              <h5 class="font-weight-bold mb-3">Remarks <small class="text-muted">(For Internal Use)</small></h5>
-              {% include "sbadmin/pages/vendor/add/tabs/remarks.html" %}
-            </div>
-            <div class="tab-pane fade show" id="tabContent-contacts" role="tabpanel">
-                {% include "sbadmin/pages/vendor/add/tabs/contact_details.html" %}
-            </div>
-          </div>
           <div class="text-left mt-4">
             <button type="submit" id="btn_add_vendor" class="btn btn-success btn-sm">
             Save
             </button>
-            <button type="button" id="btn_cancel_vendor" class="btn btn-secondary btn-sm ml-2">
+            <a href="{% url 'vendor_listing' %}"  id="btn_cancel_vendor" class="btn btn-secondary btn-sm ml-2">
              Cancel
-            </button>
+            </a>
           </div>
         </form>
       </div>
@@ -131,7 +128,7 @@ document.addEventListener("DOMContentLoaded", function () {
             saveBtn.disabled = false;
             saveBtn.innerHTML = "Save";
 
-            if (data.status === "success") {
+            if (data.status) {
                 toastr.success(data.message || "Vendor saved successfully!");
 
                 // Redirect if backend sends redirect URL
@@ -160,15 +157,10 @@ function getCSRFToken() {
 
 </script>
 
-
-
 <!--hiTEST-->
 {% block footer_script %}
 <script>
-
 $(document).ready(function () {
-
-
     $('#billing_country').select2({
         placeholder: "Search Country...",
         allowClear: true,

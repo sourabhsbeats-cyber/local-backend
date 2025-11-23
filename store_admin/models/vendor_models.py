@@ -11,6 +11,7 @@ from store_admin.models.address_model import Addresses
 
 class Vendor(models.Model):
     id = models.AutoField(primary_key=True)
+    vendor_type = models.CharField(max_length=50, blank=True)
     salutation = models.CharField(max_length=20, blank=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True)
@@ -28,6 +29,7 @@ class Vendor(models.Model):
     payment_term = models.ForeignKey(
         PaymentTerm, on_delete=models.SET_NULL, null=True
     )
+    payment_method = models.CharField(max_length=50, blank=True)
 
     currency = models.CharField(max_length=10, blank=True)
     documents = models.CharField(max_length=255, blank=True)
@@ -65,8 +67,11 @@ class VendorContact(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100, blank=True)
+    role = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     created_by = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now=True)
+
    # class Meta:
     #    db_table = "vendor_contacts"
 

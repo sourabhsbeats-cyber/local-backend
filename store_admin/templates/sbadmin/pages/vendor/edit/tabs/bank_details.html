@@ -1,288 +1,254 @@
-<!-- ======================= -->
-<!-- BANK DETAILS FULL PAGE -->
-<!-- ======================= -->
+<!-- ============================
+     CONTACT PERSONS (FULL PAGE)
+     COMPLETE WORKING FILE
+============================= -->
 
-<h5 class="font-weight-bold mb-3">Bank Details</h5>
-<p class="text-muted small">Manage vendor bank accounts below.</p>
+<h6 class="font-weight-bold mb-3">Bank Details</h6>
+<p class="text-muted small">Manage vendor Bank details below.</p>
 
+<!-- Contact List -->
 <div id="bank-list">
-
-  {% for b in banks %}
-  <div class="bank-item border rounded p-2 mb-2 bg-light"
-       data-id="{{ b.id }}"
-       data-holder="{{ b.account_holder }}"
-       data-bank="{{ b.bank_name }}"
-       data-acct="{{ b.account_number }}"
-       data-bic="{{ b.bic }}">
-
-    <div class="d-flex justify-content-between">
-      <div>
-        <strong>{{ b.account_holder }}</strong>
-        <small class="d-block text-muted">{{ b.bank_name }}</small>
-      </div>
-
-      <div>
-        <button type="button" class="btn btn-sm btn-primary edit-bank" style="margin-right:5px;">
-          <i class="fas fa-edit"></i>
-        </button>
-
-        <button type="button" class="btn btn-sm btn-danger delete-bank" data-id="{{ b.id }}">
-          <i class="far fa-trash-alt"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- HIDDEN FORM FIELDS (POST DATA) -->
-    <input type="hidden" name="banks[{{ forloop.counter0 }}][id]" value="{{ b.id }}">
-    <input type="hidden" name="banks[{{ forloop.counter0 }}][account_holder]" value="{{ b.account_holder }}">
-    <input type="hidden" name="banks[{{ forloop.counter0 }}][bank_name]" value="{{ b.bank_name }}">
-    <input type="hidden" name="banks[{{ forloop.counter0 }}][account_number]" value="{{ b.account_number }}">
-    <input type="hidden" name="banks[{{ forloop.counter0 }}][account_number_confirm]" value="{{ b.account_number }}">
-    <input type="hidden" name="banks[{{ forloop.counter0 }}][bic]" value="{{ b.bic }}">
-
-  </div>
-  {% endfor %}
-
 </div>
 
-<button type="button" class="btn btn-success btn-sm mt-2" id="addBankBtn">
+<!-- Add Button -->
+<button type="button" class="btn btn-link btn-sm mt-2" id="addBankBtn">
   + Add Bank
 </button>
 
-
-<!-- ==================== -->
-<!-- BANK MODAL POPUP     -->
-<!-- ==================== -->
-<div class="modal fade" id="bankModal">
-  <div class="modal-dialog">
-    <div class="modal-content">
+<!-- MODAL POPUP -->
+<div class="modal fade" id="bankModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
 
       <div class="modal-header">
-        <h5 class="modal-title">Bank Account</h5>
+        <h5 class="modal-title">Bank Details</h5>
         <button class="close" data-dismiss="modal">&times;</button>
       </div>
 
       <div class="modal-body">
-        <input type="hidden" id="bank_id">
+        <div class="form-row">
+          <div class="form-group col-sm-6">
+            <label>Account Holder Name</label>
+            <input type="text" id="account_holder" class="form-control">
+          </div>
+             <div class="form-group col-sm-6">
+            <label>Bank Name</label>
+            <input type="text" id="bank_name" class="form-control">
+          </div>
 
-        <div class="form-group">
-          <label>Account Holder Name*</label>
-          <input type="text" id="bank_holder" class="form-control">
         </div>
-
-        <div class="form-group">
-          <label>Bank Name*</label>
-          <input type="text" id="bank_bankname" class="form-control">
-        </div>
-
-        <div class="form-group">
-          <label>Account Number*</label>
-          <input type="password" id="bank_acct" class="form-control">
-        </div>
-
-        <div class="form-group">
-          <label>Re-enter Account Number*</label>
-          <input type="password" id="bank_acct_confirm" class="form-control">
-        </div>
-
-        <div class="form-group">
-          <label>BIC*</label>
-          <input type="text" id="bank_bic" class="form-control">
-        </div>
+        <div class="form-row">
+          <div class="form-group col-sm-6">
+            <label>Account Number</label>
+            <input type="text" id="account_number" class="form-control">
+          </div>
+            <div class="form-group col-sm-6">
+            <label>Bic</label>
+            <input type="text" id="bic" class="form-control">
+          </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-dismiss="modal">Cancel</button>
-        <button class="btn btn-primary" id="saveBankBtn">Save</button>
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary" id="saveNewBankBtn">Save</button>
+      </div>
+    </div>
+  </div>
+    </div>
+</div>
+
+<div class="modal fade" id="update_bankmodal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Bank Details</h5>
+        <button class="close" data-dismiss="modal">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="edit_vendor_id" value="{{vendor.id}}" />
+          <input type="hidden" id="edit_bank_id" />
+
+         <div class="form-row">
+          <div class="form-group col-sm-6">
+            <label>Account Holder Name</label>
+            <input type="text" id="edit_account_holder" class="form-control">
+          </div>
+             <div class="form-group col-sm-6">
+            <label>Bank Name</label>
+            <input type="text" id="edit_bank_name" class="form-control">
+          </div>
+
+        </div>
+        <div class="form-row">
+          <div class="form-group col-sm-6">
+            <label>Account Number</label>
+            <input type="text" id="edit_account_number" class="form-control">
+          </div>
+            <div class="form-group col-sm-6">
+            <label>Bic</label>
+            <input type="text" id="edit_bic" class="form-control">
+          </div>
+      </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary" id="saveEditBankBtn">Update</button>
       </div>
 
     </div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
 <script>
-(function () {
+document.addEventListener("DOMContentLoaded", () => {
 
-  const list = document.getElementById("bank-list");
-  const modal = $("#bankModal");
+    const list = document.getElementById("bank-list");
+    const csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
+    const vendorId = {{ vendor.id }};
+    const addModal = $("#bankModal");
+    const editModal = $("#update_bankmodal");
 
-  // ------------------------------
-  // OPEN ADD MODAL
-  // ------------------------------
-  document.getElementById("addBankBtn").onclick = () => {
-    fillBankModal({});
-    modal.modal("show");
-  };
+    const DETAIL_URL = "{% url 'get_single_vendor_bank' vendor.id 9999 %}";
+    const UPDATE_URL = "{% url 'update_vendor_bank' 9999 %}";
+    const ADD_URL = "{% url 'add_new_vendor_bank' vendor.id %}";
 
-  // ------------------------------
-  // OPEN EDIT MODAL
-  // ------------------------------
-  list.addEventListener("click", function (e) {
-    const btn = e.target.closest(".edit-bank");
-    if (!btn) return;
-
-    const item = btn.closest(".bank-item");
-
-    fillBankModal({
-      id: item.dataset.id,
-      holder: item.dataset.holder,
-      bank: item.dataset.bank,
-      acct: item.dataset.acct,
-      bic: item.dataset.bic
-    });
-
-    modal.modal("show");
-  });
-
-  // ------------------------------
-  // SAVE (ADD/EDIT)
-  // ------------------------------
-  document.getElementById("saveBankBtn").onclick = () => {
-
-    const bank = {
-      id: document.getElementById("bank_id").value,
-      holder: document.getElementById("bank_holder").value,
-      bank: document.getElementById("bank_bankname").value,
-      acct: document.getElementById("bank_acct").value,
-      acct_confirm: document.getElementById("bank_acct_confirm").value,
-      bic: document.getElementById("bank_bic").value
+    const addFields = {
+      account_holder: "account_holder",
+      bank_name: "bank_name",
+      account_number: "account_number",
+      bic: "bic",
     };
 
-    if (bank.acct !== bank.acct_confirm) {
-      Swal.fire("Error", "Account numbers do not match!", "error");
-      return;
+    const editFields = {
+      id: "edit_bank_id",
+      account_holder: "edit_account_holder",
+      bank_name: "edit_bank_name",
+      account_number: "edit_account_number",
+      bic: "edit_bic",
+    };
+
+    const formToData = (fields) => {
+      const fd = new FormData();
+      Object.entries(fields).forEach(([key, id]) => {
+        fd.append(key, document.getElementById(id).value);
+      });
+      return fd;
+    };
+
+    const resetForm = (fields) => {
+      Object.values(fields).forEach(id => document.getElementById(id).value = "");
+    };
+
+    const alertBox = (title, message, icon) =>
+      Swal.fire(title, message, icon);
+
+    // ------------- LOAD -------------
+    function loadBanks() {
+      list.innerHTML = "";
+      fetch("{% url 'get_all_vendor_banks' vendor.id %}")
+        .then(r => r.json())
+        .then(data => {
+          if (!data.status) return;
+          data.data.forEach(c => {
+            list.insertAdjacentHTML("beforeend", `
+              <div class="bank-item border rounded p-2 mb-2 bg-light" data-id="${c.id}">
+                <div class="d-flex justify-content-between">
+                  <div>
+                    <strong>${c.account_holder} ${c.bank_name}</strong>
+                    <small class="text-muted d-block">${c.account_number || ""} | ${c.bic || ""}</small>
+                  </div>
+                  <div>
+                    <button type="button" class="btn btn-sm btn-primary edit-bank"><i class="fas fa-pen"></i></button>
+                    <button type="button" class="btn btn-sm btn-danger delete-bank-btn"><i class="far fa-trash-alt"></i></button>
+                  </div>
+                </div>
+              </div>`);
+          });
+        });
     }
 
-    if (!bank.id) addBankUI(bank);
-    else updateBankUI(bank);
+    // ------------- ADD -------------
+    document.getElementById("addBankBtn").onclick = () => addModal.modal("show");
 
-    modal.modal("hide");
-  };
+    document.getElementById("saveNewBankBtn").onclick = () => {
+      const fd = formToData(addFields);
+      fd.append("vendor_id", vendorId);
 
-  // ------------------------------
-  // DELETE BANK
-  // ------------------------------
-  list.addEventListener("click", function (e) {
-    const btn = e.target.closest(".delete-bank");
-    if (!btn) return;
+      fetch(ADD_URL, { method: "POST", body: fd, headers: { "X-CSRFToken": csrf } })
+        .then(r => r.json())
+        .then(data => {
+          alertBox(data.status ? "Added" : "Error", data.message, data.status ? "success" : "error");
+          if (data.status) {
+            addModal.modal("hide");
+            resetForm(addFields);
+            loadBanks();
+          }
+        });
+    };
 
-    const id = btn.dataset.id;
-    const item = btn.closest(".bank-item");
+    // ------------- EDIT UI -------------
+    list.addEventListener("click", (e) => {
+      const parent = e.target.closest(".bank-item");
+      if (!parent) return;
+      const id = parent.dataset.id;
 
-    Swal.fire({
-      title: "Delete Bank?",
-      text: "This cannot be undone.",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Delete"
-    }).then(res => {
-
-      if (!res.value) return;
-
-      // NEW (Unsaved)
-      if (!id) {
-        item.remove();
-        renumberBanks();
-        return;
+      if (e.target.closest(".edit-bank")) {
+        fetch(DETAIL_URL.replace("9999", id))
+          .then(r => r.json())
+          .then(data => {
+            if (!data.status) return;
+            Object.entries(editFields).forEach(([key, idName]) => {
+              document.getElementById(idName).value = data.data[key] || "";
+            });
+            editModal.modal("show");
+          });
       }
 
-      // DELETE FROM DB
-      fetch(`/vendor/bank/delete/${id}/`, {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
-        }
+      // ------------- DELETE -------------
+      if (e.target.closest(".delete-bank-btn")) {
+        Swal.fire({
+          title: "Delete Bankdetails?",
+          text: "This cannot be undone.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Delete"
+        }).then(res => {
+          if (!res.value) return;
+          fetch(`/vendor/bank/delete/${id}/${vendorId}`, {
+            method: "DELETE",
+            headers: { "X-CSRFToken": csrf }
+          })
+          .then(r => r.json())
+          .then(data => {
+            alertBox(data.status ? "Deleted" : "Error", data.message, data.status ? "success" : "error");
+            if (data.status) loadBanks();
+          });
+        });
+      }
+    });
+
+    // ------------- EDIT SUBMIT -------------
+    document.getElementById("saveEditBankBtn").onclick = () => {
+      const id = document.getElementById("edit_bank_id").value;
+      const fd = formToData(editFields);
+      fd.append("vendor_id", vendorId)
+      fetch(UPDATE_URL.replace("9999", id), {
+        method: "POST", body: fd, headers: { "X-CSRFToken": csrf }
       })
-      .then(r => r.json())
-      .then(data => {
-        if (data.status) {
-          item.remove();
-          Swal.fire("Deleted!", "Bank removed.", "success");
-          renumberBanks();
-        } else {
-          Swal.fire("Error", data.message, "error");
-        }
-      });
-    });
+        .then(r => r.json())
+        .then(data => {
+          alertBox(data.status ? "Updated" : "Error", data.message, data.status ? "success" : "error");
+          if (data.status) {
+            editModal.modal("hide");
+            resetForm(editFields);
+            loadBanks();
+          }
+        });
+    };
 
-  });
-
-  // ------------------------------
-  // UTILITIES
-  // ------------------------------
-  function fillBankModal(b) {
-    document.getElementById("bank_id").value = b.id || "";
-    document.getElementById("bank_holder").value = b.holder || "";
-    document.getElementById("bank_bankname").value = b.bank || "";
-    document.getElementById("bank_acct").value = b.acct || "";
-    document.getElementById("bank_acct_confirm").value = b.acct || "";
-    document.getElementById("bank_bic").value = b.bic || "";
-  }
-
-  function addBankUI(b) {
-    const idx = list.querySelectorAll(".bank-item").length;
-
-    const html = `
-      <div class="bank-item border rounded p-2 mb-2 bg-light"
-           data-id=""
-           data-holder="${b.holder}"
-           data-bank="${b.bank}"
-           data-acct="${b.acct}"
-           data-bic="${b.bic}">
-
-        <div class="d-flex justify-content-between">
-          <div>
-            <strong>${b.holder}</strong>
-            <small class="text-muted d-block">${b.bank}</small>
-          </div>
-
-          <div>
-            <button class="btn btn-sm btn-primary edit-bank" style="margin-right:5px;"><i class="fas fa-edit"></i></button>
-            <button class="btn btn-sm btn-danger delete-bank"><i class="far fa-trash-alt"></i></button>
-          </div>
-        </div>
-
-        <input type="hidden" name="banks[${idx}][id]" value="">
-        <input type="hidden" name="banks[${idx}][account_holder]" value="${b.holder}">
-        <input type="hidden" name="banks[${idx}][bank_name]" value="${b.bank}">
-        <input type="hidden" name="banks[${idx}][account_number]" value="${b.acct}">
-        <input type="hidden" name="banks[${idx}][account_number_confirm]" value="${b.acct}">
-        <input type="hidden" name="banks[${idx}][bic]" value="${b.bic}">
-      </div>
-    `;
-
-    list.insertAdjacentHTML("beforeend", html);
-    renumberBanks();
-  }
-
-  function updateBankUI(b) {
-    const item = list.querySelector(`.bank-item[data-id="${b.id}"]`);
-    if (!item) return;
-
-    item.dataset.holder = b.holder;
-    item.dataset.bank = b.bank;
-    item.dataset.acct = b.acct;
-    item.dataset.bic = b.bic;
-
-    item.querySelector("strong").innerText = b.holder;
-    item.querySelector("small").innerText = b.bank;
-
-    item.querySelector(`input[name*="[account_holder]"]`).value = b.holder;
-    item.querySelector(`input[name*="[bank_name]"]`).value = b.bank;
-    item.querySelector(`input[name*="[account_number]"]`).value = b.acct;
-    item.querySelector(`input[name*="[account_number_confirm]"]`).value = b.acct;
-    item.querySelector(`input[name*="[bic]"]`).value = b.bic;
-  }
-
-  function renumberBanks() {
-    list.querySelectorAll(".bank-item").forEach((item, idx) => {
-      item.querySelectorAll("input").forEach(input => {
-        input.name = input.name.replace(/banks\[\d+\]/, `banks[${idx}]`);
-      });
-    });
-  }
-
-})();
+    loadBanks();
+});
 </script>

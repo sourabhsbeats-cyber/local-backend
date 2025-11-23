@@ -69,6 +69,11 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',
             ],
+            'builtins': [
+                'store_admin.templatetags.custom_filters',
+            ],
+
+            'string_if_invalid': '',
         },
     },
 ]

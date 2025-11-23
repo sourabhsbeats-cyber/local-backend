@@ -67,44 +67,72 @@ def validate_vendor_row(row_dict):
             errors[field] = error
     return errors
 
-VALID_EXTENSIONS = ["csv", "tsv", "xlsx"]
+VALID_EXTENSIONS = ["csv", "xlsx"] #"tsv",
 vendor_field_schema = {
-    "salutation": {"type": "str", "max": 20, "required": False},
-    "first_name": {"type": "str", "max": 100, "required": True},
-    "last_name": {"type": "str", "max": 100, "required": True},
-    "company_name": {"type": "str", "max": 255, "required": False},
-    "display_name": {"type": "str", "max": 255, "required": True},
-    "vendor_code": {"type": "str", "max": 50, "required": True},
-    "email_address": {"type": "email", "max": 255, "required": False},
-    "work_phone": {"type": "str", "max": 50, "required": False},
-    "mobile_number": {"type": "str", "max": 50, "required": True},
-    "registered_business": {"type": "bool", "required": False},
-    "company_abn": {"type": "str", "max": 50, "required": False},
-    "company_acn": {"type": "str", "max": 50, "required": True},
-    "currency": {"type": "str", "max": 10, "required": False},
-    "documents": {"type": "str", "max": 255, "required": False},
-    "vendor_remarks": {"type": "str", "required": False},
-    "payment_term_id": {"type": "int", "required": False},
-    "status": {"type": "int", "required": False},
+    "VendorType":               {"type": "str",   "max": 50,  "required": False},
+    "Salutation":               {"type": "str",   "max": 20,  "required": False},
+    "FirstName":                {"type": "str",   "max": 100, "required": True},
+    "LastName":                 {"type": "str",   "max": 100, "required": False},
+    "CompanyName":              {"type": "str",   "max": 255, "required": False},
+    "CompanyType":              {"type": "str",   "max": 100, "required": False},
+    "DisplayName":              {"type": "str",   "max": 255, "required": False},
+    "VendorCode":               {"type": "str",   "max": 50,  "required": False},   # auto-generated if missing
+    "Email":                    {"type": "email", "max": 255, "required": False},
+    "WorkPhone":                {"type": "str",   "max": 50,  "required": False},
+    "MobilePhone":              {"type": "str",   "max": 50,  "required": True},
+    "IsRegisteredBusiness":     {"type": "bool",               "required": False},
+    "ABN":                      {"type": "str",   "max": 50,  "required": False},
+    "ACN":                      {"type": "str",   "max": 50,  "required": False},
+    "PaymentTerms":             {"type": "str",   "max": 100, "required": False},
+    "Currency":                 {"type": "str",   "max": 10,  "required": False},
+    "PaymentMethod":            {"type": "str",   "max": 100, "required": False},
+
+    "BillingContact":           {"type": "str",   "max": 255, "required": False},
+    "BillingCountry":           {"type": "str",   "max": 100,   "required": False},
+    "BillingStreet1":           {"type": "str",   "max": 255, "required": False},
+    "BillingStreet2":           {"type": "str",   "max": 255, "required": False},
+    "BillingCity":              {"type": "str",   "max": 100, "required": False},
+    "BillingState":             {"type": "str",   "max": 100, "required": False},
+    "BillingZIP":               {"type": "str",   "max": 20,  "required": False},
+    "BillingPhone":             {"type": "str",   "max": 50,  "required": False},
+    "BillingFax":               {"type": "str",   "max": 50,  "required": False},
+
+    "ShippingContact":          {"type": "str",   "max": 255, "required": False},
+    "ShippingCountry":          {"type": "str",   "max": 100,   "required": False},
+    "ShippingStreet1":          {"type": "str",   "max": 255, "required": False},
+    "ShippingStreet2":          {"type": "str",   "max": 255, "required": False},
+    "ShippingCity":             {"type": "str",   "max": 100, "required": False},
+    "ShippingState":            {"type": "str",   "max": 100, "required": False},
+    "ShippingZIP":              {"type": "str",   "max": 20,  "required": False},
+    "ShippingPhone":            {"type": "str",   "max": 50,  "required": False},
+    "ShippingFax":              {"type": "str",   "max": 50,  "required": False},
+
+    "BankAccountName":          {"type": "str",   "max": 255, "required": False},
+    "BankName":                 {"type": "str",   "max": 255, "required": False},
+    "BankAccountNumber":        {"type": "str",   "max": 50,  "required": False},
+    "BankCode":                 {"type": "str",   "max": 50,  "required": False},
+
+    "ContactFirstName":         {"type": "str",   "max": 100, "required": False},
+    "ContactLastName":          {"type": "str",   "max": 100, "required": False},
+    "ContactPhone":             {"type": "str",   "max": 50,  "required": False},
+    "ContactEmail":             {"type": "email", "max": 255, "required": False},
+    "ContactRole":              {"type": "str",   "max": 255, "required": False},
+    "ContactPurpose":           {"type": "str",   "max": 255, "required": False},
+    "Remarks":                  {"type": "str",               "required": False},
 }
 
-required_headers = mapping_fields = [
-        "salutation",
-        "first_name",
-        "last_name",
-        "company_name",
-        "display_name",
-        "vendor_code",
-        "email_address",
-        "work_phone",
-        "mobile_number",
-        "registered_business",
-        "company_abn",
-        "company_acn",
-        "currency",
-        "vendor_remarks",
-        "payment_term",
-    ]
+required_headers_v1 = [
+    "VendorType","Salutation","FirstName","LastName","CompanyName","CompanyType","DisplayName",
+    "VendorCode","Email","WorkPhone","MobilePhone","IsRegisteredBusiness","ABN","ACN","PaymentTerms",
+    "Currency","PaymentMethod","BillingContact","BillingCountry","BillingStreet1","BillingStreet2",
+    "BillingCity","BillingState","BillingZIP","BillingPhone","BillingFax","ShippingContact",
+    "ShippingCountry","ShippingStreet1","ShippingStreet2","ShippingCity","ShippingState","ShippingZIP",
+    "ShippingPhone","ShippingFax","BankAccountName","BankName","BankAccountNumber","BankCode",
+    "ContactFirstName","ContactLastName","ContactPhone","ContactEmail","ContactRole","ContactPurpose",
+    "Remarks"
+
+]
+#42 cols
 
 from django.utils.safestring import mark_safe
 
@@ -125,7 +153,7 @@ def import_vendor_validate(request):
 
     ext = uploaded_file.name.split(".")[-1].lower()
     if ext not in VALID_EXTENSIONS:
-        messages.error(request, "File must be CSV / TSV / XLSX")
+        messages.error(request, "File must be CSV / XLSX") #TSV /
         return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
 
     # Save uploaded file temporarily
@@ -147,13 +175,12 @@ def import_vendor_validate(request):
             df = pd.read_excel(saved_path)
 
         file_headers = df.columns.tolist()
-
     except Exception as e:
         messages.error(request, f"Error reading file: {str(e)}")
         return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
 
     # Missing headers
-    missing_headers = [h for h in required_headers if h not in file_headers]
+    missing_headers = [h for h in required_headers_v1 if h not in file_headers]
     if missing_headers:
         msg = (
             "The uploaded file is missing required headers: "
@@ -168,17 +195,13 @@ def import_vendor_validate(request):
     # -------------------------
 
     # Only keep mapping_fields
-    cleaned_headers = list(mapping_fields)
-
+    cleaned_headers = list(required_headers_v1)
     validated_rows = []
     row_errors = []
-
     for idx, row in df.iterrows():
-
         row_dict = {}
-
         # Build row dict ONLY from mapping fields
-        for col in mapping_fields:
+        for col in required_headers_v1:
             if col in df.columns:
                 val = row[col]
                 row_dict[col] = "" if pd.isna(val) else str(val).strip()
@@ -207,10 +230,6 @@ def import_vendor_validate(request):
         messages.error(request, mark_safe(html))
         return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
 
-    # -------------------------
-    #  WRITE CLEANED CSV
-    # -------------------------
-
     cleaned_filename = f"cleaned_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
     cleaned_path = os.path.join(temp_dir, cleaned_filename)
 
@@ -224,27 +243,15 @@ def import_vendor_validate(request):
     request.session["dup_option"] = dup
     request.session["cleaned_filename"] = cleaned_filename
 
+    #print(file_headers)
     # Dropdown list for mapping page
-    select_options = [
-        {"value": "salutation", "label": "Salutation"},
-        {"value": "first_name", "label": "First Name"},
-        {"value": "last_name", "label": "Last Name"},
-        {"value": "company_name", "label": "Company Name"},
-        {"value": "display_name", "label": "Display Name"},
-        {"value": "vendor_code", "label": "Vendor Code"},
-        {"value": "email_address", "label": "Email Address"},
-        {"value": "work_phone", "label": "Work Phone"},
-        {"value": "mobile_number", "label": "Mobile Number"},
-        {"value": "registered_business", "label": "Registered Business"},
-        {"value": "company_abn", "label": "Company ABN"},
-        {"value": "company_acn", "label": "Company ACN"},
-        {"value": "currency", "label": "Currency"},
-        {"value": "vendor_remarks", "label": "Remarks"},
-        {"value": "payment_term", "label": "Payment Term"},
-    ]
+
+    select_options = []
+    for file_header in file_headers:
+        select_options.append({"value": file_header, "label": file_header})
 
     return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_1.html", {
-        "mapping_fields": mapping_fields,
+        "mapping_fields": required_headers_v1,
         "select_options": select_options,
         "dup_option": dup,
         "cleaned_filename": cleaned_filename,
@@ -282,7 +289,6 @@ def download_vendor_template(request, file_type, file_format):
         filename=f"{file_type}.{file_format}"
     )
 
-
 @login_required
 def preview_import(request):
     if request.method != "POST":
@@ -312,7 +318,7 @@ def preview_import(request):
         valid_count = len(validated_rows)
         headers = df.columns.tolist()
         #print(headers)
-        print(validated_rows)
+        #print(validated_rows)
         # Extract headers from dict keys
 
         # Render preview page
@@ -328,6 +334,16 @@ def preview_import(request):
         return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_2.html", {
         })
 
+def to_str(val):
+    if val is None or pd.isna(val):
+        return ""
+    clean_val = str(val)
+    # 1. Replace non-breaking space (often imported from Excel/web)
+    clean_val = clean_val.replace('\xa0', ' ')
+    # 2. Use strip() to remove all leading/trailing whitespace
+    return clean_val.strip()
+
+from django.db.models import Q
 @login_required
 def final_vendor_import(request):
 
@@ -359,55 +375,275 @@ def final_vendor_import(request):
 
     imported_count = 0
 
-    # Loop through each row and import into DB
     for _, row in df.iterrows():
 
-        vendor_code = str(row.get("vendor_code", "")).strip()
-        email = str(row.get("email_address", "")).strip()
+        # --------- BASIC CLEANED VALUES ----------
+        vendor_code = to_str(row.get("VendorCode"))
+        email = to_str(row.get("Email"))
 
-        # 🔍 Check existing vendor
-        existing_vendor = Vendor.objects.filter(vendor_code=vendor_code).first()
+        #continue
+        if vendor_code and email:
+            existing_vendor = Vendor.objects.filter(
+                Q(vendor_code=vendor_code) | Q(email_address=email)
+            ).first()
+        elif vendor_code:
+            existing_vendor = Vendor.objects.filter(vendor_code=vendor_code).first()
+        elif email:
+            existing_vendor = Vendor.objects.filter(email_address=email).first()
+        else:
+            existing_vendor = None
 
-        # -------------------------------
-        # CASE 1: SKIP DUPLICATES
-        # -------------------------------
+        # 1) Skip duplicates
         if dup_option == "skip_duplicate" and existing_vendor:
             continue
 
-        # -------------------------------
-        # CASE 2: OVERWRITE EXISTING
-        # -------------------------------
+        # 2) Overwrite existing
         if dup_option == "overwrite_existing" and existing_vendor:
-            vendor = existing_vendor  # update existing row
-
-        # -------------------------------
-        # CASE 3: ALWAYS CREATE NEW
-        # -------------------------------
+            vendor = existing_vendor
         else:
+            # 3) Always create new
             vendor = Vendor()
+            if vendor_code:
+                vendor.vendor_code = vendor_code
+            else:
+                with transaction.atomic():
+                    try:
+                        # Note: We must lock a row, so we try to get the highest ID one.
+                        last = Vendor.objects.order_by('-id').select_for_update().first()
+                    except Vendor.DoesNotExist:
+                        last = None
 
-        # -------------------------------
-        #  ASSIGN FIELDS
-        # -------------------------------
-        vendor.salutation = row.get("salutation", "")
-        vendor.first_name = row.get("first_name", "")
-        vendor.last_name = row.get("last_name", "")
-        vendor.company_name = row.get("company_name", "")
-        vendor.display_name = row.get("display_name", "")
-        vendor.vendor_code = row.get("vendor_code", "")
-        vendor.email_address = row.get("email_address", "")
-        vendor.work_phone = row.get("work_phone", "")
-        vendor.mobile_number = row.get("mobile_number", "")
-        vendor.registered_business = 1 if str(row.get("registered_business", "")).lower() in ["1", "yes", "true"] else 0
-        vendor.company_abn = row.get("company_abn", "")
-        vendor.company_acn = row.get("company_acn", "")
-        vendor.currency = row.get("currency", "")
-        vendor.documents = row.get("documents", "")
-        vendor.vendor_remarks = row.get("vendor_remarks", "")
-        #vendor.payment_term_id = row.get("payment_term", None)
+                    next_id = (last.id + 1) if last else 1
+                vendor.vendor_code = f"V{next_id:03d}"
 
-        vendor.status = 1  # default active
-        vendor.save()
+
+        # --------- VENDOR CORE FIELDS ----------
+        vendor.vendor_type = to_str(row.get("VendorType")) or None
+        vendor.salutation = to_str(row.get("Salutation")) or None
+        vendor.first_name = to_str(row.get("FirstName")) or None
+        vendor.last_name = to_str(row.get("LastName")) or None
+
+        display_name = to_str(row.get("DisplayName"))
+        if display_name:
+            vendor.display_name = display_name
+        else:
+            full_name = " ".join(
+                part for part in [vendor.salutation, vendor.first_name, vendor.last_name] if part
+            )
+            vendor.display_name = full_name or vendor.vendor_code
+
+        # DO NOT overwrite vendor.vendor_code again – it is already set above
+
+        vendor.email_address = email
+        vendor.work_phone = to_str(row.get("WorkPhone")) or None
+        vendor.mobile_number = to_str(row.get("MobilePhone")) or None
+        vendor.company_name = to_str(row.get("CompanyName")) or None
+        vendor.company_type = to_str(row.get("CompanyType")) or None
+
+        is_reg = to_str(row.get("IsRegisteredBusiness")).lower()
+        vendor.registered_business = True if is_reg in ["1", "yes", "true", "y"] else False
+
+        vendor.company_abn = to_str(row.get("ABN")) or None
+        vendor.company_acn = to_str(row.get("ACN")) or None
+        vendor.currency = to_str(row.get("Currency")) or None
+        vendor.payment_method = to_str(row.get("PaymentMethod")) or None
+        vendor.vendor_remarks = to_str(row.get("Remarks")) or None
+
+        # Payment Term (FK)
+        pay_term_name = to_str(row.get("PaymentTerms"))
+        vendor.payment_term = (
+            PaymentTerm.objects.filter(name=pay_term_name).first()
+            if pay_term_name else None
+        )
+
+        if not vendor.id:  # only for newly created
+            vendor.created_by = request.user.id
+        vendor.status = 1
+        vendor.save()  # MUST be saved before using vendor.id
+
+        # =========================
+        #   BILLING ADDRESS (FIXED)
+        # =========================
+        billing_street1 = to_str(row.get("BillingStreet1"))
+        billing_street2 = to_str(row.get("BillingStreet2"))
+        billing_city = to_str(row.get("BillingCity"))
+        billing_state_txt = to_str(row.get("BillingState"))
+        billing_zip = to_str(row.get("BillingZIP"))
+        billing_phone = to_str(row.get("BillingPhone"))
+        billing_fax = to_str(row.get("BillingFax"))
+        billing_country_txt = to_str(row.get("BillingCountry"))
+        billing_contact = to_str(row.get("BillingContact"))
+
+        bill_country = (
+            Country.objects.filter(name__iexact=billing_country_txt).first()
+            if billing_country_txt else None
+        )
+        bill_state = (
+            State.objects.filter(name__iexact=billing_state_txt).first()
+            if billing_state_txt else None
+        )
+
+        billing_has_data = any([
+            billing_street1, billing_city, bill_state,
+            billing_zip, bill_country, billing_phone, billing_contact
+        ])
+
+        if billing_has_data:
+            # CHECK IF ADDRESS ALREADY EXISTS FOR THIS VENDOR
+            vendor_addr_link = VendorAddress.objects.filter(
+                vendor_id=vendor.id, address_type="billing"
+            ).first()
+
+            if vendor_addr_link:
+                # ADDRESS FOUND: UPDATE EXISTING ADDRESS
+                billing_addr = vendor_addr_link.address_id
+
+                billing_addr.attention_name = billing_contact or None
+                billing_addr.country = bill_country
+                billing_addr.street1 = billing_street1 or None
+                billing_addr.street2 = billing_street2 or None
+                billing_addr.state = bill_state
+                billing_addr.city = billing_city or None
+                billing_addr.zip = billing_zip or None
+                billing_addr.phone = billing_phone or None
+                billing_addr.fax = billing_fax or None
+
+                billing_addr.save()
+
+            else:
+                # ADDRESS NOT FOUND: CREATE NEW ADDRESS AND LINK
+                billing_addr = Addresses.objects.create(
+                    attention_name=billing_contact or None,
+                    country=bill_country,
+                    street1=billing_street1 or None,
+                    street2=billing_street2 or None,
+                    state=bill_state,
+                    city=billing_city or None,
+                    zip=billing_zip or None,
+                    phone=billing_phone or None,
+                    fax=billing_fax or None,
+                    created_by = request.user.id,
+                )
+                VendorAddress.objects.create(
+                    vendor_id=vendor.id,
+                    address_id=billing_addr.id,
+                    address_type="billing",
+                    created_by=request.user.id,
+
+                )
+
+        # =========================
+        #   SHIPPING ADDRESS (FIXED)
+        # =========================
+        shipping_street1 = to_str(row.get("ShippingStreet1"))
+        shipping_street2 = to_str(row.get("ShippingStreet2"))
+        shipping_city = to_str(row.get("ShippingCity"))
+        shipping_state_txt = to_str(row.get("ShippingState"))
+        shipping_zip = to_str(row.get("ShippingZIP"))
+        shipping_phone = to_str(row.get("ShippingPhone"))
+        shipping_fax = to_str(row.get("ShippingFax"))
+        shipping_country_txt = to_str(row.get("ShippingCountry"))
+        shipping_contact = to_str(row.get("ShippingContact"))
+
+        ship_country = (
+            Country.objects.filter(name__iexact=shipping_country_txt).first()
+            if shipping_country_txt else None
+        )
+        ship_state = (
+            State.objects.filter(name__iexact=shipping_state_txt).first()
+            if shipping_state_txt else None
+        )
+
+        shipping_has_data = any([
+            shipping_street1, shipping_city, ship_state,
+            shipping_zip, ship_country, shipping_phone, shipping_contact
+        ])
+
+        if shipping_has_data:
+            # CHECK IF ADDRESS ALREADY EXISTS FOR THIS VENDOR
+            vendor_addr_link = VendorAddress.objects.filter(
+                vendor_id=vendor.id, address_type="shipping"
+            ).first()
+
+            if vendor_addr_link:
+                # ADDRESS FOUND: UPDATE EXISTING ADDRESS
+                shipping_addr = vendor_addr_link.address_id
+
+                shipping_addr.attention_name = shipping_contact or None
+                shipping_addr.country = ship_country
+                shipping_addr.street1 = shipping_street1 or None
+                shipping_addr.street2 = shipping_street2 or None
+                shipping_addr.state = ship_state
+                shipping_addr.city = shipping_city or None
+                shipping_addr.zip = shipping_zip or None
+                shipping_addr.phone = shipping_phone or None
+                shipping_addr.fax = shipping_fax or None
+                shipping_addr.save()
+
+            else:
+                # ADDRESS NOT FOUND: CREATE NEW ADDRESS AND LINK
+                shipping_addr = Addresses.objects.create(
+                    attention_name=shipping_contact or None,
+                    country=ship_country,
+                    street1=shipping_street1 or None,
+                    street2=shipping_street2 or None,
+                    state=ship_state,
+                    city=shipping_city or None,
+                    zip=shipping_zip or None,
+                    phone=shipping_phone or None,
+                    fax=shipping_fax or None,created_by = request.user.id,
+                )
+                VendorAddress.objects.create(
+                    vendor_id=vendor.id,
+                    address_id=shipping_addr.id,
+                    address_type="shipping",
+                    created_by=request.user.id,
+                )
+
+        # =========================
+        #   BANK DETAILS (FIXED)
+        # =========================
+        bank_account_no = to_str(row.get("BankAccountNumber"))
+
+        if bank_account_no:
+            # FIND OR CREATE bank record
+            vendor_bank = VendorBank.objects.filter(vendor_id=vendor.id).first()
+
+            if not vendor_bank:
+                vendor_bank = VendorBank(vendor_id=vendor.id, created_by=request.user.id)
+
+            vendor_bank.account_holder = to_str(row.get("BankAccountName")) or None
+            vendor_bank.bank_name = to_str(row.get("BankName")) or None
+            vendor_bank.account_number = bank_account_no
+            vendor_bank.bic = to_str(row.get("BankCode")) or None
+            vendor_bank.save()
+
+        # =========================
+        #   CONTACT PERSON (FIXED)
+        # =========================
+        contact_email = to_str(row.get("ContactEmail"))
+        contact_first = to_str(row.get("ContactFirstName"))
+        contact_last = to_str(row.get("ContactLastName"))
+        contact_phone = to_str(row.get("ContactPhone"))
+        contact_role = to_str(row.get("ContactRole"))
+        contact_purpose = to_str(row.get("ContactPurpose"))
+
+        if contact_email or contact_first or contact_last or contact_phone:
+            # FIND OR CREATE contact record
+            vendor_contact = VendorContact.objects.filter(vendor_id=vendor.id).first()
+
+            if not vendor_contact:
+                vendor_contact = VendorContact(vendor_id=vendor.id)
+                vendor_contact.created_by = request.user.id  # Set created_by only on new record
+
+            vendor_contact.department = contact_role or None
+            vendor_contact.first_name = contact_first or None
+            vendor_contact.last_name = contact_last or None
+            vendor_contact.email = contact_email or None
+            vendor_contact.phone = contact_phone or None
+            vendor_contact.description = contact_purpose or None
+            vendor_contact.save()
+
         imported_count += 1
 
     return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_3.html",

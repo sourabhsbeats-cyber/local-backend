@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
@@ -15,7 +16,7 @@ from django.db.models.functions import Concat
 from django.core.paginator import Paginator
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
-
+from django.core.validators import validate_email
 
 @login_required
 def add_new_vendor(request):
@@ -39,32 +40,78 @@ def add_new_vendor(request):
 def edit_vendor(request, vendor_id):
     vendor = get_object_or_404(Vendor, id=vendor_id)
 
-
     payment_terms = PaymentTerm.objects.all()
-
     currency_list = Country.objects.values('currency').annotate(
-        id=Min('id'),  # pick country with smallest ID per currency
+        id=Min('id'),
         currency_name=Min('currency_name')
     )
-    countries_list = Country.objects.values('name','id')
+    countries_list = Country.objects.values('name', 'id')
 
-    billing_rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type="billing").first()
-    billing_address =  Addresses.objects.filter(id=billing_rel.address_id).first() if billing_rel else None
-    shipping_rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type="shipping").first()
-    shipping_address = Addresses.objects.filter(id=shipping_rel.address_id).first() if shipping_rel else None
+    # ------------------- BILLING ---------------------
+    billing_rel = VendorAddress.objects.filter(
+        vendor_id=vendor.id, address_type="billing"
+    ).first()
 
+    billing_address = (
+        Addresses.objects.select_related("country", "state")
+        .filter(id=billing_rel.address_id).first()
+        if billing_rel else None
+    )
+
+    billing_country_id = billing_address.country_id if billing_address else None
+    billing_state_id = billing_address.state_id if billing_address else None
+    billing_state_list = (
+        State.objects.filter(country_id=billing_country_id)
+        if billing_country_id else []
+    )
+
+    billing_state_name = billing_address.state.name if billing_address and billing_address.state else ""
+
+
+    # ------------------- SHIPPING ---------------------
+    shipping_rel = VendorAddress.objects.filter(
+        vendor_id=vendor.id, address_type="shipping"
+    ).first()
+
+    shipping_address = (
+        Addresses.objects.select_related("country", "state")
+        .filter(id=shipping_rel.address_id).first()
+        if shipping_rel else None
+    )
+
+    shipping_country_id = shipping_address.country_id if shipping_address else None
+    shipping_state_id = shipping_address.state_id if shipping_address else None
+    shipping_state_list = (
+        State.objects.filter(country_id=shipping_country_id)
+        if shipping_country_id else []
+    )
+
+    shipping_state_name = shipping_address.state.name if shipping_address and shipping_address.state else ""
+
+
+    # ------------------- BANK / CONTACT ---------------------
     bank_details = VendorBank.objects.filter(vendor_id=vendor.id)
     contact_details = VendorContact.objects.filter(vendor_id=vendor.id)
+
+
     context = {
         'vendor': vendor,
         'payment_terms': payment_terms,
         'countries_list': countries_list,
+        'currency_list': currency_list,
+
         'billing': billing_address,
+        'billing_state_list': billing_state_list,
+        'billing_state_name': billing_state_name,   # ⬅️ new
+
         'shipping': shipping_address,
+        'shipping_state_list': shipping_state_list,
+        'shipping_state_name': shipping_state_name, # ⬅️ new
+
         'banks': bank_details,
         'contacts': contact_details,
-        'currency_list':currency_list
     }
+
     return render(request, 'sbadmin/pages/vendor/edit_vendor.html', context)
 
 @login_required
@@ -122,14 +169,54 @@ def all_vendors(request):
 
     return render(request, 'sbadmin/pages/vendor/all_listing.html', context)
 
-
+import re
 @login_required
 def save_vendor(request):
     if request.method != "POST":
         return JsonResponse({"status": False, "message": "Invalid request"}, status=400)
 
-    action_type = request.POST.get('delete_vendor', None)
+    action_type = request.POST.get('action_type', None)
     vendor_id = request.POST.get("vendor_id")
+
+    vendor_code = request.POST.get("vendor_code").strip()
+    vendor_email = request.POST.get("email_address").strip()
+
+    if action_type != "update":
+        if Vendor.objects.filter(vendor_code=vendor_code).exists():
+            return JsonResponse({
+                "status": False,
+                "message": f"Vendor code already exists",
+            }, status=500)
+
+    if action_type != "update":
+        if Vendor.objects.filter(email_address=vendor_email).exists():
+            return JsonResponse({
+                "status": False,
+                "message": f"Vendor email already exists",
+            }, status=500)
+
+    work_phone = request.POST.get("work_phone").strip()
+    mobile_number = request.POST.get("mobile_number").strip()
+
+    errors = []
+
+    if work_phone and not re.fullmatch(r'\+?\d{6,15}', work_phone):
+        errors.append("Invalid work phone")
+
+    if mobile_number and not re.fullmatch(r'\+?\d{6,15}', mobile_number):
+        errors.append("Invalid mobile number")
+
+    if errors:
+        return JsonResponse({"status": False, "message": ", ".join(errors)}, status=400)
+
+
+    try:
+        validate_email(vendor_email)
+    except ValidationError:
+        return JsonResponse({
+            "status": False,
+            "message": "Invalid vendor email format"
+        }, status=500)
 
     try:
         sid = transaction.savepoint()
@@ -138,13 +225,16 @@ def save_vendor(request):
                 vendor = Vendor.objects.get(id=vendor_id)
             else:
                 vendor = Vendor()
-
+            vendor.vendor_type = request.POST.get("vendor_type")
             vendor.salutation = request.POST.get("saluation")
             vendor.first_name = request.POST.get("first_name")
             vendor.last_name = request.POST.get("last_name")
             vendor.company_name = request.POST.get("company_name")
             vendor.display_name = request.POST.get("display_name")
-            vendor.vendor_code = request.POST.get("vendor_code")
+
+            if action_type != "update":
+                vendor.vendor_code = request.POST.get("vendor_code")
+
             vendor.email_address = request.POST.get("email_address")
             vendor.work_phone = request.POST.get("work_phone")
             vendor.mobile_number = request.POST.get("mobile_number")
@@ -153,114 +243,27 @@ def save_vendor(request):
             vendor.company_acn = request.POST.get("company_acn")
             vendor.currency = request.POST.get("currency")
             vendor.vendor_remarks = request.POST.get("vendor_remarks")
+            vendor.payment_method = request.POST.get("payment_method")
             vendor.created_by = request.user.id
             vendor.status = 1
-
             if request.POST.get("payment_term"):
                 vendor.payment_term = PaymentTerm.objects.get(id=int(request.POST["payment_term"]))
-
             if request.FILES.get("documents"):
                 vendor.documents = request.FILES["documents"]
 
             vendor.save()
-
-            #return JsonResponse({"status": True, "vendor_id": vendor.id})
-            #{"status": true, "vendor_id": 20}
             if request.POST["billing_country"]:
                 status = save_address(request, "billing", vendor.id)
-                #billing_relation.address = billing_address
-                #billing_relation.save()
 
             if request.POST["shipping_country"]:
                 status = save_address(request, "shipping", vendor.id)
-                #shipping_relation.address = shipping_address
-                #shipping_relation.save()
-
-            # --- CONTACT DETAILS SAVE ---
-            contacts = extract_contacts(request)
-            active_contact_ids = []
-            for c in contacts:
-                # Skip blank rows
-                if not c["first_name"] and not c["last_name"]:
-                    continue
-                contact_id = c.get("id")
-
-                if contact_id is not None:  # UPDATE existing contact
-                    con = VendorContact.objects.filter(id=contact_id, vendor_id=vendor.id).first()
-                    if con:
-                        con.department = c["department"]
-                        con.email = c["email"]
-                        con.phone = c["phone"]
-                        con.first_name = c["first_name"]
-                        con.last_name = c["last_name"]
-                        con.description = c["description"]
-                        con.created_by = request.user.id
-                        con.save()
-                        active_contact_ids.append(con.id)
-                        continue
-
-                # CREATE new contact
-                new_con = VendorContact.objects.create(
-                    vendor_id=vendor.id,
-                    department=c["department"],
-                    email=c["email"],
-                    phone=c["phone"],
-                    first_name=c["first_name"],
-                    last_name=c["last_name"],
-                    description=c["description"],
-                    created_by=request.user.id
-                )
-                active_contact_ids.append(new_con.id)
-            # DELETE removed contacts
-            VendorContact.objects.filter(vendor_id=vendor.id).exclude(id__in=active_contact_ids).delete()
-
-            #BANK Details
-            bank_details = extract_bank_details(request)
-            active_ids = []
-            for b in bank_details:
-                # Skip empty record
-                if not b["account_holder"] and not b["bank_name"]:
-                    continue
-
-                # Validate account numbers
-                if b["account_number"] != b["account_number_confirm"]:
-                    return JsonResponse(
-                        {"status": False, "message": "Account number mismatch"},
-                        status=400
-                    )
-
-                bank_id = b.get("id")
-                if bank_id and str(bank_id).isdigit():
-                    bank = VendorBank.objects.filter(id=bank_id, vendor_id=vendor.id).first()
-                    if bank:
-                        bank.account_holder = b["account_holder"]
-                        bank.bank_name = b["bank_name"]
-                        bank.account_number = b["account_number"]
-                        bank.bic = b["bic"]
-                        bank.created_by = request.user.id
-                        bank.save()
-                        active_ids.append(bank.id)
-                        continue
-
-                new_bank = VendorBank.objects.create(
-                    vendor_id=vendor.id,
-                    account_holder=b["account_holder"],
-                    bank_name=b["bank_name"],
-                    account_number=b["account_number"],
-                    bic=b["bic"],
-                    created_by=request.user.id
-                )
-                active_ids.append(new_bank.id)
-
-            VendorBank.objects.filter(vendor_id=vendor.id).exclude(id__in=active_ids).delete()
-            #EOF Bank details
 
         return JsonResponse({"status": True, "vendor_id": vendor.id})
 
     except Exception as e:
         return JsonResponse({
             "status": False,
-            "message": "Error in vendor create",
+            "message": f"Error in vendor create" ,
             "detail": str(e)
         }, status=500)
 
@@ -351,6 +354,7 @@ def extract_contacts(request):
             "first_name": request.POST.get(f"{prefix}[first_name]"),
             "last_name": request.POST.get(f"{prefix}[last_name]"),
             "description": request.POST.get(f"{prefix}[description]"),
+            "role": request.POST.get(f"{prefix}[role]"),
         })
 
         index += 1
@@ -358,26 +362,95 @@ def extract_contacts(request):
     return contacts
 
 @login_required
-def delete_vendor_contact(request, contact_id):
+def add_newvendor_contact(request, vendor_id):
+    if request.method == "POST":
+        if not vendor_id:
+            return JsonResponse({"status": False, "message": "Required fields missing"})
+
+        if not request.POST.get("first_name") and not request.POST.get("last_name"):
+            return JsonResponse({"status":False, "message":"Required fields missing"})
+
+        VendorContact.objects.create(
+            vendor_id=vendor_id,
+            department=request.POST.get("department"),
+            email=request.POST.get("email"),
+            phone=request.POST.get("phone"),
+            first_name=request.POST.get("first_name"),
+            last_name=request.POST.get("last_name"),
+            description=request.POST.get("description"),
+            role=request.POST.get("role"),
+            created_by=request.user.id
+        )
+
+    return JsonResponse({"status":True, "message":"Contact created successfully"})
+
+def update_vendor_contact(request, contact_id):
+    if request.method == "POST":
+        if not contact_id:
+            return JsonResponse({"status": False, "message": "Required fields missing"})
+
+        if not request.POST.get("first_name") and not request.POST.get("last_name"):
+            return JsonResponse({"status": False, "message": "Required fields missing"})
+
+        vendor_contact = VendorContact.objects.get(id=contact_id)
+        vendor_contact.department = request.POST.get("department")
+        vendor_contact.email = request.POST.get("email")
+        vendor_contact.phone = request.POST.get("phone")
+        vendor_contact.first_name = request.POST.get("first_name")
+        vendor_contact.last_name = request.POST.get("last_name")
+        vendor_contact.description = request.POST.get("description")
+        vendor_contact.role = request.POST.get("role")
+        vendor_contact.save()
+    return JsonResponse({"status": True, "message": "Contact updated successfully"})
+
+@login_required
+def update_vendor_bank(request, bank_id):
+    if request.method == "POST":
+        if not bank_id:
+            return JsonResponse({"status": False, "message": "Required fields missing"})
+
+        if not request.POST.get("account_number") and not request.POST.get("account_holder"):
+            return JsonResponse({"status": False, "message": "Required fields missing"})
+
+        vendor_bank = VendorBank.objects.get(id=bank_id)
+        vendor_bank.account_holder = request.POST.get("account_holder")
+        vendor_bank.bank_name = request.POST.get("bank_name")
+        vendor_bank.account_number = request.POST.get("account_number")
+        vendor_bank.bic = request.POST.get("bic")
+        vendor_bank.save()
+    return JsonResponse({"status": True, "message": "Bank details updated successfully"})
+
+from django.core import serializers as core_serializers
+from store_admin.models.serializers.common_serializers import VendorContactSerializer, VendorBankSerializer
+
+
+@login_required
+def get_all_vendor_contacts(request,vendor_id):
+    if vendor_id == None:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
+    else:
+        contacts_queryset = VendorContact.objects.filter(vendor_id=vendor_id)
+        serialized_data = VendorContactSerializer(contacts_queryset, many=True)
+        return JsonResponse({"status": True, "data": serialized_data.data})
+
+@login_required
+def get_single_vendor_contact(request, vendor_id, contact_id):
+    if vendor_id == None:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
+    else:
+        contacts_queryset = VendorContact.objects.filter(vendor_id=vendor_id, id=contact_id).first()
+        serialized_data = VendorContactSerializer(contacts_queryset)
+        return JsonResponse({"status": True, "data": serialized_data.data})
+
+@login_required
+def delete_vendor_contact(request, contact_id, vendor_id):
     try:
-        obj = VendorContact.objects.filter(id=contact_id).first()
+        obj = VendorContact.objects.filter(id=contact_id,vendor_id=vendor_id).first()
         if not obj:
             return JsonResponse({"status": False, "message": "Contact not found"})
 
         obj.delete()
         return JsonResponse({"status": True, "message": "Contact deleted"})
-    except Exception as e:
-        return JsonResponse({"status": False, "message": str(e)})
-
-@login_required
-def delete_vendor_bank(request, bank_id):
-    try:
-        obj = VendorBank.objects.filter(id=bank_id).first()
-        if not obj:
-            return JsonResponse({"status": False, "message": "Bank details not found"})
-
-        obj.delete()
-        return JsonResponse({"status": True, "message": "Bank details deleted"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)})
 
@@ -396,7 +469,18 @@ def delete_vendor(request, vendor_id):
         return JsonResponse({"status": False, "message": "Vendor not found"}, status=404)
 
     try:
-        vendor.delete()
+        with transaction.atomic():
+            VendorBank.objects.filter(vendor_id=vendor_id).delete()
+            VendorContact.objects.filter(vendor_id=vendor_id).delete()
+
+            Addresses.objects.filter(id__in=VendorAddress.objects.filter(
+                vendor_id=vendor_id
+            ).values_list('address_id', flat=True)).delete()
+
+
+            VendorAddress.objects.filter(vendor_id=vendor_id).delete()
+            vendor.delete()
+
         return JsonResponse({"status": True, "message": "Vendor deleted successfully"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)}, status=500)
@@ -414,6 +498,71 @@ def delete_vendors_bulk(request):
     if not ids:
         return JsonResponse({"status": "error", "message": "No vendors selected"})
 
-    Vendor.objects.filter(id__in=ids).delete()
+    with transaction.atomic():
+        Vendor.objects.filter(id__in=ids).delete()
+        VendorBank.objects.filter(vendor_id__in=ids).delete()
+        VendorContact.objects.filter(vendor_id__in=ids).delete()
+        address_ids = VendorAddress.objects.filter(
+            vendor_id__in=ids
+        ).values_list('address_id', flat=True)
+        Addresses.objects.filter(id__in=address_ids).delete()
+        VendorAddress.objects.filter(vendor_id__in=ids).delete()
 
     return JsonResponse({"status": "success", "deleted": len(ids)})
+
+@login_required
+def delete_vendor_bank(request, bank_id, vendor_id):
+    try:
+        obj = VendorBank.objects.filter(id=bank_id,vendor_id=vendor_id).first()
+        if not obj:
+            return JsonResponse({"status": False, "message": "Bank details not found"})
+
+        obj.delete()
+        return JsonResponse({"status": True, "message": "Bank details deleted"})
+    except Exception as e:
+        return JsonResponse({"status": False, "message": str(e)})
+
+
+
+#vnew vendor bank details
+@login_required
+def get_all_vendor_banks(request, vendor_id):
+    # Filter by the integer vendor_id
+    banks_queryset = VendorBank.objects.filter(vendor_id=vendor_id)
+
+    # Use the serializer with many=True for a list of objects
+    serializer = VendorBankSerializer(banks_queryset, many=True)
+
+    return JsonResponse({"status": True, "data": serializer.data})
+
+
+@login_required
+def add_new_vendor_bank(request, vendor_id):
+    if request.method == "POST":
+        data = request.POST.copy()
+
+        # Ensure the vendor_id is explicitly set from the URL argument
+        data['vendor_id'] = vendor_id
+        # Set created_by if needed (e.g., current user's ID)
+        data['created_by'] = request.user.id if request.user.is_authenticated else 0
+
+        serializer = VendorBankSerializer(data=data)
+
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse({"status": True, "message": "Bank details added successfully."})
+        else:
+            # Return detailed error messages from the serializer
+            return JsonResponse({"status": False, "message": serializer.errors})
+
+    return JsonResponse({"status": False, "message": "Only POST method supported."}, status=405)
+
+
+@login_required
+def get_single_vendor_bank(request, vendor_id, bank_id):
+    if vendor_id == None or bank_id is None:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
+    else:
+        contacts_queryset = VendorBank.objects.filter(vendor_id=vendor_id, id=bank_id).first()
+        serialized_data = VendorBankSerializer(contacts_queryset)
+        return JsonResponse({"status": True, "data": serialized_data.data})

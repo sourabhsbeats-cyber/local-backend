@@ -18,7 +18,7 @@
         <div class="col-sm-6">
             <div class="float-right">
              <div class="btn-group float-right">
-                    <button type="button" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1"></i>Actions</button>
+                    <button type="button" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
                     <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="sr-only">Toggle Dropdown</span>
@@ -30,7 +30,7 @@
                         <a class="dropdown-item" href="#"><i class="fas fa-download fa-sm mr-1"></i> Export</a>
 
                     </div>
-                </div>
+             </div>
           </div>
         </div>
       </div>
@@ -70,7 +70,7 @@
           </div>
           <div class="mb-2 float-right">
             <button type="button" style="display: none;"  id="bulkDeleteBtn"
-                    class="btn btn-outline-danger btn-sm"
+                    class="btn btn-outline-danger btn-sm" title="Delete selected records"
                     onclick="deleteSelected()">
                 <i class="fas fa-trash"></i> Delete
             </button>
@@ -122,7 +122,7 @@
                   <a href="{% url 'edit_product' product.product_id %}"
                      class="btn btn-sm btn-outline-success"
                      title="Edit Product">
-                    <i class="fas fa-edit"></i>
+                    <i class="fas fa-pen"></i>
                   </a>
 
                   <button type="button"

@@ -1,7 +1,20 @@
- <div class="form-row">
+<div class="col-md-8">
+    <div class="form-row ">
+     <div class="form-group col-md-2">
+      <label class="text-danger">Vendor Type *</label>
+      <select class="form-control form-control-sm " name="vendor_type">
+        <option value="">Select</option>
+        <option {% if vendor.vendor_type == "Dropship" %}selected{% endif %} value="Dropship">Dropship</option>
+        <option {% if vendor.vendor_type == "Wholesale" %}selected{% endif %} value="Wholesale">Wholesale</option>
+        <option {% if vendor.vendor_type == "both" %}selected{% endif %} value="both">both</option>
+      </select>
+    </div>
+</div>
+
+    <div class="form-row">
             <div class="form-group col-md-2">
                 <label>Salutation</label>
-                <select class="form-control" name="saluation">
+                <select class="form-control form-control-sm" name="saluation">
                     <option value="">Select</option>
                     <option value="Mr."  {% if vendor.salutation == "Mr." %}selected{% endif %}>Mr.</option>
                     <option value="Mrs." {% if vendor.salutation == "Mrs." %}selected{% endif %}>Mrs.</option>
@@ -11,26 +24,26 @@
             </div>
             <div class="form-group col-md-5">
               <label>First Name</label>
-              <input type="text" name="first_name" value="{{ vendor.first_name }}" class="form-control" placeholder="First Name" />
+              <input type="text" name="first_name" value="{{ vendor.first_name }}" class=" form-control-sm form-control" placeholder="First Name" />
             </div>
             <div class="form-group col-md-5">
               <label>Last Name</label>
-              <input type="text" name="last_name" value="{{ vendor.last_name }}" class="form-control" placeholder="Last Name" />
+              <input type="text" name="last_name" value="{{ vendor.last_name }}" class=" form-control-sm form-control" placeholder="Last Name" />
             </div>
           </div>
 
           <div class="form-row">
             <div class="form-group col-md-6">
               <label>Company Name</label>
-              <input type="text" value="{{ vendor.company_name }}" name="company_name" class="form-control" placeholder="Registered company name" />
+              <input type="text" value="{{ vendor.company_name }}" name="company_name" class=" form-control-sm form-control" placeholder="Registered company name" />
             </div>
             <div class="form-group col-md-3">
-              <label>Display Name</label>
-              <input type="text" value="{{ vendor.display_name }}" name="display_name" class="form-control " placeholder="Select or type to add" />
+              <label class="text-danger">Display Name*</label>
+              <input type="text" value="{{ vendor.display_name }}" name="display_name" class=" form-control-sm form-control " placeholder="Select or type to add" />
             </div>
            <div class="form-group col-md-3">
-              <label>Vendor Code</label>
-              <input type="text" value="{{ vendor.vendor_code }}"  name="vendor_code" class="form-control " placeholder="Select or type to add" />
+              <label class="text-danger">Vendor Code*</label>
+              <input type="text" value="{{ vendor.vendor_code }}"  name="vendor_code" class=" form-control-sm form-control " placeholder="Select or type to add" />
             </div>
 
           </div>
@@ -39,19 +52,21 @@
             <div class="form-group col-md-6">
               <label>Email Address</label>
               <div class="input-group">
-                <input type="text" value="{{ vendor.email_address }}"  autocomplete="off" name="email_address" class="form-control" placeholder="example@company.com" />
+                <input type="text" value="{{ vendor.email_address }}"
+                       autocomplete="off" name="email_address" class="form-control-sm form-control" placeholder="example@company.com" />
               </div>
             </div>
             <div class="form-group col-md-3">
               <label>Work Phone</label>
               <div class="input-group">
-                <input type="text" value="{{ vendor.work_phone }}" name="work_phone" class="form-control" placeholder="Work Phone" />
+                <input type="text" value="{{ vendor.work_phone }}" name="work_phone" class="form-control-sm form-control" placeholder="Work Phone" />
               </div>
             </div>
             <div class="form-group col-md-3">
               <label>Mobile</label>
               <div class="input-group">
-                <input type="text" name="mobile_number" value="{{ vendor.mobile_number }}" class="form-control" placeholder="Mobile Number" />
+                <input type="text" name="mobile_number" value="{{ vendor.mobile_number }}" class="form-control-sm form-control" placeholder="Mobile Number" />
               </div>
             </div>
-          </div>
+         </div>
+</div>
