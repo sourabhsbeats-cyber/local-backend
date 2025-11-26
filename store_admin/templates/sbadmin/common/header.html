@@ -39,25 +39,21 @@
 <script  src="{% static 'sbadmin/plugins/select2/js/select2.min.js' %}"> </script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.js"></script>
-
-
 <script src="{% static 'sbadmin/plugins/toastr/toastr.min.js' %}"></script>
+
+
 <style>
 .form-control-sm + .select2-container .select2-selection--single {
     height: calc(1.5em + 0.5rem + 2px) !important;
-
     padding: 0.25rem 0.5rem;
 }
-
 .form-control-sm + .select2-container .select2-selection__rendered {
     font-size: 0.875rem;
     padding: 0;
 }
-
 .form-control-sm + .select2-container .select2-selection__arrow {
     height: calc(1.5em + 0.5rem + 2px) !important;
 }
-
 .select2-container--default .select2-dropdown .select2-results__option {
     font-size: 0.875rem;
 }
@@ -80,7 +76,7 @@
 .project-tab #tabs h6.section-title{
     color: #eee;
 }
-.project-tab #tabs .nav-tabs .nav-item.show .nav-link, .nav-tabs .nav-link.active {
+.project-tab #tabs .nav-tabs .nav-item.show .nav-link, .project-tab .nav-tabs .nav-link.active {
     color: #0062cc;
     background-color: transparent;
     border-color: transparent transparent #f3f3f3;
@@ -90,30 +86,29 @@
 .project-tab .nav-link {
     border: 0px solid transparent;
 }
-.project-tab .nav-link:hover {
-}
-
 .project-tab a{
     text-decoration: none;
     color: #333;
 }
+.cursor-pointer {
+  cursor: pointer;
+}
+/*
 .swal2-compact-design .swal2-header{
     padding:8px;
 }
-
+*/
 .swal2-compact-design {
-  width: 350px !important; /* Smaller width */
-  padding: 10px !important; /* Reduced padding */
-  font-size: 0.9em !important; /* Smaller font size */
+  width: 350px !important;
+  padding: 10px !important;
+  font-size: 0.9em !important;
 }
 
-/* Make the icon smaller */
 .swal2-compact-design .swal2-icon {
   font-size: 0.8em !important; /* Scales the icon size */
   margin: 10px auto !important;
 }
 
-/* Make the buttons smaller */
 .swal2-compact-design .swal2-actions button {
   padding: 0.375em 0.75em !important;
   font-size: 0.85em !important;
@@ -121,8 +116,12 @@
 .swal2-compact-design .swal2-actions{
     padding: 0 0 0.3rem;
 }
-.swal2-compact-design .swal2-icon{
-
+.dropzone .dz-preview.dz-file-preview .dz-image {
+    background: linear-gradient(to bottom, #328dcc, #2478b2) !important;
+}
+.dropzone .dz-preview .dz-progress{ background:none !important;}
+.dropzone .dz-preview .dz-details .dz-filename span, .dropzone .dz-preview .dz-details .dz-size span {
+    background-color: white !important;
 }
 </style>
 

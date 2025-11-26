@@ -1,9 +1,5 @@
 /*
- * Author: Abdullah A Almsaeed
- * Date: 4 Jan 2014
- * Description:
- *      This is a demo file used only for the main dashboard (dashboard.html)
- **/
+
 
 $(function () {
 
@@ -45,7 +41,6 @@ $(function () {
     window.alert('You chose: ' + start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY'))
   })
 
-  /* jQueryKnob */
   $('.knob').knob()
 
   // jvectormap data
@@ -108,7 +103,6 @@ $(function () {
     height: '250px'
   })
 
-  /* Chart.js Charts */
   // Sales chart
   var salesChartCanvas = document.getElementById('revenue-chart-canvas').getContext('2d');
   //$('#revenue-chart').get(0).getContext('2d');
@@ -253,8 +247,7 @@ $(function () {
     }
   }
 
-  // This will get the first returned node in the jQuery collection.
-  var salesGraphChart = new Chart(salesGraphChartCanvas, { 
+  var salesGraphChart = new Chart(salesGraphChartCanvas, {
       type: 'line', 
       data: salesGraphChartData, 
       options: salesGraphChartOptions
@@ -262,3 +255,5 @@ $(function () {
   )
 
 })
+
+*/

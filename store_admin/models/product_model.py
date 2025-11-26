@@ -89,6 +89,11 @@ class Product(models.Model):
     warranty = models.IntegerField(blank=True, null=True)
     product_tags = models.TextField(blank=True, null=True)
 
+    preferred_vendor = models.IntegerField(blank=True, null=True)
+    amazon_size = models.CharField(max_length=50)
+    vendor_sku = models.CharField(max_length=50)
+    sbau = models.CharField(max_length=50)
+
     # SYSTEM
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -107,4 +112,44 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return f"Image for product {self.product_id}"
+
+
+
+class ProductShippingDetails(models.Model):
+    shipping_details_id = models.AutoField(primary_key=True)
+    product_id = models.IntegerField(null=True, blank=True)
+    fast_dispatch = models.IntegerField(null=True, blank=True)
+    free_shipping = models.IntegerField(null=True, blank=True)
+    bulky_product = models.CharField(max_length=45, null=True, blank=True)
+    international_note = models.CharField(max_length=120, null=True, blank=True)
+    example_reference = models.CharField(max_length=50, null=True, blank=True)
+    ships_from = models.CharField(max_length=50, null=True, blank=True)
+    handling_time_days = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    created_by = models.IntegerField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'store_admin_product_shipping_details'
+
+
+class ProductPriceDetails(models.Model):
+    # price_id is the auto-created primary key
+    product_id = models.IntegerField(null=True, blank=True)
+    price_id = models.AutoField(primary_key=True)
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    retail_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    cost_per_item = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    margin_percent = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    profit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    min_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    max_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    estimated_shipping_cost = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.IntegerField(null=True)
+
+    class Meta:
+        db_table = 'store_admin_product_price_details'
+
+
 

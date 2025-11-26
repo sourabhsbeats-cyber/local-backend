@@ -15,7 +15,7 @@
           <div class="float-right">
 
                <div class="btn-group float-right">
-                    <button type="button" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
+                    <button type="button" id="main-action-btn" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
                     <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="sr-only">Toggle Dropdown</span>
@@ -64,7 +64,7 @@
           </div>
         </form>
           </div>
-          <div class="mb-2 float-right">
+          <div class="float-right">
             <button type="button"  style="display: none;"
                     class="btn btn-outline-danger btn-sm" id="bulkDeleteBtn"
                     onclick="deleteSelectedVendors()" title="Delete selected records">
@@ -231,7 +231,6 @@ function deleteSelectedVendor(vendorId) {
 }
 </script>
 <script>
-
 document.addEventListener("DOMContentLoaded", function() {
     const selectAllCb = document.getElementById("select_all");
     const bulkBtn = document.getElementById("bulkDeleteBtn");
@@ -342,8 +341,17 @@ function deleteSelectedVendors() {
 
 
 }
-</script>
 
+</script>
+<script>
+document.getElementById("main-action-btn").addEventListener("click", function(e){
+    e.preventDefault();   // stop form/button submitting
+    e.stopPropagation();
+    const splitBtn = this.nextElementSibling;
+    $(splitBtn).dropdown("toggle");
+});
+
+</script>
 {% endblock %}
 
 {% endblock %}

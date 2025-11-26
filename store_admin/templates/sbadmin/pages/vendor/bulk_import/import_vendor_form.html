@@ -108,8 +108,8 @@
             {% endfor %}
         {% endif %}
         <!-- FORM -->
-        <form id="importForm" method="post" enctype="multipart/form-data"
-              action="{% url 'import_vendor_stage_map' %}">
+        <form method="post" enctype="multipart/form-data"
+              action="">
             {% csrf_token %}
 
             <div class="upload-wrapper">
@@ -139,24 +139,24 @@
 
                     <div class="row">
                         <div class="col-sm-6 text-center">
-                            <label class="font-weight-bold text-danger">Duplicate Handling:</label>
+                            <label class="font-weight-bold">Duplicate Handling:</label>
                         </div>
 
                         <div class="col-sm-6 text-left">
 
                             <label class="d-flex align-items-start">
                                 <input type="radio" name="dup" value="skip_duplicate" class="mr-2" checked>
-                                <div><strong>Skip Duplicates</strong></div>
+                                <div class="mt-n1"><strong>Skip Duplicates</strong></div>
                             </label>
 
                             <label class="text-gray d-flex align-items-start mt-3">
                                 <input disabled type="radio" name="dup" value="overwrite_existing" class="mr-2">
-                                <div><strong>Overwrite vendors</strong></div>
+                                <div class="mt-n1"><strong>Overwrite vendors</strong></div>
                             </label>
 
                             <label class="text-gray d-flex align-items-start mt-3">
                                 <input disabled type="radio" name="dup" value="allow_duplicates" class="mr-2">
-                                <div><strong>Add duplicates as new vendors</strong></div>
+                                <div class="mt-n1"><strong>Add duplicates as new vendors</strong></div>
                             </label>
 
                         </div>
@@ -184,7 +184,7 @@
 
                 <div class="mt-4 mb-5 d-flex justify-content-between">
                     <a href="{% url 'vendor_listing' %}" class="btn btn-secondary btn-sm">Cancel</a>
-                    <button type="submit" class="btn btn-primary btn-sm">Next</button>
+                    <button type="button" id="submitBtn" class="btn btn-primary btn-sm">Next</button>
                 </div>
 
             </div>
@@ -196,14 +196,10 @@
 
 
 <!-- DROPZONE SCRIPT -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.js"></script>
-
 <script>
 Dropzone.autoDiscover = false;
 
 var selectedFile = null;
-
-// Init Dropzone
 var dz = new Dropzone("#vendorDropzone", {
     url: "#",
     autoProcessQueue: false,
@@ -214,13 +210,21 @@ var dz = new Dropzone("#vendorDropzone", {
 
     init: function () {
 
-        // When file added
+        this.on("maxfilesexceeded", function(file) {
+            this.removeAllFiles();
+            this.addFile(file);
+        });
+
+        this.on("uploadprogress", function (file, progress) {
+            let progressBar = file.previewElement.querySelector(".dz-upload");
+            progressBar.style.width = progress + "%";
+        });
+
         this.on("addedfile", function(file) {
             selectedFile = file;
             document.getElementById("uploaded_file_name").value = file.name;
         });
 
-        // When file removed
         this.on("removedfile", function() {
             selectedFile = null;
             document.getElementById("uploaded_file_name").value = "";
@@ -228,28 +232,64 @@ var dz = new Dropzone("#vendorDropzone", {
     }
 });
 
-
 // Attach file to form on submit
-document.getElementById("importForm").addEventListener("submit", function (e) {
+document.getElementById("submitBtn").addEventListener("click", function (e) {
+
+    e.preventDefault();
+    e.stopPropagation();
 
     if (!selectedFile) {
-        toastr.error("Please upload a file before proceeding.")
-        e.preventDefault();
-        return false;
+        toastr.error("Please upload a file before proceeding.");
+        return;
     }
 
-    // Convert dropzone file → real input file
-    var dt = new DataTransfer();
-    dt.items.add(selectedFile);
+    let formData = new FormData();
+    formData.append("import_file", selectedFile);
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    formData.append("csrfmiddlewaretoken", csrfToken);
+    formData.append("encoding", document.querySelector('[name="encoding"]').value);
+    const dub = document.querySelector('input[name="dup"]:checked').value;
+    if (dub)
+        formData.append("dub", dub);
 
-    var input = document.createElement("input");
-    input.type = "file";
-    input.name = "import_file";
-    input.files = dt.files;
-    input.hidden = true;
-
-    this.appendChild(input);
+    // AJAX Request
+    $.ajax({
+        url: "{% url 'import_vendor_file_upload' %}",   // Your Django/FastAPI URL here
+        type: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        beforeSend: function () {
+            $("#submitBtn").attr("disabled", true);
+        },
+        success: function (response) {
+            if (response.status)
+            {
+                $("#submitBtn").attr("disabled", true);
+                $("#submitBtn").html("Submitting ...");
+                toastr.success("File uploaded successfully!");
+                setTimeout(()=>{
+                    window.location.href = response?.data.redirect_url;
+                },500)
+            }else{
+                toastr.error("Error");
+                Swal.fire({
+                    title: "Error",
+                    html: response.message,
+                    icon: "warning",
+                    showCancelButton: false,
+                    confirmButtonText: "Ok",
+                });
+            }
+        },
+        error: function (xhr) {
+            toastr.error("Upload failed!");
+        },
+        complete: function () {
+        }
+    });
 });
+
 </script>
 
 {% endblock %}

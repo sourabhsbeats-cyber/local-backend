@@ -18,7 +18,7 @@
         <div class="col-sm-6">
             <div class="float-right">
              <div class="btn-group float-right">
-                    <button type="button" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
+                    <button type="button" id="main-action-btn" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
                     <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                         <span class="sr-only">Toggle Dropdown</span>
@@ -68,7 +68,7 @@
           </div>
         </form>
           </div>
-          <div class="mb-2 float-right">
+          <div class=" float-right">
             <button type="button" style="display: none;"  id="bulkDeleteBtn"
                     class="btn btn-outline-danger btn-sm" title="Delete selected records"
                     onclick="deleteSelected()">
@@ -135,7 +135,7 @@
 
               {% empty %}
               <tr>
-                <td colspan="5" class="text-center text-muted py-3">
+                <td colspan="6" class="text-center text-muted py-3">
                   No records found.
                 </td>
               </tr>
@@ -322,6 +322,15 @@ function deleteSelectedProduct(productId) { // Kept function name consistent wit
         }
     });
 }
+</script>
+<script>
+document.getElementById("main-action-btn").addEventListener("click", function(e){
+    e.preventDefault();   // stop form/button submitting
+    e.stopPropagation();
+    const splitBtn = this.nextElementSibling;
+    $(splitBtn).dropdown("toggle");
+});
+
 </script>
 {% endblock %}
 

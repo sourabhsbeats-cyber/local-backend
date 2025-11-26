@@ -30,6 +30,10 @@ from openpyxl import load_workbook
 from django.conf import settings
 from django.http import HttpResponseBadRequest
 from django.utils.safestring import mark_safe
+from django.shortcuts import redirect
+from django.urls import reverse
+from urllib.parse import urlencode
+
 
 @login_required
 def import_product(request):
@@ -127,20 +131,23 @@ def import_product_validate(request):
 
     if request.method != "POST":
         messages.error(request, "Invalid request.")
-        return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        return JsonResponse({"status": False, "message": "Invalid request."})
+        #return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
 
     uploaded_file = request.FILES.get("import_file")
     encoding = request.POST.get("encoding", "utf-8")
     dup = request.POST.get("dup")
 
     if not uploaded_file:
-        messages.error(request, "No file uploaded.")
-        return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        #messages.error(request, "No file uploaded.")
+        #return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        return JsonResponse({"status":False, "message":"No file uploaded."})
 
     ext = uploaded_file.name.split(".")[-1].lower()
     if ext not in VALID_EXTENSIONS:
-        messages.error(request, "File must be CSV ") #/ TSV / XLSX
-        return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        #messages.error(request, "File must be CSV ") #/ TSV / XLSX
+        #return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        return JsonResponse({"status": False, "message": "File must be CSV "})
 
     # Save uploaded file temporarily
     temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "product")
@@ -163,7 +170,8 @@ def import_product_validate(request):
         file_headers = df.columns.tolist()
 
     except Exception as e:
-        messages.error(request, f"Error reading file: {str(e)}")
+        #messages.error(request, f"Error reading file: {str(e)}")
+        return JsonResponse({"status": False, "message": f"Error reading file", "error": str(e)})
         return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
 
     # Missing headers
@@ -175,7 +183,9 @@ def import_product_validate(request):
         )
         messages.error(request, mark_safe(msg))
         os.remove(saved_path)
-        return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        return JsonResponse({"status": False, "message": "The uploaded file is missing required headers: "
+            f"<b>{', '.join(missing_headers)}</b>"})
+        #return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
 
     # -------------------------
     #  CLEANING AND VALIDATION
@@ -218,8 +228,9 @@ def import_product_validate(request):
             html += f"<li><b>Row {row_num}</b>: {err_msg}</li>"
         html += "</ul>"
 
-        messages.error(request, mark_safe(html))
-        return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
+        #messages.error(request, mark_safe(html))
+        return JsonResponse({"status": False, "message": mark_safe(html)})
+        #return render(request, 'sbadmin/pages/product/bulk_import/import_product_form.html')
 
     # -------------------------
     #  WRITE CLEANED CSV
@@ -270,14 +281,28 @@ def import_product_validate(request):
         {"value": "warranty", "label": "Warranty"},
         {"value": "product_tags", "label": "Product Tags"},
     ]
+    cleaned_filename = cleaned_filename.replace(" ", "_")
+    uploaded_filename = uploaded_file.name.replace(" ", "_")
 
+    redirect_url = reverse(
+        "import_vendor_stage_map",
+        kwargs={
+            "cleaned_filename": cleaned_filename,
+            "dup_option": dup,
+            "uploaded_filename": uploaded_filename,
+        }
+    )
+    return JsonResponse({"status": True, "message": "", "data":{
+        "redirect_url": redirect_url
+    }})
+    '''
     return render(request, "sbadmin/pages/product/bulk_import/import_product_stage_1.html", {
         "mapping_fields": required_headers,
         "select_options": select_options,
         "dup_option": dup,
         "cleaned_filename": cleaned_filename,
         "uploaded_filename": uploaded_file.name,
-    })
+    })'''
 
 @login_required
 def download_product_template(request, file_type, file_format):

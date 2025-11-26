@@ -27,11 +27,19 @@ from django.contrib.auth.decorators import login_required
 from openpyxl import load_workbook  # pip install openpyxl
 from django.conf import settings
 from django.http import HttpResponseBadRequest
+from django.urls import reverse
+from urllib.parse import urlencode
+from django.utils.safestring import mark_safe
+from django.db.models import Q
 
-@login_required
-def import_vendor(request):
-    context = {}
-    return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html', context)
+def to_str(val):
+    if val is None or pd.isna(val):
+        return ""
+    clean_val = str(val)
+    # 1. Replace non-breaking space (often imported from Excel/web)
+    clean_val = clean_val.replace('\xa0', ' ')
+    # 2. Use strip() to remove all leading/trailing whitespace
+    return clean_val.strip()
 
 def validate_field(field, value, rules):
     if rules.get("required") and (value is None or value == ""):
@@ -120,7 +128,6 @@ vendor_field_schema = {
     "ContactPurpose":           {"type": "str",   "max": 255, "required": False},
     "Remarks":                  {"type": "str",               "required": False},
 }
-
 required_headers_v1 = [
     "VendorType","Salutation","FirstName","LastName","CompanyName","CompanyType","DisplayName",
     "VendorCode","Email","WorkPhone","MobilePhone","IsRegisteredBusiness","ABN","ACN","PaymentTerms",
@@ -132,29 +139,30 @@ required_headers_v1 = [
     "Remarks"
 
 ]
-#42 cols
 
-from django.utils.safestring import mark_safe
+#Stage - 1 - Form view
+@login_required
+def import_vendor(request):
+    context = {}
+    return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html', context)
 
+#Stage - 2 - Validate the uploaded file and test the fields - if set redirect to next stage 3
 @login_required
 def import_vendor_validate(request):
 
     if request.method != "POST":
-        messages.error(request, "Invalid request.")
-        return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
+        return JsonResponse({"status": False, "message": "Invalid request."})
 
     uploaded_file = request.FILES.get("import_file")
     encoding = request.POST.get("encoding", "utf-8")
-    dup = request.POST.get("dup")
+    dup = request.POST.get("dub")
 
     if not uploaded_file:
-        messages.error(request, "No file uploaded.")
-        return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
+        return JsonResponse({"status": False, "message": "No file uploaded."})
 
     ext = uploaded_file.name.split(".")[-1].lower()
     if ext not in VALID_EXTENSIONS:
-        messages.error(request, "File must be CSV / XLSX") #TSV /
-        return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
+        return JsonResponse({"status": False, "message":"File must be CSV / XLSX"})
 
     # Save uploaded file temporarily
     temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "vendors")
@@ -176,8 +184,7 @@ def import_vendor_validate(request):
 
         file_headers = df.columns.tolist()
     except Exception as e:
-        messages.error(request, f"Error reading file: {str(e)}")
-        return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
+        return JsonResponse({"status": False, "message": "Error reading file", "error":str(e)})
 
     # Missing headers
     missing_headers = [h for h in required_headers_v1 if h not in file_headers]
@@ -186,13 +193,8 @@ def import_vendor_validate(request):
             "The uploaded file is missing required headers: "
             f"<b>{', '.join(missing_headers)}</b>"
         )
-        messages.error(request, mark_safe(msg))
         os.remove(saved_path)
-        return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
-
-    # -------------------------
-    #  CLEANING AND VALIDATION
-    # -------------------------
+        return JsonResponse({"status": False, "message": mark_safe(msg)})
 
     # Only keep mapping_fields
     cleaned_headers = list(required_headers_v1)
@@ -226,9 +228,8 @@ def import_vendor_validate(request):
             err_msg = ", ".join([f"{k}: {v}" for k, v in row_err["errors"].items()])
             html += f"<li><b>Row {row_num}</b>: {err_msg}</li>"
         html += "</ul>"
+        return JsonResponse({"status": False, "message": mark_safe(html)})
 
-        messages.error(request, mark_safe(html))
-        return render(request, 'sbadmin/pages/vendor/bulk_import/import_vendor_form.html')
 
     cleaned_filename = f"cleaned_{datetime.now().strftime('%Y%m%d%H%M%S')}.csv"
     cleaned_path = os.path.join(temp_dir, cleaned_filename)
@@ -243,51 +244,48 @@ def import_vendor_validate(request):
     request.session["dup_option"] = dup
     request.session["cleaned_filename"] = cleaned_filename
 
-    #print(file_headers)
-    # Dropdown list for mapping page
-
     select_options = []
     for file_header in file_headers:
         select_options.append({"value": file_header, "label": file_header})
 
+    cleaned_filename = cleaned_filename.replace(" ", "_")
+    uploaded_filename = uploaded_file.name.replace(" ", "_")
+
+    redirect_url = reverse(
+        "import_vendor_stage_map",
+        kwargs={
+            "cleaned_filename": cleaned_filename,
+            "dup_option": dup,
+            "uploaded_filename": uploaded_filename,
+        }
+    )
+    return JsonResponse({"status": True, "message": "", "data": {
+        "redirect_url": redirect_url
+    }})
+
+
+#stage -3
+@login_required
+def link_fields(request, cleaned_filename, dup_option, uploaded_filename):
+    '''Retrieve file from cleaned_filename - read the headers - map the headers'''
+    temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "vendors")
+    saved_path = os.path.join(temp_dir, cleaned_filename)
+    df = pd.read_csv(saved_path, encoding="utf-8")
+    file_headers = df.columns.tolist()
+    select_options = []
+    for file_header in file_headers:
+        select_options.append({"value": file_header, "label": file_header})
+
+    cleaned_filename = cleaned_filename.replace(" ", "_")
+
     return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_1.html", {
         "mapping_fields": required_headers_v1,
         "select_options": select_options,
-        "dup_option": dup,
+        "dup_option": dup_option,
         "cleaned_filename": cleaned_filename,
-        "uploaded_filename": uploaded_file.name,
+        "uploaded_filename": uploaded_filename,
     })
 
-@login_required
-def download_vendor_template(request, file_type, file_format):
-
-    if file_type not in ["vendors", "vendor_contacts", "vendor_bank_accounts"] or \
-       file_format not in ["csv", "tsv", "xlsx"]:
-        raise Http404("Invalid request")
-
-    relative_path = f"import_templates/vendor/{file_type}.{file_format}"
-    file_path = None
-
-    if getattr(settings, "STATIC_ROOT", None):
-        candidate = os.path.join(settings.STATIC_ROOT, relative_path)
-        if os.path.exists(candidate):
-            file_path = candidate
-
-    if not file_path:
-        for static_dir in getattr(settings, "STATICFILES_DIRS", []):
-            candidate = os.path.join(static_dir, relative_path)
-            if os.path.exists(candidate):
-                file_path = candidate
-                break
-
-    if not file_path:
-        raise Http404("Sample file not found")
-
-    return FileResponse(
-        open(file_path, "rb"),
-        as_attachment=True,
-        filename=f"{file_type}.{file_format}"
-    )
 
 @login_required
 def preview_import(request):
@@ -334,16 +332,6 @@ def preview_import(request):
         return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_2.html", {
         })
 
-def to_str(val):
-    if val is None or pd.isna(val):
-        return ""
-    clean_val = str(val)
-    # 1. Replace non-breaking space (often imported from Excel/web)
-    clean_val = clean_val.replace('\xa0', ' ')
-    # 2. Use strip() to remove all leading/trailing whitespace
-    return clean_val.strip()
-
-from django.db.models import Q
 @login_required
 def final_vendor_import(request):
 
@@ -647,4 +635,38 @@ def final_vendor_import(request):
         imported_count += 1
 
     return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_3.html",
-                  {"imported_count": imported_count})
+                  {"imported_count": imported_count, "updated_count":0})
+
+@login_required
+def download_vendor_template(request, file_type, file_format):
+
+    if file_type not in ["vendors", "vendor_contacts", "vendor_bank_accounts"] or \
+       file_format not in ["csv", "tsv", "xlsx"]:
+        raise Http404("Invalid request")
+
+    relative_path = f"import_templates/vendor/{file_type}.{file_format}"
+    file_path = None
+
+    if getattr(settings, "STATIC_ROOT", None):
+        candidate = os.path.join(settings.STATIC_ROOT, relative_path)
+        if os.path.exists(candidate):
+            file_path = candidate
+
+    if not file_path:
+        for static_dir in getattr(settings, "STATICFILES_DIRS", []):
+            candidate = os.path.join(static_dir, relative_path)
+            if os.path.exists(candidate):
+                file_path = candidate
+                break
+
+    if not file_path:
+        raise Http404("Sample file not found")
+
+    return FileResponse(
+        open(file_path, "rb"),
+        as_attachment=True,
+        filename=f"{file_type}.{file_format}"
+    )
+
+
+

@@ -1,15 +1,10 @@
 {% extends "sbadmin/base.html" %}
-{% block title %}Edit Product{% endblock %}
+{% block title %}Update Product{% endblock %}
 
 {% block content %}
 
 <style>
-    .no-select {
-        user-select: none;
-        -webkit-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-    }
+
     .bg-badges-tag{
         background-color: #b9b9b9;
     }
@@ -50,12 +45,12 @@
     <div class="container-fluid">
       <div class="row mb-2 align-items-center">
         <div class="col-sm-6">
-          <h4 class="m-0">New Product</h4>
+          <h4 class="m-0">Edit Product</h4>
         </div>
         <div class="col-sm-6">
           <ol class="breadcrumb float-sm-right">
-            <li class="breadcrumb-item"><a href="#">Product</a></li>
-            <li class="breadcrumb-item active">Add</li>
+            <li class="breadcrumb-item"><a href="{% url 'all_products' %}">Product</a></li>
+            <li class="breadcrumb-item active">Edit</li>
           </ol>
         </div>
       </div>
@@ -63,7 +58,7 @@
   </section>
 
   <section class="content">
-    <div class="card card-outline card-primary shadow-sm">
+    <div class="card card-outline card-primary shadow-none">
       <div class="card-header pr-0">
         <h3 class="card-title mb-0">
           <i class="fas fa-building mr-2 text-info"></i> Product Information
@@ -72,54 +67,47 @@
           <i class="fas fa-times"></i>
         </a>
       </div>
-
-      <div class="card-body">
+    </div>
         <form autocomplete="off"
-              action="{% url 'update_product' %}"
-              enctype="multipart/form-data"
+
               class="form-horizontal"
               id="productForm" method="post">
 
             {% csrf_token %}
-             <input type="hidden" name="product_id" value="{{ product.product_id }}" />
             <div class="row col-md-12">
                 <div class="col-md-8 float-left">
-
                     <!-- PRODUCT TYPE -->
-                    <div>
-                        <div class="mb-4"><h5>Product Type</h5></div>
-
+                    <div class="p-3">
                         <div class="form-group row">
-                            <label class="col-sm-2 col-form-label ">Product Type</label>
-                            <div class="col-sm-10">
-                              <select name="product_type" class="form-control custom-select select2" placeholder="Select product type">
+                            <label class="col-sm-3 col-form-label  ">Product Type</label>
+                            <div class="col-sm-9">
+                              <select name="product_type" class="form-control select2" style="width:90%" title="Select product type">
                                   <option value="">Select product type</option>
-                                  {% for value, label in product_types %}
-                                        <option value="{{ value }}" {% if product.product_type == value|stringformat:"d" %}selected{% endif %}>
-                                            {{ label }}
-                                        </option>
-                                    {% endfor %}
+                                  <option {% if product.product_type == '1' %}selected{% endif %} value="1">Standard</option>
+                                  <option disabled value="2">Parent</option>
+                                  <option disabled value="3">Child</option>
+                                  <option disabled value="4">Bundle</option>
                               </select>
                             </div>
                         </div>
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Parent SKU</label>
-                            <div class="col-sm-10">
-                              <input type="text" value="{{ product.parent_sku }}" name="parent_sku" class="form-control" placeholder="Enter parent SKU">
+                        <div class="form-group row d-none">
+                            <label class="col-sm-3 col-form-label">Parent SKU</label>
+                            <div class="col-sm-9">
+                              <input type="text" name="cat_parent_sku" class="form-control" placeholder="Enter parent SKU">
                             </div>
                         </div>
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Bundle SKU</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="bundle_sku" value="{{ product.bundle_sku }}" class="form-control" placeholder="Enter bundle SKU">
+                        <div class="form-group row d-none">
+                            <label class="col-sm-3 col-form-label">Bundle SKU</label>
+                            <div class="col-sm-9">
+                              <input type="text" name="bundle_sku" class="form-control" placeholder="Enter bundle SKU">
                             </div>
                         </div>
-                        <div class="form-group row icheck-primary d-inline">
-                            <div class="offset-sm-2 col-sm-10">
-                                <div class="icheck-primary d-inline no-select">
-                                    <input type="checkbox" value="1" {% if product.is_alias == 1 %}checked{% endif %} id="checkboxPrimary2" name="is_alias">
+                        <div class="form-group  row mt-0 pt-0 icheck-primary d-inline">
+                            <div class="offset-sm-3 col-sm-10 mt-n4 ">
+                                <div class="icheck-primary   d-inline no-select">
+                                    <input type="checkbox" {% if product.is_alias == 1 %}checked{% endif %} id="checkboxPrimary2" name="is_alias" value="1">
                                     <label for="checkboxPrimary2" >Alias Product
                                     </label>
                                 </div>
@@ -128,294 +116,542 @@
                         </div>
                     </div>
 
-                    <hr class="mb-2"/>
+                        <div class="row mt-3">
+                          <div class="col-5 col-sm-3">
+                            <div class="nav flex-column nav-tabs h-100" id="vert-tabs-tab"
+                                 role="tablist" aria-orientation="vertical">
 
-                    <!-- BASIC INFO -->
-                    <div>
-                        <div class="mb-4"><h5>Basic Info</h5></div>
+                              <a class="nav-link active" id="vert-tabs-basic-info"
+                                 data-toggle="pill" href="#pane-basic-info"
+                                 role="tab" aria-controls="pane-basic-info" aria-selected="true">Basic Info</a>
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">SKU</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="sku" value="{{ product.sku }}" class="form-control" placeholder="Enter unique SKU">
+                              <a class="nav-link" id="vert-tabs-identifier"
+                                 data-toggle="pill" href="#pane-identifiers"
+                                 role="tab" aria-controls="pane-identifiers" aria-selected="false">Identifiers</a>
+
+                              <a class="nav-link" id="vert-tabs-amzn-identifier"
+                                 data-toggle="pill" href="#pane-amazon-identifiers"
+                                 role="tab" aria-controls="pane-amazon-identifiers" aria-selected="false">Amazon Identifiers</a>
+
+                              <a class="nav-link" id="vert-tabs-invent-status"
+                                 data-toggle="pill" href="#pane-inventory-status"
+                                 role="tab" aria-controls="pane-inventory-status" aria-selected="false">Inventory & Status</a>
+
+                              <a class="nav-link" id="vert-tabs-price-details"
+                                 data-toggle="pill" href="#pane-price-details"
+                                 role="tab" aria-controls="pane-price-details" aria-selected="false">Price Details</a>
+
+                              <a class="nav-link" id="vert-tabs-shipping-delivery"
+                                 data-toggle="pill" href="#pane-shipping-delivery"
+                                 role="tab" aria-controls="pane-shipping-delivery" aria-selected="false">Shipping & Delivery</a>
+
+                              <a class="nav-link" id="vert-tabs-other-info"
+                                 data-toggle="pill" href="#pane-other-info"
+                                 role="tab" aria-controls="pane-other-info" aria-selected="false">Other Info</a>
+
                             </div>
-                        </div>
+                          </div>
+                             <input type="hidden" type="product_id" name="product_id"  value="{{ product.product_id }}">
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Title</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="title" value="{{ product.title }}" class="form-control" placeholder="Enter product title">
-                            </div>
-                        </div>
+                          <div class="col-7 col-sm-9"  style="border-top:1px solid #dee2e6">
+                            <div class="tab-content" id="vert-tabs-content">
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Subtitle</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="subtitle" value="{{ product.subtitle }}" class="form-control" placeholder="Enter subtitle">
-                            </div>
-                        </div>
+                              <!-- BASIC INFO -->
+                              <div class="tab-pane fade show active text-left" id="pane-basic-info"
+                                   role="tabpanel" aria-labelledby="vert-tabs-basic-info">
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Description</label>
-                            <div class="col-sm-10">
-                              <textarea name="description" rows="4" class="form-control"
-                                        placeholder="Enter detailed description"> {{ product.description }}</textarea>
-                            </div>
-                        </div>
+                                <div class="mb-4 " style="  border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.4rem;padding-top: 0.5rem;"><h5>Basic Info</h5></div>
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Short Desc</label>
-                            <div class="col-sm-10">
-                              <textarea name="short_description" rows="4" class="form-control"
-                                        placeholder="Enter short summary">{{ product.short_description }}</textarea>
-                            </div>
-                        </div>
-                    </div>
-                    <hr class="mb-2"/>
-                    <div>
-                        <div class="mb-4"><h5>Identifiers</h5></div>
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Brand</label>
-                            <div class="col-sm-10">
-                                <select name="brand_id" class="form-control select2" placeholder="Select brand">
-                                    <option value="">Select brand</option>
-                                    {% for brand in brands %}
-                                        <option {% if brand.brand_id == product.brand_id %}selected{% endif %} value="{{ brand.brand_id }}">{{ brand.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Manufacturer</label>
-                            <div class="col-sm-10">
-                                <select name="manufacturer_id" class="form-control select2" placeholder="Select manufacturer">
-                                    <option value="">Select manufacturer</option>
-                                    {% for manufactur in manufacturers %}
-                                        <option {% if manufactur.manufacturer_id == product.manufacturer_id %}selected{% endif %} value="{{ manufactur.manufacturer_id }}">{{ manufactur.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">EAN</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="ean" value="{{ product.ean }}" class="form-control" placeholder="Enter EAN code">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">UPC</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="upc" value="{{ product.upc }}"  class="form-control" placeholder="Enter UPC code">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">ISBN</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="isbn" value="{{ product.isbn }}" class="form-control" placeholder="Enter ISBN number">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">MPN</label>
-                            <div class="col-sm-10">
-                              <input type="text" name="mpn" value="{{ product.mpn }}" class="form-control" placeholder="Enter manufacturer part number">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Country of Origin</label>
-                            <div class="col-sm-10">
-
-                                <select name="country_origin_id"
-                                        id="country_origin_id"
-                                        class="form-control"
-                                        placeholder="Select country">
-                                    <option value="">Select country</option>
-                                    {% for term in countries_list %}
-                                        <option {% if term.id == product.country_origin_id %}selected{% endif %} value="{{ term.id }}">{{ term.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Condition</label>
-                            <div class="col-sm-10">
-                                <select name="status_condition" class="form-control custom-select select2" placeholder="Select condition">
-                                    <option value="">Select condition</option>
-                                    <option {% if product.status_condition == 'new' %}selected{% endif %} value="new">New</option>
-                                    <option {% if product.status_condition == 'used' %}selected{% endif %} value="used">Used</option>
-                                    <option {% if product.status_condition == 'refurbished' %}selected{% endif %} value="refurbished">Refurbished</option>
-                                    <option {% if product.status_condition == 'open_box' %}selected{% endif %} value="open_box">Open Box</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="mb-2"/>
-
-                    <!-- AMAZON IDENTIFIERS -->
-                    <div>
-                        <div class="mb-4"><h5>Amazon Identifiers</h5></div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">ASIN</label>
-                            <div class="col-sm-10">
-                                <input type="text" name="asin" value="{{ product.asin }}"  class="form-control" placeholder="Enter ASIN">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">FNSKU</label>
-                            <div class="col-sm-10">
-                                <input type="text" name="fnsku" value="{{ product.fnsku }}"  class="form-control" placeholder="Enter FNSKU">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">FBA SKU</label>
-                            <div class="col-sm-10">
-                                <input type="text" name="fba_sku" value="{{ product.fba_sku }}"  class="form-control" placeholder="Enter FBA SKU">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <div class="offset-sm-2 col-sm-10">
-                                 <div class="icheck-primary d-inline no-select">
-                                    <input type="checkbox"
-                                           {% if product.is_fba == 1 %}checked{% endif %} id="is_fba" value="1" name="is_fba">
-                                    <label for="is_fba" >FBA
-                                    </label>
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">SKU</label>
+                                  <div class="col-sm-8">
+                                    <input value="{{ product.sku|hide_none }}" type="text" name="sku" class="w-75 form-control form-control-sm "
+                                           placeholder="Enter unique SKU" maxlength="120">
+                                  </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">ISBN Type</label>
-                            <div class="col-sm-10">
-                                <select name="isbn_type" class="form-control custom-select" placeholder="Select ISBN type">
-                                    <option value="">Select ISBN type</option>
-                                    <option {% if product.isbn_type == 'standard' %}selected{% endif %} value="standard">Standard</option>
-                                    <option {% if product.isbn_type == 'oversize' %}selected{% endif %} value="oversize">Oversize</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Barcode Type</label>
-                            <div class="col-sm-10">
-                                <select name="barcode_label_type" class="form-control custom-select" placeholder="Select barcode type">
-                                    <option value="">Select barcode type</option>
-                                    <option {% if product.barcode_label_type == 'manufacturer' %}selected{% endif %} value="manufacturer">Manufacturer</option>
-                                    <option {% if product.barcode_label_type == 'amazon_barcode' %}selected{% endif %} value="amazon_barcode">Amazon Barcode</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Prep Type</label>
-                            <div class="col-sm-10">
-                                <select name="prep_type" class="select2 form-control custom-select" placeholder="Select prep type">
-                                    <option value="">Select prep type</option>
-                                    <option {% if product.prep_type == 'no_prep_needed' %}selected{% endif %} value="no_prep_needed">No Prep Needed</option>
-                                    <option {% if product.prep_type == 'polybag' %}selected{% endif %} value="polybag">Polybagging</option>
-                                    <option {% if product.prep_type == 'bubble_wrap' %}selected{% endif %} value="bubble_wrap">Bubble Wrap</option>
-                                    <option {% if product.prep_type == 'labeling' %}selected{% endif %} value="labeling">Labeling</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="mb-2"/>
-
-                    <!-- INVENTORY -->
-                    <div>
-                        <div class="mb-4"><h5>Inventory & Status</h5></div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Stock</label>
-                            <div class="col-sm-10">
-                                <select name="stock_status" class="form-control custom-select select2" placeholder="Select stock status">
-                                    <option value="">Select stock status</option>
-                                    <option {% if product.stock_status == 1 %}selected{% endif %} value="1">In Stock</option>
-                                    <option {% if product.stock_status == 2 %}selected{% endif %} value="2">Out of Stock</option>
-                                    <option {% if product.stock_status == 3 %}selected{% endif %} value="3">Preorder</option>
-                                    <option {% if product.stock_status == 3 %}selected{% endif %} value="4">Discontinued</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Status</label>
-                            <div class="col-sm-10">
-                                <select name="status" class="select2 form-control custom-select" placeholder="Select status">
-                                    <option value="">Select status</option>
-                                    <option {% if product.status == 1 %}selected{% endif %}  value="1">Active</option>
-                                    <option {% if product.status == 2 %}selected{% endif %}  value="2">Draft</option>
-                                    <option {% if product.status == 3 %}selected{% endif %}  value="3">Discontinued</option>
-                                    <option {% if product.status == 4 %}selected{% endif %}  value="4">Archived</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Publish</label>
-                            <div class="col-sm-10">
-                                <select name="publish_status" class="form-control custom-select" placeholder="Select publish status">
-                                    <option value="">Select publish status</option>
-                                    <option {% if product.status == 1 %}selected{% endif %} value="1">Yes</option>
-                                    <option {% if product.status == 0 %}selected{% endif %} value="0">No</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="mb-2"/>
-
-                    <!-- OTHER INFO -->
-                    <div>
-                        <div class="mb-4"><h5>Other Info</h5></div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Warranty</label>
-                            <div class="col-sm-10">
-                                <input type="number" value="{{ product.warranty }}"  name="warranty" class="form-control" placeholder="Enter warranty in months">
-                            </div>
-                        </div>
-
-                        <div class="form-group row">
-                            <label class="col-sm-2 col-form-label">Product Tags</label>
-                            <div class="col-sm-10">
-                                <input type="hidden"
-                                       name="product_tags"
-                                       value="{{ product.product_tags }}"
-                                       id="product_tags_id"
-                                       />
-
-                                <input type="text"
-                                       id="tagInput"
-                                       class="form-control mt-2"
-                                       placeholder="Type a tag and press Enter, Unique values only" />
-
-                                <div id="tagContainer"
-                                     class="form-control p-2 mt-3"
-                                     style="min-height: 45px; background-color:#e4e4e4; display:flex; flex-wrap:wrap; gap:5px;">
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Title</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" value="{{ product.title|hide_none }}" name="title"  maxlength="255" class="form-control form-control-sm w-75" placeholder="Enter product title">
+                                  </div>
                                 </div>
-                            </div>
-                        </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Subtitle</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" name="subtitle"  value="{{ product.subtitle|hide_none }}" maxlength="255" class="form-control form-control-sm w-75" placeholder="Enter subtitle">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Description</label>
+                                  <div class="col-sm-8">
+                                    <textarea name="description" rows="4" maxlength="255"  class="w-75 form-control form-control-sm " placeholder="Enter detailed description">{{ product.description|hide_none }}</textarea>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Short Desc</label>
+                                  <div class="col-sm-8">
+                                    <textarea name="short_description" maxlength="255"  rows="4" class="w-75 form-control form-control-sm " placeholder="Enter short summary">{{ product.short_description|hide_none }}</textarea>
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              <!-- IDENTIFIERS -->
+                              <div class="tab-pane fade text-left" id="pane-identifiers"
+                                   role="tabpanel" aria-labelledby="vert-tabs-identifier">
+
+                                <div class="mb-4" style="  border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.4rem;padding-top: 0.5rem;"><h5>Identifiers</h5></div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Brand</label>
+                                  <div class="col-sm-8" >
+
+                                      <div  class="input-group my-colorpicker2 colorpicker-element" data-colorpicker-id="2">
+                    <select name="brand_id"  id="brand_id"  style="width:65%" class="form-control select2">
+                                      <option value="">Select brand</option>
+                        {% for brand in brands %}
+                                            <option {% if product.brand_id ==  brand.brand_id %}selected{% endif %} value="{{ brand.brand_id }}">{{ brand.name }}</option>
+                                        {% endfor %}
+
+                                    </select>
+                                    <div class="input-group-append cursor-pointer" id="openAddBrandModal">
+                                      <span class="input-group-text"><i class="fas  fa-sm fa-plus"></i></span>
+                                    </div>
+                                  </div>
+                                  </div>
+                                </div>
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Manufacturer</label>
+                                  <div class="col-sm-8">
+                                       <div  class="input-group my-colorpicker2 colorpicker-element" data-colorpicker-id="2">
+                                        <select style="width:65%" id="manufacturer_id" name="manufacturer_id" class="form-control  select2">
+                                        <option value="">Select Manufacturer</option>
+                                        {% for manufacturer in manufacturers %}
+                                            <option {% if product.manufacturer_id ==  manufacturer.manufacturer_id %}selected{% endif %} value="{{ manufacturer.manufacturer_id }}">{{ manufacturer.name }}</option>
+                                        {% endfor %}
+                                        </select>
+                    <div class="input-group-append cursor-pointer" id="openAddManufacturerModal">
+                      <span class="input-group-text"><i class="fas fa-sm fa-plus"></i></span>
                     </div>
+                  </div>
 
-                </div>
+                                  </div>
+                                </div>
 
-                <!-- IMAGES -->
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">EAN</label>
+                                  <div class="col-sm-8">
+                                    <input type="text"  value="{{ product.ean|hide_none }}" name="ean" class="form-control form-control-sm w-75" placeholder="Enter EAN code">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">UPC</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" name="upc" value="{{ product.upc|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter UPC code">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">ISBN</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" name="isbn" value="{{ product.isbn|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter ISBN number">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">MPN</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" name="mpn" value="{{ product.mpn|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter manufacturer part number">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Country of Origin</label>
+                                  <div class="col-sm-8">
+                                    <select name="country_origin_id" style="width:75%"  class="form-control select2">
+                                        <option value="">Select country</option>
+                                        {% for country in countries_list %}
+                                            <option  {% if product.country_origin_id ==  country.id %}selected{% endif %} value="{{ country.id }}">{{ country.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Condition</label>
+                                  <div class="col-sm-8">
+                                    <select name="status_condition" style="width:75%" class="form-control  select2">
+                                      <option value="">Select condition</option>
+                                      <option {% if product.status_condition == "new" %}selected{% endif %} value="new">New</option>
+                                      <option {% if product.status_condition == "used" %}selected{% endif %} value="used">Used</option>
+                                      <option {% if product.status_condition == "refurbished" %}selected{% endif %} value="refurbished">Refurbished</option>
+                                      <option {% if product.status_condition == "open_box" %}selected{% endif %} value="open_box">Open Box</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              <!-- AMAZON IDENTIFIERS -->
+                              <div class="tab-pane fade text-left" id="pane-amazon-identifiers"
+                                   role="tabpanel" aria-labelledby="vert-tabs-amzn-identifier">
+
+                                <div class="mb-4" style="  border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.4rem;padding-top: 0.5rem;"><h5>Amazon Identifiers</h5></div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">ASIN</label>
+                                  <div class="col-sm-8">
+                                    <input type="text"  value="{{ product.asin|hide_none }}" name="asin" class="form-control form-control-sm w-75" placeholder="Enter ASIN">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">FNSKU</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" name="fnsku" value="{{ product.fnsku }}" class="form-control form-control-sm w-75" placeholder="Enter FNSKU">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">FBA SKU</label>
+                                  <div class="col-sm-8">
+                                    <input type="text" name="fba_sku" value="{{ product.fba_sku|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter FBA SKU">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <div class="offset-sm-4 col-sm-8">
+                                    <div class="icheck-primary d-inline">
+                                      <input type="checkbox" id="is_fba" {% if product.is_fba == True %}checked{% endif %} value="1" name="is_fba">
+                                      <label for="is_fba">FBA</label>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Amazon Size</label>
+                                  <div class="col-sm-8">
+                                    <select name="amazon_size" style="width:75%"  class="form-control select2">
+                                      <option value="">Select Size</option>
+                                      <option {% if product.amazon_size == "standard" %}selected{% endif %} value="standard">Standard</option>
+                                      <option {% if product.amazon_size == "oversize" %}selected{% endif %} value="oversize">Oversize</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Barcode Label Type</label>
+                                  <div class="col-sm-8">
+                                    <select name="barcode_label_type" style="width:75%"  class="form-control select2">
+                                      <option value="">Select barcode type</option>
+                                      <option {% if product.barcode_label_type == "manufacturer" %}selected{% endif %} value="manufacturer">Manufacturer</option>
+                                      <option {% if product.barcode_label_type == "amazon_barcode" %}selected{% endif %} value="amazon_barcode">Amazon Barcode</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Prep Type</label>
+                                  <div class="col-sm-8">
+                                    <select name="prep_type" style="width:75%"  class="form-control select2">
+                                      <option value="">Select prep type</option>
+                                      <option {% if product.prep_type == "no_prep_needed" %}selected{% endif %} value="no_prep_needed">No Prep Needed</option>
+                                      <option {% if product.prep_type == "polybag" %}selected{% endif %} value="polybag">Polybagging</option>
+                                      <option {% if product.prep_type == "bubble_wrap" %}selected{% endif %} value="bubble_wrap">Bubble Wrap</option>
+                                      <option {% if product.prep_type == "labeling" %}selected{% endif %} value="labeling">Labeling</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              <!-- INVENTORY & STATUS -->
+                              <div class="tab-pane fade text-left" id="pane-inventory-status"
+                                   role="tabpanel" aria-labelledby="vert-tabs-invent-status">
+
+                                <div class="mb-4" style="  border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.4rem; padding-top: 0.5rem;"><h5>Inventory & Status</h5></div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label ">Stock Status</label>
+                                  <div class="col-sm-8">
+                                    <select name="stock_status" style="width:75%"  class="form-control select2">
+                                      <option value="">Select stock status</option>
+                                      <option {% if product.stock_status == 1 %}selected{% endif %} value="1">In stock</option>
+                                      <option {% if product.stock_status == 2 %}selected{% endif %} value="2">Out of stock</option>
+                                      <option {% if product.stock_status == 3 %}selected{% endif %} value="3">Preorder</option>
+                                      <option {% if product.stock_status == 4 %}selected{% endif %} value="4">Discontinued</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Status</label>
+                                  <div class="col-sm-8">
+                                    <select name="status" style="width:75%"  class="form-control select2">
+                                      <option value="">Select status</option>
+                                      <option {% if product.status == 1 %}selected{% endif %} value="1">Active</option>
+                                      <option {% if product.status == 2 %}selected{% endif %} value="2">Draft</option>
+                                      <option {% if product.status == 3 %}selected{% endif %} value="3">Discontinued</option>
+                                      <option {% if product.status == 4 %}selected{% endif %} value="4">Archived</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Publish</label>
+                                  <div class="col-sm-8">
+                                    <select name="publish_status" style="width:75%"  class="form-control select2">
+                                      <option value="">Select publish status</option>
+                                      <option {% if product.publish_status == 1 %}selected{% endif %} value="1">Yes</option>
+                                      <option {% if product.publish_status == 0 %}selected{% endif %} value="0">No</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              <!-- PRICE DETAILS -->
+                              <div class="tab-pane fade text-left" id="pane-price-details"
+                                   role="tabpanel" aria-labelledby="vert-tabs-price-details">
+
+                                <div class="mb-4" style="  border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.4rem;padding-top: 0.5rem;"><h5>Price Details</h5></div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Sales Price</label>
+                                  <div class="col-sm-8">
+                                    <input name="sale_price" value="{{ price_info.sale_price|hide_none }}"  type="number"
+                                           onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''"
+                                           class="form-control  form-control-sm w-50"
+                                           placeholder="Enter sales price" step="any">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Retail Price</label>
+                                  <div class="col-sm-8">
+                                    <input name="retail_price" value="{{ price_info.retail_price|hide_none }}" type="number"
+                                           onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''"
+                                           class="form-control form-control-sm w-50"
+                                           placeholder="Enter retail price" step="any">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Cost Per Item Price</label>
+                                  <div class="col-sm-8">
+                                    <input name="cost_per_item" value="{{ price_info.cost_per_item|hide_none }}" type="number"
+                                           onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''"
+                                           class="form-control form-control-sm w-50" step="any" placeholder="Enter cost price">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Product Margin %</label>
+                                  <div class="col-sm-8">
+                                    <input max="100" value="{{ price_info.margin_percent|hide_none }}" name="margin_percent" type="number"
+                                           onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''"
+                                           class="form-control form-control-sm w-50" step="any" placeholder="Enter margin %">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Profit</label>
+                                  <div class="col-sm-8">
+                                    <input name="profit" value="{{ price_info.profit|hide_none }}" type="number"
+                                           onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''"
+                                           step="any" class="form-control form-control-sm w-50" placeholder="Enter profit">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Minimum Price</label>
+                                  <div class="col-sm-8">
+                                    <input name="min_price" value="{{ price_info.min_price|hide_none }}" onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''" step="any" type="number" class="form-control form-control-sm w-50" placeholder="Enter minimum price">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Maximum Price</label>
+                                  <div class="col-sm-8">
+                                    <input name="max_price" value="{{ price_info.max_price|hide_none }}" step="any" onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''" type="number" class="form-control form-control-sm w-50" placeholder="Enter maximum price">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Estimated Shipping Cost</label>
+                                  <div class="col-sm-8">
+                                    <input value="{{ price_info.estimated_shipping_cost|hide_none }}"  onblur="this.value = this.value ? parseFloat(this.value).toFixed(2) : ''" name="estimated_shipping_cost" step="any" type="number" class="form-control form-control-sm w-50" placeholder="Enter shipping cost">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Preferred Vendor</label>
+                                  <div class="col-sm-8">
+
+                                   <select name="preferred_vendor" style="width:50%"  class="form-control w-100 select2">
+                                      <option value="">Select vendor</option>
+                                        {% for vendor in vendors %}
+                                            <option {% if product.preferred_vendor == vendor.id %}selected{% endif %} value="{{ vendor.id }}">{{ vendor.display_name }} {{ vendor.vendor_code }}</option>
+                                        {% endfor %}
+
+                                    </select>
+
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Vendor SKU</label>
+                                  <div class="col-sm-8">
+                                    <input name="vendor_sku" value="{{ product.vendor_sku|hide_none }}" class="form-control  form-control-sm w-50" placeholder="Enter vendor sku">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row d-none">
+                                  <label class="col-sm-4 col-form-label">Parent SKU</label>
+                                  <div class="col-sm-8">
+                                    <input name="" class="form-control form-control-sm w-50" placeholder="Enter parent SKU">
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              <!-- SHIPPING & DELIVERY -->
+                              <div class="tab-pane fade text-left" id="pane-shipping-delivery"
+                                   role="tabpanel" aria-labelledby="vert-tabs-shipping-delivery">
+
+                                <div class="mb-4" style="  border-bottom: 1px solid #dee2e6;padding-top: 0.6rem;
+    padding-bottom: 0.5rem;"><h5>Shipping & Delivery</h5></div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Fast Dispatch</label>
+                                  <div class="col-sm-8">
+                                    <select name="fast_dispatch" id="" class="form-control form-control-sm w-75 ">
+                                          <option value="">select</option>
+                                          <option {% if shipping_info.fast_dispatch == 1 %}selected{% endif %} value="True">Yes</option>
+                                          <option {% if shipping_info.fast_dispatch == 0 %}selected{% endif %} value="False">No</option>
+                                    </select>
+
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Free Shipping</label>
+                                  <div class="col-sm-8">
+                                    <select name="free_shipping" id="" class="form-control form-control-sm w-75 ">
+                                          <option value="">select</option>
+                                          <option {% if shipping_info.free_shipping == 1 %}selected{% endif %} value="True">Yes</option>
+                                          <option {% if shipping_info.free_shipping == 0 %}selected{% endif %} value="False">No</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Is the product bulky?</label>
+                                  <div class="col-sm-8">
+                                      <select name="bulky_product" id="" class="form-control form-control-sm w-75">
+                                          <option value="">select</option>
+                                          <option {% if shipping_info.bulky_product == 1 %}selected{% endif %} value="True">Yes</option>
+                                          <option {% if shipping_info.bulky_product == 0 %}selected{% endif %} value="False">No</option>
+                                      </select>
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">International Note</label>
+                                  <div class="col-sm-8">
+                                    <input name="international_note" value="{{ shipping_info.international_note|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter note">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Example Reference</label>
+                                  <div class="col-sm-8">
+                                    <input name="example_reference"
+                                             value="{{ shipping_info.example_reference|hide_none }}"
+                                           class="form-control form-control-sm w-75" placeholder="Enter reference">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Ships from</label>
+                                  <div class="col-sm-8">
+                                    <input name="ships_from" value="{{ shipping_info.ships_from|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter location">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Handling Time (days)</label>
+                                  <div class="col-sm-8">
+                                    <input type="number" value="{{ shipping_info.handling_time_days|hide_none }}" name="handling_time_days" step="1" min="0" onblur="this.value = this.value && Number.isInteger(parseFloat(this.value))
+               ? parseInt(this.value,10) : ''"
+                                           class="form-control form-control-sm w-75" placeholder="Enter days">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">SBAU</label>
+                                  <div class="col-sm-8">
+                                    <input name="sbau" value="{{ product.sbau|hide_none }}" class="form-control form-control-sm w-75" placeholder="Enter SBAU">
+                                  </div>
+                                </div>
+
+                              </div>
+
+                              <!-- OTHER INFO -->
+                              <div class="tab-pane fade text-left" id="pane-other-info"
+                                   role="tabpanel" aria-labelledby="vert-tabs-other-info">
+                                <div class="mb-4" style="  border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.4rem;padding-top: 0.6rem;"><h5>Other Info</h5></div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Warranty (months)</label>
+                                  <div class="col-sm-8">
+                                    <input type="number" value="{{ product.warranty|hide_none }}" name="warranty" onblur="this.value = this.value && Number.isInteger(parseFloat(this.value))
+               ? parseInt(this.value,10) : ''"  class="form-control form-control-sm w-75" placeholder="Enter warranty in months">
+                                  </div>
+                                </div>
+
+                                <div class="form-group row">
+                                  <label class="col-sm-4 col-form-label">Product Tags</label>
+                                  <div class="col-sm-8">
+
+                                    <!-- Hidden input to save tags CSV -->
+                                    <input type="hidden" name="product_tags" id="product_tags_id">
+
+                                    <!-- Tag input -->
+                                    <input type="text" id="tagInput" class="form-control mt-2 form-control-sm w-75"
+                                           placeholder="Type a tag and press Enter, Unique values only">
+
+                                    <!-- Tag display container -->
+                                    <div id="tagContainer" class="form-control form-control-sm w-75 p-2 mt-3"
+                                         style="min-height:45px;background:#e4e4e4;display:flex;flex-wrap:wrap;gap:5px;border-radius:4px;">
+                                        {{ product.product_tags }}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                            </div>
+                          </div>
+                        </div>
+
+            </div>
+
                 <div class="col-md-4">
                     <div class="ml-md-3">
-                        <div class="mb-4"><h5>Images</h5></div>
+                        <div class="mb-4"><h5></h5></div>
 
-                        <div class="form-group row clearfix">
+                        <div class="form-group row justify-content-center clearfix">
                             <div id="productDropzone" class="dropzone">
                                 <div class="dz-message">
                                     <i class="fas fa-cloud-upload-alt fa-2x text-primary mb-2"></i><br>
@@ -433,24 +669,224 @@
                         </div>
                     </div>
                 </div>
-
             </div>
-
-            <div class="text-left mt-5">
-                <button type="submit" id="btn_add_product" class="btn btn-success btn-sm">Save</button>
-                <a href="{% url 'all_products' %}" class="btn btn-secondary btn-sm ml-2" >Cancel</a>
+            <div class="mt-5 row pt-3 mb-5 offset-sm-2">
+                <button type="submit" id="btn_add_product" class="btn-md btn btn-success "><i class="fas fa-save"></i>
+                    Save</button>
+                <a href="{% url 'all_products' %}" class="btn btn-secondary btn-md ml-2" ><i class="fas fa-ban"></i>
+                    Cancel</a>
             </div>
-
         </form>
-      </div>
-    </div>
   </section>
 </div>
+
+
+<div class="modal fade" id="addBrandModal" tabindex="-1" role="dialog" aria-labelledby="addBrandModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addBrandModalLabel">Add Brand</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addBrandForm">
+          <div class="form-group">
+            <label for="newBrandName">Brand Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="newBrandName"
+              placeholder="Enter single brand name"
+              required
+            >
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveNewBrand">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="addManufacturerModal" tabindex="-1" role="dialog" aria-labelledby="addManufacturerModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addManufacturerModalLabel">Add Manufacturer</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="addManufacturerForm">
+          <div class="form-group">
+            <label for="newManufacturerName">Manufacturer Name</label>
+            <input
+              type="text"
+              class="form-control"
+              id="newManufacturerName"
+              placeholder="Enter single manufacturer name"
+              required
+            >
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveNewManufacturer">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 {% block footer_script %}
 
 <script>
+$(document).ready(function() {
+    const csrftoken = $('input[name="csrfmiddlewaretoken"]').val();
+    $('#openAddManufacturerModal').on('click', function() {
+        $('#newManufacturerName').val(''); // Clear previous input
+        $('#addManufacturerModal').modal("show");
+    });
+    $('#saveNewManufacturer').on('click', async function() {
+        const manufacturerName = $('#newManufacturerName').val().trim();
+        const saveButton = $(this);
+
+        if (manufacturerName === '') {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('Please enter a manufacturer name.');
+            } else {
+                alert('Please enter a manufacturer name.');
+            }
+            return;
+        }
+        const postData = {
+            'manufacturer_name': manufacturerName,
+            'csrfmiddlewaretoken': csrftoken
+        };
+        saveButton.prop('disabled', true).text('Saving...');
+        try {
+            const url = "{% url 'add_new_manufacturer' %}";
+            const response = await fetch(url, {
+                method: 'POST',
+                body: new URLSearchParams(postData),
+            });
+            if (!response.ok) {
+                throw new Error(`Server returned status: ${response.status}`);
+            }
+            const result = await response.json();
+            // Get the new ID from the response data
+            const newManufacturerId = result.data;
+            if (newManufacturerId) {
+                const newOption = new Option(manufacturerName, newManufacturerId, false, false);
+                $('#manufacturer_id').append(newOption);
+
+                $('#manufacturer_id').val(newManufacturerId).trigger('change');
+                $('#newManufacturerName').val('');
+                $('#addManufacturerModal').modal('hide');
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(`Manufacturer '${manufacturerName}' added successfully!`);
+                }
+            } else {
+                throw new Error('Server did not return a manufacturer ID.');
+            }
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error(`Failed to add manufacturer: ${error.message}`);
+            } else {
+                alert(`Failed to add manufacturer: ${error.message}`);
+            }
+        } finally {
+            saveButton.prop('disabled', false).text('Save');
+        }
+    });
+});
+</script>
+
+
+<script>
+
+
+$(document).ready(function() {
+    const csrftoken = $('input[name="csrfmiddlewaretoken"]').val();
+    $('#openAddBrandModal').on('click', function() {
+        $('#newBrandName').val(''); // Clear previous input
+        $('#addBrandModal').modal("show");
+    });
+    $('.close-modal').on('click', function() {
+        $('#addBrandModal').modal("hide");
+    });
+    $(window).on('click', function(event) {
+        if ($(event.target).is('#addBrandModal')) {
+            $('#addBrandModal').modal("hide");
+        }
+    });
+    $('#saveNewBrand').on('click', async function() {
+        const brandName = $('#newBrandName').val().trim();
+        const saveButton = $(this);
+        if (brandName === '') {
+            if (typeof toastr !== 'undefined') {
+                toastr.error('Please enter a brand name.');
+            } else {
+                alert('Please enter a brand name.');
+            }
+            return;
+        }
+        const postData = {
+            'brand_name': brandName,
+            'csrfmiddlewaretoken': csrftoken
+        };
+        saveButton.prop('disabled', true).text('Saving...');
+        try {
+
+            const url = "{% url 'add_new_brand' %}";
+            const response = await fetch(url, {
+                method: 'POST',
+                body: new URLSearchParams(postData),
+            });
+            if (!response.ok) {
+                throw new Error(`Server returned status: ${response.status}`);
+            }
+
+            const result = await response.json();
+            const newBrandId = result.data;
+            if (newBrandId) {
+                const newOption = new Option(brandName, newBrandId, false, false);
+                $('#brand_id').append(newOption).trigger('change');
+                $('#newBrandName').val('');
+                $('#addBrandModal').modal('hide');
+                $('#brand_id').append(newOption);
+                $('#brand_id').val(newBrandId).trigger('change');
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(`Brand '${brandName}' added successfully!`);
+                }
+            } else {
+                throw new Error('Server did not return a brand_id.');
+            }
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error(`Failed to add brand: ${error.message}`);
+            } else {
+                alert(`Failed to add brand: ${error.message}`);
+            }
+        } finally {
+            saveButton.prop('disabled', false).text('Save');
+        }
+    });
+});
+</script>
+
+<script>
 Dropzone.autoDiscover = false;
+
 var uploadedFiles = [];
 var dz = new Dropzone("#productDropzone", {
     url: "#",
@@ -516,6 +952,9 @@ function createHiddenFields() {
         holder.appendChild(input);
     });
 }
+</script>
+
+<script>
 
 document.addEventListener("DOMContentLoaded", function () {
     const form = document.getElementById("productForm");
@@ -526,7 +965,6 @@ document.addEventListener("DOMContentLoaded", function () {
         saveBtn.disabled = true;
         const originalHTML = saveBtn.innerHTML;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
-
         fetch("{% url 'update_product' %}", {
             method: "POST",
             body: formData,
@@ -536,11 +974,12 @@ document.addEventListener("DOMContentLoaded", function () {
         .then(data => {
             saveBtn.disabled = false;
             saveBtn.innerHTML = originalHTML;
-            if (data.status ) {
+
+            if (data.status) {
                 toastr.success(data.message || "Product saved!");
-               // if (data.redirect_url) window.location.href = data.redirect_url;
+                if (data.redirect_url) window.location.href = data.redirect_url;
             } else {
-                toastr.error(data.message || "Error updating product details!");
+                toastr.error(data.message || "Something went wrong!");
             }
         })
         .catch(err => {
@@ -562,54 +1001,47 @@ const tagInput = document.getElementById("tagInput");
 const tagContainer = document.getElementById("tagContainer");
 const hiddenTagInput = document.getElementById("product_tags_id");
 
-// Add tag when pressing Enter
+// ✅ Preload existing tags into array (your asked fix in one result)
+const existing = hiddenTagInput.value || "{{ product.product_tags|default:'' }}";
+if (existing.trim()) {
+    existing.split(",").forEach(t => {
+        const tag = t.trim();
+        if (tag && !tags.includes(tag)) tags.push(tag);
+    });
+    renderTags();
+}
+
+// Add tag on ENTER
 tagInput.addEventListener("keydown", function(e) {
     if (e.key === "Enter") {
         e.preventDefault();
-        const val = tagInput.value.trim();
-
-        if (val !== "" && !tags.includes(val)) {
+        const val = this.value.trim();
+        if (val && !tags.includes(val)) {
             tags.push(val);
             renderTags();
         }
-        tagInput.value = "";
+        this.value = "";
     }
 });
 
-// Render chips + update hidden input
 function renderTags() {
     tagContainer.innerHTML = "";
-
     tags.forEach(tag => {
         const chip = document.createElement("span");
-        chip.className = "badge bg-badges-tag p-2 d-flex align-items-center";
-
-        chip.innerHTML = `
-            ${tag}
-            <span class="ml-2" style="cursor:pointer;font-weight:bold;" onclick="removeTag('${tag}')">×</span>
-        `;
-
+        chip.className = "badge bg-secondary p-2 d-flex align-items-center";
+        chip.innerHTML = `${tag} <span class="ml-2" style="cursor:pointer;font-weight:bold;"
+                          onclick="removeTag('${tag}')">×</span>`;
         tagContainer.appendChild(chip);
     });
-
     hiddenTagInput.value = tags.join(",");
 }
 
-// Remove chip
 function removeTag(tag) {
     tags = tags.filter(t => t !== tag);
     renderTags();
 }
-
-// PRELOAD EXISTING TAGS ON EDIT PAGE
-document.addEventListener("DOMContentLoaded", function () {
-    let existing = hiddenTagInput.value.trim();
-    if (existing !== "") {
-        tags = existing.split(",").map(t => t.trim());
-        renderTags();
-    }
-});
 </script>
 
 {% endblock %}
 {% endblock %}
+

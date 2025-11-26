@@ -1,3 +1,6 @@
+<a id="back-to-top" href="#" class="btn btn-primary back-to-top" role="button" aria-label="Scroll to top">
+  <i class="fas fa-chevron-up"></i>
+</a>
 <footer class="main-footer">
 <strong>Copyright &copy; SB Admin</strong>
 All rights reserved.
@@ -10,5 +13,25 @@ All rights reserved.
 <aside class="control-sidebar control-sidebar-dark">
 <!-- Control sidebar content goes here -->
 </aside>
+<style>
+    .back-to-top {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
 
+/* Class to show the button */
+.back-to-top.show {
+  opacity: 1;
+  visibility: visible;
+}
+.dropdown-item:hover {
+    background-color: #e9ecef !important;
+    color: #000 !important;
+}
+</style>
 

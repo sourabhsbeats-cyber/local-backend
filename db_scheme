@@ -176,3 +176,61 @@ ADD COLUMN `role` VARCHAR(100) NULL DEFAULT NULL AFTER `created_by`;
 ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendorcontact`
 ADD COLUMN `created_at` DATETIME(6) NULL AFTER `role`;
 
+---- NEW COLUMNS ---- 26/11/2025
+ CREATE TABLE `sb_commerce_b2b_dev`.`store_admin_product_shipping_details` (
+  `shipping_details_id` INT NOT NULL AUTO_INCREMENT,
+  `fast_dispatch` INT NULL,
+  `free_shipping` INT NULL,
+  `bulky_product` VARCHAR(45) NULL,
+  `international_note` VARCHAR(120) NULL,
+  `example_reference` VARCHAR(50) NULL,
+  `ships_from` VARCHAR(50) NULL,
+  `handling_time_days` INT NULL,
+  `product_id` INT NULL,
+  `created_at` DATETIME(6) NULL,
+  `created_by` INT NULL,
+  PRIMARY KEY (`shipping_details_id`));
+
+
+  CREATE TABLE `sb_commerce_b2b_dev`.`store_admin_product_price_details` (
+  `price_id` INT NOT NULL AUTO_INCREMENT,
+  `sale_price` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `retail_price` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `cost_per_item` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `margin_percent` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `profit` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `min_price` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `max_price` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `estimated_shipping_cost` DECIMAL(10,2) NULL DEFAULT 0.00,
+  `created_at` DATETIME(6) NULL,
+  `created_by` INT NULL,
+  `product_id` INT NULL ;
+  PRIMARY KEY (`price_id`));
+
+
+  ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
+ADD COLUMN `preferred_vendor` INT NOT NULL AFTER `updated_by`,
+ADD COLUMN `amazon_size` VARCHAR(50) NULL AFTER `preferred_vendor`,
+ADD COLUMN `vendor_sku` VARCHAR(50) NULL AFTER `amazon_size`,
+ADD COLUMN `sbau` VARCHAR(50) NULL AFTER `vendor_sku`;
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product_shipping_details`
+CHANGE COLUMN `fast_dispatch` `fast_dispatch` VARCHAR(10) NULL DEFAULT NULL ,
+CHANGE COLUMN `free_shipping` `free_shipping` VARCHAR(10) NULL DEFAULT NULL ;
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product_shipping_details`
+CHANGE COLUMN `fast_dispatch` `fast_dispatch` INT NULL DEFAULT NULL ,
+CHANGE COLUMN `free_shipping` `free_shipping` INT NULL DEFAULT NULL ,
+CHANGE COLUMN `bulky_product` `bulky_product` INT NULL DEFAULT NULL ;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
+CHANGE COLUMN `preferred_vendor` `preferred_vendor` INT NULL DEFAULT NULL ;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
+CHANGE COLUMN `stock_status` `stock_status` SMALLINT UNSIGNED NULL DEFAULT NULL ;
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
+CHANGE COLUMN `status` `status` SMALLINT UNSIGNED NULL DEFAULT NULL ,
+CHANGE COLUMN `publish_status` `publish_status` INT UNSIGNED NULL DEFAULT NULL ;

@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator
 from django.contrib import messages
@@ -61,6 +62,33 @@ def manage_product_categories(request):
         "sbadmin/pages/product/settings/manage_product_categories.html",
         {"main_categories":main_categories, "terms": page_obj, "page_obj": page_obj, "search_query": search_query},
     )
+
+
+
+@login_required
+def add_new_brand(request):
+    if request.method == "POST":
+        brand = Brand.objects.create(
+            name=request.POST.get("brand_name"),
+            status=1,
+            created_by=request.user.id
+        )
+        return JsonResponse({"status":True, "data": brand.brand_id})
+    return JsonResponse({"status": False, "error": "Invalid request"})
+
+@login_required
+def add_new_manufacturer(request):
+    if request.method == "POST":
+        manu = Manufacturer.objects.create(
+            name=request.POST.get("manufacturer_name"),
+            status=1,
+            created_by=request.user.id
+        )
+        return JsonResponse({"status":True, "data": manu.manufacturer_id})  # return created ID
+
+    return JsonResponse({"status": False, "error": "Invalid request"})
+
+
 
 @login_required
 def manage_product_brands(request):
