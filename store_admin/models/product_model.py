@@ -152,4 +152,33 @@ class ProductPriceDetails(models.Model):
         db_table = 'store_admin_product_price_details'
 
 
+from django.db import models
+
+
+class ProductStaticAttributes(models.Model):
+    """
+    Stores physical and descriptive attributes that are generally
+    static across all products (like dimensions, weight, color, etc.).
+    This table has a 1-to-1 relationship with the main Product table.
+    """
+    attrib_id = models.AutoField(primary_key=True)
+    product_id = models.IntegerField()
+    attrib_depth =  models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    attrib_weight = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    attrib_width = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    attrib_height = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # 4. Descriptive Attributes (VARCHAR)
+    attrib_material = models.CharField(max_length=100,null=True,blank=True,verbose_name="Material")
+    attrib_size = models.CharField(max_length=50,null=True,blank=True,verbose_name="Size"    )
+    attrib_color = models.CharField(max_length=50,null=True,blank=True,
+        verbose_name="Color"    )
+    attrib_compatibility = models.CharField(max_length=50,null=True,blank=True,        verbose_name="Compatibility"    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.IntegerField(null=True)
+    class Meta:
+        verbose_name = "Product Static Attribute"
+        verbose_name_plural = "Product Static Attributes"
+        db_table = 'store_admin_product_static_attributes'
+    def __str__(self):
+        return f"Attributes for Product ID: {self.product_id}"
 

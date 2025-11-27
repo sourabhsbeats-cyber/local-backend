@@ -16,11 +16,12 @@ from store_admin.models.address_model import Addresses
 from django.db import transaction
 from django.db.models import Value as V
 from django.db.models.functions import Concat
-
+from django.urls import reverse
 from django.shortcuts import render, redirect
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
-from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails
+from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails, \
+    ProductStaticAttributes
 from store_admin.models.setting_model import Category, Brand, Manufacturer
 from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
 from django.db.models import Min
@@ -59,6 +60,8 @@ def edit_product(request, product_id):
     shipping_info =  ProductShippingDetails.objects.filter(product_id=product_id).first()
     price_info = ProductPriceDetails.objects.filter(product_id=product_id).first()
 
+    static_attributes = ProductStaticAttributes.objects.filter(product_id=product_id).first()
+
     countries_list = Country.objects.values('name', 'id')
     context = {
         'user': request.user.id,
@@ -66,6 +69,7 @@ def edit_product(request, product_id):
         'manufacturers': manufacturers,
         'countries_list': countries_list,
         'vendors': vendors,
+        'static_attributes': static_attributes,
         'product':product, 'shipping_info':shipping_info, 'price_info':price_info
     }
 
@@ -149,6 +153,7 @@ def listing(request):
     }
     return render(request, 'sbadmin/pages/product/all_listing.html', context)
 
+#edit form save action
 @login_required
 def save(request):
     if request.method != "POST":
@@ -274,6 +279,37 @@ def save(request):
                 # Handle the error appropriately (e.g., log it, return an error response)
                 raise
 
+            # --- 4. Update Static Attributes ---
+            product_static_attributes = ProductStaticAttributes.objects.filter(product_id=product_id).first()
+            try:
+                if product_static_attributes:
+                    product_static_attributes.attrib_depth = get_decimal(data, 'attrib_depth')
+                    product_static_attributes.attrib_weight = get_decimal(data, 'attrib_weight')
+                    product_static_attributes.attrib_width = get_decimal(data, 'attrib_width')
+                    product_static_attributes.attrib_height = get_decimal(data, 'attrib_height')
+                    product_static_attributes.attrib_material = data.get( 'attrib_material')
+                    product_static_attributes.attrib_size = data.get('attrib_size')
+                    product_static_attributes.attrib_color = data.get( 'attrib_color')
+                    product_static_attributes.attrib_compatibility = data.get('attrib_compatibility')
+                    product_static_attributes.save()
+                else:
+                    ProductStaticAttributes.objects.create(
+                        product_id=product_details.product_id,
+                        attrib_depth=get_decimal(data, 'attrib_depth'),
+                        attrib_weight=get_decimal(data, 'attrib_depth'),
+                        attrib_width=get_decimal(data, 'attrib_width'),
+                        attrib_height=get_decimal(data, 'attrib_height'),
+                        attrib_material=data.get('attrib_material'),
+                        attrib_size=data.get( 'attrib_size'),
+                        attrib_color=data.get( 'attrib_color'),
+                        attrib_compatibility=data.get('attrib_compatibility'),
+                        created_by=request.user.id
+                    )
+            except Exception as e:
+                print(f"Error creating attribute details: {e}")
+                # Handle the error appropriately (e.g., log it, return an error response)
+                raise
+
             return JsonResponse({
                 "status": True,
                 "message": "Product updated successfully",
@@ -308,6 +344,10 @@ def delete_product(request, product_id):
         ship = ProductShippingDetails.objects.filter(product_id=product_id).first()
         if ship:
             ship.delete()
+        attribs = ProductStaticAttributes.objects.filter(product_id=product_id).first()
+        if attribs:
+            attribs.delete()
+
         return JsonResponse({"status": True, "message": "Product deleted successfully"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)}, status=500)
@@ -327,12 +367,11 @@ def delete_product_bulk(request):
 
     Product.objects.filter(product_id__in=ids).delete()
 
-    price = ProductPriceDetails.objects.filter(product_id=ids).first()
-    if price:
-        price.delete()
-    ship = ProductShippingDetails.objects.filter(product_id=ids).first()
-    if ship:
-        ship.delete()
+    ProductPriceDetails.objects.filter(product_id__in=ids).delete()
+
+    ProductShippingDetails.objects.filter(product_id__in=ids).delete()
+
+    ProductStaticAttributes.objects.filter(product_id__in=ids).delete()
 
     return JsonResponse({"status": "success", "deleted": len(ids)})
 
@@ -513,10 +552,32 @@ def create_product(request):
                 # Handle the error appropriately (e.g., log it, return an error response)
                 raise
 
+            # --- 3. Create Product Attribs ---
+
+            try:
+                ProductStaticAttributes.objects.create(
+                    product_id=product_details.product_id,
+                    attrib_depth=get_decimal(data,'attrib_depth'),
+                    attrib_weight=get_decimal(data,'attrib_weight'),
+                    attrib_width=get_decimal(data,'attrib_width'),
+                    attrib_height=get_decimal(data,'attrib_height'),
+                    attrib_material=data.get('attrib_material'),
+                    attrib_size=data.get('attrib_size'),
+                    attrib_color=data.get('attrib_color'),
+                    attrib_compatibility=data.get('attrib_compatibility'),
+                    created_by=request.user.id
+                )
+            except (ValueError, TypeError) as e:
+                # Handle conversion errors if non-numeric data is passed to int()
+                print(f"Error creating shipping details: {e}")
+                # You should raise an appropriate error or return a response here
+                raise
+
             return JsonResponse({
                 "status": True,
                 "message": "Product created successfully",
-                "product_id": product_details.pk
+                "product_id": product_details.pk,
+                "redirect_url":reverse("edit_product", args=[product_details.pk])
             })
 
     except IntegrityError:

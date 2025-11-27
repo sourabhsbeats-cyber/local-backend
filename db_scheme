@@ -177,38 +177,86 @@ ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendorcontact`
 ADD COLUMN `created_at` DATETIME(6) NULL AFTER `role`;
 
 ---- NEW COLUMNS ---- 26/11/2025
- CREATE TABLE `sb_commerce_b2b_dev`.`store_admin_product_shipping_details` (
-  `shipping_details_id` INT NOT NULL AUTO_INCREMENT,
-  `fast_dispatch` INT NULL,
-  `free_shipping` INT NULL,
-  `bulky_product` VARCHAR(45) NULL,
-  `international_note` VARCHAR(120) NULL,
-  `example_reference` VARCHAR(50) NULL,
-  `ships_from` VARCHAR(50) NULL,
-  `handling_time_days` INT NULL,
-  `product_id` INT NULL,
-  `created_at` DATETIME(6) NULL,
-  `created_by` INT NULL,
-  PRIMARY KEY (`shipping_details_id`));
+
+CREATE TABLE `store_admin_product_price_details` (
+  `price_id` int NOT NULL AUTO_INCREMENT,
+  `sale_price` decimal(10,2) DEFAULT '0.00',
+  `retail_price` decimal(10,2) DEFAULT '0.00',
+  `cost_per_item` decimal(10,2) DEFAULT '0.00',
+  `margin_percent` decimal(10,2) DEFAULT '0.00',
+  `profit` decimal(10,2) DEFAULT '0.00',
+  `min_price` decimal(10,2) DEFAULT '0.00',
+  `max_price` decimal(10,2) DEFAULT '0.00',
+  `estimated_shipping_cost` decimal(10,2) DEFAULT '0.00',
+  `created_at` datetime(6) DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
+  PRIMARY KEY (`price_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `store_admin_product_shipping_details` (
+  `shipping_details_id` int NOT NULL AUTO_INCREMENT,
+  `fast_dispatch` int DEFAULT NULL,
+  `free_shipping` int DEFAULT NULL,
+  `bulky_product` int DEFAULT NULL,
+  `international_note` varchar(120) DEFAULT NULL,
+  `example_reference` varchar(50) DEFAULT NULL,
+  `ships_from` varchar(50) DEFAULT NULL,
+  `handling_time_days` int DEFAULT NULL,
+  `product_id` int DEFAULT NULL,
+  `created_at` datetime(6) DEFAULT NULL,
+  `created_by` int DEFAULT NULL,
+  PRIMARY KEY (`shipping_details_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
-  CREATE TABLE `sb_commerce_b2b_dev`.`store_admin_product_price_details` (
-  `price_id` INT NOT NULL AUTO_INCREMENT,
-  `sale_price` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `retail_price` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `cost_per_item` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `margin_percent` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `profit` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `min_price` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `max_price` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `estimated_shipping_cost` DECIMAL(10,2) NULL DEFAULT 0.00,
-  `created_at` DATETIME(6) NULL,
-  `created_by` INT NULL,
-  `product_id` INT NULL ;
-  PRIMARY KEY (`price_id`));
+
+CREATE TABLE `store_admin_product` (
+  `product_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `product_type` varchar(120) DEFAULT NULL,
+  `parent_sku` varchar(120) DEFAULT NULL,
+  `bundle_sku` varchar(120) DEFAULT NULL,
+  `is_alias` tinyint(1) NOT NULL,
+  `sku` varchar(120) NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `subtitle` varchar(255) NOT NULL,
+  `description` longtext,
+  `short_description` longtext,
+  `brand_id` int DEFAULT NULL,
+  `manufacturer_id` int DEFAULT NULL,
+  `ean` varchar(50) DEFAULT NULL,
+  `upc` varchar(50) DEFAULT NULL,
+  `isbn` varchar(50) DEFAULT NULL,
+  `mpn` varchar(120) DEFAULT NULL,
+  `country_origin_id` int unsigned NOT NULL,
+  `status_condition` varchar(20) NOT NULL,
+  `asin` varchar(50) DEFAULT NULL,
+  `fnsku` varchar(50) DEFAULT NULL,
+  `fba_sku` varchar(50) DEFAULT NULL,
+  `is_fba` tinyint(1) NOT NULL,
+  `isbn_type` varchar(20) DEFAULT NULL,
+  `barcode_label_type` varchar(20) DEFAULT NULL,
+  `prep_type` varchar(20) NOT NULL,
+  `stock_status` smallint unsigned DEFAULT NULL,
+  `status` smallint unsigned DEFAULT NULL,
+  `publish_status` int unsigned DEFAULT NULL,
+  `warranty` int DEFAULT NULL,
+  `product_tags` longtext,
+  `created_at` datetime(6) NOT NULL,
+  `updated_at` datetime(6) NOT NULL,
+  `created_by` int unsigned NOT NULL,
+  `updated_by` int unsigned NOT NULL,
+  `preferred_vendor` int DEFAULT NULL,
+  `amazon_size` varchar(50) DEFAULT NULL,
+  `vendor_sku` varchar(50) DEFAULT NULL,
+  `sbau` varchar(50) DEFAULT NULL,
+  UNIQUE KEY `product_id` (`product_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 
-  ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
 ADD COLUMN `preferred_vendor` INT NOT NULL AFTER `updated_by`,
 ADD COLUMN `amazon_size` VARCHAR(50) NULL AFTER `preferred_vendor`,
 ADD COLUMN `vendor_sku` VARCHAR(50) NULL AFTER `amazon_size`,
@@ -234,3 +282,42 @@ CHANGE COLUMN `stock_status` `stock_status` SMALLINT UNSIGNED NULL DEFAULT NULL 
 ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
 CHANGE COLUMN `status` `status` SMALLINT UNSIGNED NULL DEFAULT NULL ,
 CHANGE COLUMN `publish_status` `publish_status` INT UNSIGNED NULL DEFAULT NULL ;
+
+
+------ 27-11-2025
+use sb_commerce_b2b_dev;
+CREATE TABLE store_admin_product_static_attributes (
+	attrib_id INT AUTO_INCREMENT NOT NULL,
+    product_id INT UNSIGNED NOT NULL,
+    attrib_depth DECIMAL(10, 4) DEFAULT NULL,
+    attrib_weight DECIMAL(10, 4) DEFAULT NULL,
+    attrib_width DECIMAL(10, 4) DEFAULT NULL,
+    attrib_height DECIMAL(10, 4) DEFAULT NULL,
+
+    attrib_material VARCHAR(100) DEFAULT NULL,
+    attrib_size VARCHAR(50) DEFAULT NULL,
+    attrib_color VARCHAR(50) DEFAULT NULL,
+    PRIMARY KEY (attrib_id)
+) ENGINE=InnoDB;
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product_static_attributes`
+ADD COLUMN `created_by` INT NULL AFTER `attrib_color`,
+ADD COLUMN `created_date` DATETIME(6) NULL AFTER `created_by`;
+
+-- SUggetions -----
+ALTER TABLE store_admin_product
+    MODIFY COLUMN description MEDIUMTEXT,
+    MODIFY COLUMN short_description TEXT,
+    MODIFY COLUMN product_tags TEXT;
+
+-- 4. Add Indexes for common lookup fields
+ALTER TABLE store_admin_product
+    ADD INDEX idx_ean (ean),
+    ADD INDEX idx_upc (upc),
+    ADD INDEX idx_asin (asin),
+    ADD INDEX idx_parent_sku (parent_sku),
+    ADD INDEX idx_status (status);
+
+ALTER TABLE store_admin_product
+MODIFY COLUMN product_type ENUM('simple', 'variable', 'bundle', 'digital', 'group') DEFAULT NULL;
