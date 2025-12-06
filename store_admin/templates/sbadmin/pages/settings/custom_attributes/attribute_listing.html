@@ -1,0 +1,581 @@
+{% extends "sbadmin/base.html" %}
+{% load static %}
+{% block title %}Attributes{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+  <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1>Attributes</h1>
+        </div>
+        <div class="col-sm-6">
+            <div class="float-right">
+             <div class="btn-group float-right">
+                    <button type="button" id="main-action-btn" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
+                    <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
+                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <span class="sr-only">Toggle Dropdown</span>
+                    </button>
+
+                    <div class="dropdown-menu dropdown-menu-right">
+                        <a class="dropdown-item cursor-pointer" data-toggle="modal" data-target="#addTermModal"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
+                        <a class="dropdown-item" href="" disabled=""><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
+                        <a class="dropdown-item" href="#" disabled=""><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+                    </div>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% if messages %}
+  <div class="container mt-3">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+        {{ message }}
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <section class="content">
+    <div class="card card-outline">
+       <div class="card-header">
+          <div class="col-sm-3 float-left">
+
+
+        <form method="get">
+          <div class="input-group input-group-sm">
+            <input type="text" name="q" value="{{ search_query }}"
+                   class="form-control"
+                   placeholder="Search by name or code...">
+            <div class="input-group-append">
+              <button class="btn btn-primary" type="submit">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </div>
+        </form>
+          </div>
+          <div class=" float-right">
+            <button type="button" style="display: none;"  id="bulkDeleteBtn"
+                    class="btn btn-outline-danger btn-sm" title="Delete selected records"
+                    onclick="deleteSelected()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+      </div>
+
+
+<div class="card-body p-0">
+        <div class="table-responsive">
+
+          <table class="table table-responsive-sm  table-head-fixed mb-0">
+            <thead class="thead-light">
+              <tr>
+                   <th style="width:2%">
+                     <div class="custom-control custom-checkbox">
+                      <input class="custom-control-input" type="checkbox" id="select_all"/>
+                      <label for="select_all" class="custom-control-label"></label>
+                  </div>
+
+                </th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Default Value</th>
+                  <th>Created</th>
+                <th style="width:150px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for term in terms %}
+              <tr>
+                <td>
+                    <div class="custom-control custom-checkbox">
+                         <input class="product-check custom-control-input" value="{{ term.attribute_id }}"
+                             type="checkbox" id="product_check_{{ term.attribute_id }}" />
+                      <label for="product_check_{{ term.attribute_id }}" class="custom-control-label"></label>
+                    </div>
+                </td>
+                <td>{{ term.attribute_name }}</td>
+                <td>{{ term.attribute_type }}</td>
+                <td>{{ term.default_value }}</td>
+                  <td>{{ term.created_at|date:"m/d/Y h:i A" }}</td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-success" data-toggle="modal"
+                          onclick="editTermModal({{ term.attribute_id }}, '{{ term.attribute_name }}'
+                           , '{{ term.attribute_type }}'
+                           , '{{ term.default_value|hide_none }}'
+                           , '{{ term.option_list|hide_none }}')">
+                    <i class="fas fa-pen"></i>
+                  </button>
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteSelectedProduct({{ term.attribute_id }})">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
+              </tr>
+                {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-3">
+                  No records found.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="card-footer d-flex justify-content-between align-items-center">
+        <small class="text-muted">
+          Showing {{ page_obj.start_index }}–{{ page_obj.end_index }}
+          of {{ page_obj.paginator.count }} attributes
+        </small>
+        <nav>
+          <ul class="pagination pagination-sm mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page=1">First</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.previous_page_number }}">Previous</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">First</span></li>
+              <li class="page-item disabled"><span class="page-link">Previous</span></li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+              {% if num == page_obj.number %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                  <a class="page-link" href="?q={{ search_query }}&page={{ num }}">{{ num }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.next_page_number }}">Next</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?q={{ search_query }}&page={{ page_obj.paginator.num_pages }}">Last</a>
+              </li>
+            {% else %}
+              <li class="page-item disabled"><span class="page-link">Next</span></li>
+              <li class="page-item disabled"><span class="page-link">Last</span></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editTermModal" tabindex="-1">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <form >
+              {% csrf_token %}
+              <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Edit </h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+              </div>
+              <div class="modal-body">
+                    <div class="form-group">
+            <label for="edit_attribute_name">Attribute Name</label>
+            <input type="text" class="form-control" placeholder="Attribute name"
+                   name="edit_attribute_name" value="" id="edit_attribute_name">
+          </div>
+
+          <div class="form-group">
+            <label>Attribute Type</label>
+            <div class="form-group clearfix">
+              <div class="icheck-success d-inline">
+                <input type="radio" checked name="edit_attribute_type" value="TEXT" id="text_input1">
+                <label for="text_input1">
+                    Text Input
+                </label>
+              </div>
+              <div class="pl-3 icheck-success d-inline">
+                <input type="radio" name="edit_attribute_type" value="DROPDOWN" id="radio_option1">
+                <label for="radio_option1">
+                    Dropdown
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Default Value</label>
+              <input type="hidden" name="edit_attribute_id" id="edit_attribute_id"  >
+
+              <input type="text" name="edit_default_value" id="edit_default_value"  class="form-control">
+                <small class="form-text text-muted">
+                    The default value you wish to appear for all products. You may override this value at the product level.</small>
+          </div>
+          <div class="form-group" id="edit_options_list_row" style="display: none">
+            <label>Option List</label>
+              <input type="text"  name="edit_option_list" id="edit_option_list"  class="form-control">
+<small class="form-text text-muted">A collection of values, separated by a double pipe (||), available to assign. For example, "Red||Blue||Green". These options will appear as a dropdown list in your edit inventory page.</small>
+          </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-success btn-sm" id="btn_edit_attribute_save">Save</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteTermModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+          <div class="modal-content">
+            <form method="post">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="term_id" value="{{ term.id }}">
+              <div class="modal-body text-center py-4">
+                <p>Delete <strong>{{ term.name }}</strong>?</p>
+                <div class="d-flex justify-content-center">
+                  <button type="submit" class="btn btn-danger btn-sm mr-2">Delete</button>
+                  <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+    <!-- create attribute -->
+    <div class="modal fade" id="addTermModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <div class="modal-header bg-success text-white">
+                  <h5 class="modal-title">Create New Attribute</h5>
+                  <button type="button" class="close text-white btn-sm" data-dismiss="modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                  <div class="form-group">
+                    <label for="new_attribute_name">Attribute Name</label>
+                    <input type="text" class="form-control" placeholder="Attribute name"
+                           name="new_attribute_name" value="" id="new_attribute_name">
+                  </div>
+
+                  <div class="form-group">
+                    <label>Attribute Type</label>
+                    <div class="form-group clearfix">
+                      <div class="icheck-success d-inline">
+                        <input type="radio" checked name="new_attribute_type" value="TEXT" id="text_input">
+                        <label for="text_input">
+                            Text Input
+                        </label>
+                      </div>
+                      <div class="pl-3 icheck-success d-inline">
+                        <input type="radio" name="new_attribute_type" value="DROPDOWN" id="radio_option">
+                        <label for="radio_option">
+                            Dropdown
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Default Value</label>
+                      <input type="text" name="new_default_value" id="new_default_value"  class="form-control">
+                        <small class="form-text text-muted">
+                            The default value you wish to appear for all products. You may override this value at the product level.</small>
+                  </div>
+                  <div class="form-group" id="new_options_list_row" style="display: none">
+                    <label>Option List</label>
+                      <input type="text"  name="new_options_list" id="new_options_list"  class="form-control">
+  <small class="form-text text-muted">A collection of values, separated by a double pipe (||), available to assign. For example, "Red||Blue||Green". These options will appear as a dropdown list in your edit inventory page.</small>
+                  </div>
+                </div>
+                <div class="modal-footer">
+                  <button type="button" id="btn_create_attribute" class="btn btn-success btn-sm">Create</button>
+                  <button type="button" id="btn_close_create_attribute"  class="btn btn-secondary btn-sm" data-dismiss="modal">Cancel</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div><!-- modal end -->
+{% block footer_scripts %}
+<script>
+
+function editTermModal(attribute_id, attribute_name,attribute_type, default_value, option_list){
+    $("#editTermModal").modal("show");
+    $("#edit_attribute_name").val(attribute_name);
+    if(attribute_type === "TEXT"){
+        document.querySelector('input[type="radio"][name="edit_attribute_type"][value="TEXT"]').checked = true;
+        document.getElementById("edit_options_list_row").style.display = "none";
+    }else{
+        document.querySelector('input[type="radio"][name="edit_attribute_type"][value="DROPDOWN"]').checked = true;
+        document.getElementById("edit_options_list_row").style.display = "block";
+    }
+    $("#edit_default_value").val(default_value);
+    $("#edit_option_list").val(option_list);
+    $("#edit_attribute_id").val(attribute_id);
+}
+
+document.body.addEventListener("change", e => {
+    if (e.target.type === "radio" && e.target.name === "new_attribute_type") {
+        if(e.target.value === "TEXT")
+            document.getElementById("new_options_list_row").style.display = "none";
+        else
+            document.getElementById("new_options_list_row").style.display = "block";
+    }
+    if (e.target.type === "radio" && e.target.name === "edit_attribute_type") {
+        if(e.target.value === "TEXT")
+            document.getElementById("edit_options_list_row").style.display = "none";
+        else
+            document.getElementById("edit_options_list_row").style.display = "block";
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    const selectAllCb = document.getElementById("select_all");
+    const bulkBtn = document.getElementById("bulkDeleteBtn");
+    const itemCheckboxes = document.querySelectorAll(".product-check");
+    function toggleBulkButton() {
+        const checkedCount = document.querySelectorAll(".product-check:checked").length;
+        if (checkedCount > 0) {
+            bulkBtn.style.display = "inline-block";
+        } else {
+            bulkBtn.style.display = "none";
+        }
+    }
+
+    // --- 2. SELECT ALL EVENT ---
+    if(selectAllCb){
+        selectAllCb.addEventListener("change", function() {
+            const isChecked = this.checked;
+            // Check/Uncheck all individual boxes
+            itemCheckboxes.forEach(cb => {
+                cb.checked = isChecked;
+            });
+            // Update button visibility immediately
+            toggleBulkButton();
+        });
+    }
+
+    // --- 3. INDIVIDUAL CHECKBOX EVENTS ---
+    itemCheckboxes.forEach(cb => {
+        cb.addEventListener("change", function() {
+            // If one is unchecked, uncheck "Select All"
+            if (!this.checked) {
+                if(selectAllCb) selectAllCb.checked = false;
+            }
+            toggleBulkButton();
+        });
+    });
+});
+
+function deleteSelected() {
+    let selectedIds = [];
+    document.querySelectorAll(".product-check:checked").forEach(cb => {
+        selectedIds.push(cb.value);
+    });
+
+    if (selectedIds.length === 0) return;
+
+    Swal.fire({
+        title: "Delete Selected?",
+        text: `You are about to delete ${selectedIds.length} attribute. This cannot be undone.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Yes, delete them!"
+    }).then((result) => {
+        if (!result.value) return;
+        if (result.value) {
+            fetch("{% url 'delete_attributes_bulk' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body: JSON.stringify({ ids: selectedIds })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    Swal.fire("Deleted!", "Products have been deleted.", "success")
+                    .then(() => location.reload());
+                } else {
+                    Swal.fire("Error", data.message || "Failed to delete.", "error");
+                }
+            })
+            .catch(error => Swal.fire("Error", "Server error occurred.", "error"));
+        }
+    });
+}
+
+function deleteSelectedProduct(productId) { // Kept function name consistent with your loop
+    let fd = new FormData();
+    fd.append("action", "delete");
+    fd.append("attribute_id", productId);
+
+    Swal.fire({
+        title: "Delete Attribute?",
+        text: "This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Delete"
+    }).then(result => {
+        if (!result.value) return;
+        if (result.value) {
+            const url_ = '{% url "manage_product_attributes" %}'
+            // Note: Ensure this URL matches your urls.py pattern perfectly
+            fetch(url_, {
+                method: "POST",
+                body:fd,
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Accept": "application/json"
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status){
+                    Swal.fire("Deleted", "Product removed successfully", "success")
+                    .then(() => window.location.reload());
+                } else {
+                    Swal.fire("Error", data.message || "Something went wrong", "error");
+                }
+            })
+            .catch(() => Swal.fire("Error", "Server error", "error"));
+        }
+    });
+}
+
+async function postAttribute(formData, saveBtn, modalId) {
+    try {
+        saveBtn.disabled = true;
+        const originalHTML = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        const res = await fetch("{% url 'manage_product_attributes' %}", {
+            method: "POST",
+            body: formData,
+            headers: { "X-CSRFToken": csrf }
+        });
+
+        const data = await res.json();
+
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = originalHTML;
+
+        if (data.status) {
+            toastr.success(data.message || "Saved!");
+            $(`#${modalId}`).modal("hide");
+
+            setTimeout(()=>{
+                window.location.reload();
+            },600);
+        } else {
+            toastr.error(data.message || "Something went wrong!");
+        }
+    } catch (err) {
+        saveBtn.disabled = false;
+        toastr.error("Server error. Try again.");
+        console.error(err);
+    }
+}
+
+document.getElementById("btn_create_attribute").addEventListener("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const btn = document.getElementById("btn_create_attribute");
+    const name = document.getElementById("new_attribute_name");
+    const type = document.querySelector('input[name="new_attribute_type"]:checked');
+    const def = document.getElementById("new_default_value");
+    const opt = document.getElementById("new_options_list");
+
+    const valName = name?.value.trim();
+    const valType = type?.value;
+
+    if (!valName) {
+        toastr.error("Attribute name is required");
+        name?.focus();
+        return;
+    }
+
+    let fd = new FormData();
+    fd.append("attribute_name", valName);
+    fd.append("attribute_type", valType);
+    fd.append("default_value", def?.value.trim() || "");
+    fd.append("action", "create");
+
+    if (valType === "DROPDOWN" && opt?.value.trim()) {
+        fd.append("option_list", opt.value.trim());
+    }
+
+    postAttribute(fd, btn, "addTermModal");
+});
+
+document.getElementById("btn_edit_attribute_save").addEventListener("click", function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const btn = document.getElementById("btn_edit_attribute_save");
+    const name = document.getElementById("edit_attribute_name");
+    const type = document.querySelector('input[name="edit_attribute_type"]:checked');
+    const def = document.getElementById("edit_default_value");
+    const opt = document.getElementById("edit_option_list");
+    const id = document.getElementById("edit_attribute_id");
+
+    const valName = name?.value.trim();
+    const valType = type?.value;
+
+    if (!valName) {
+        toastr.error("Attribute name is required");
+        name?.focus();
+        return;
+    }
+
+    let fd = new FormData();
+    fd.append("attribute_name", valName);
+    fd.append("attribute_type", valType);
+    fd.append("default_value", def?.value.trim() || "");
+    fd.append("attribute_id", id?.value.trim());
+    fd.append("action", "edit");
+
+    if (valType === "DROPDOWN") {
+        if (!opt?.value.trim()) {
+            toastr.error("Option list can't be empty");
+            opt?.focus();
+            return;
+        }
+        fd.append("option_list", opt.value.trim());
+    }
+
+    postAttribute(fd, btn, "editTermModal");
+});
+
+document.getElementById("main-action-btn").addEventListener("click", function(e){
+    e.preventDefault();   // stop form/button submitting
+    e.stopPropagation();
+    const splitBtn = this.nextElementSibling;
+    $(splitBtn).dropdown("toggle");
+});
+</script>
+{% endblock %}
+
+{% endblock %}

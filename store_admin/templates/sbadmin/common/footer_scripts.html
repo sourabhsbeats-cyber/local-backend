@@ -25,3 +25,117 @@ $(document).ready(function () {
     $('.select2').select2();
 });
 </script>
+
+<script>
+    /**
+ * smartNumericInput jQuery Plugin
+ * Reads data-min-value, data-max-value, and data-position attributes
+ * to configure and validate a numeric input field.
+ */
+    /**
+ * smartNumericInput jQuery Plugin (Final Version)
+ * * Features:
+ * 1. Removes browser spinner arrows (CSS Fix).
+ * 2. Enforces MIN value always (data-min-value).
+ * 3. Enforces MAX value ONLY if data-max-value is present.
+ * 4. Allows the input field to be completely cleared (Delete/Backspace Fix).
+ * 5. Handles RTL/LTR positioning based on data-position.
+ */
+(function($) {
+
+    // --- 1. CSS Injection for Spinner Removal (Fixes Arrow Misplacement) ---
+    function injectInputCssFixes() {
+        if ($('#numeric-input-styles').length === 0) {
+            const style = `
+                <style id="numeric-input-styles">
+                /* Targets inputs managed by this plugin */
+                .numeric-input-fixed {
+                    /* Chrome, Safari, Edge, Opera: removes the arrows */
+                    -webkit-appearance: none;
+                    margin: 0;
+                    /* Firefox: removes the arrows */
+                    -moz-appearance: textfield;
+                }
+                </style>
+            `;
+            $('head').append(style);
+        }
+    }
+    injectInputCssFixes();
+
+    // --- 2. jQuery Plugin Definition ---
+    $.fn.smartNumericInput = function(options) {
+
+        // Removed default max value so it can be truly conditional
+        const defaults = {
+            min: 0,
+            position: 'ltr',
+            debug: false
+        };
+
+        const settings = $.extend({}, defaults, options);
+
+        return this.each(function() {
+            const $input = $(this);
+            $input.addClass('numeric-input-fixed'); // Apply class for spinner removal
+
+            // --- Get Configuration from Data Attributes ---
+            const hasMaxValue = $input.data('maxValue') !== undefined && $input.data('maxValue') !== null;
+            const minVal = parseFloat($input.data('minValue')) || settings.min;
+            const maxVal = hasMaxValue ? parseFloat($input.data('maxValue')) : undefined;
+            const position = $input.data('position') || settings.position;
+
+            if (settings.debug) {
+                const maxLog = hasMaxValue ? maxVal : 'NONE (Validation disabled)';
+                console.log(`Initializing input #${$input.attr('id') || 'N/A'}: Min=${minVal}, Max=${maxLog}, Position=${position}`);
+            }
+
+            // --- Apply RTL/LTR Styling ---
+            if (position.toLowerCase() === 'rtl') {
+                $input.attr('dir', 'rtl').css('text-align', 'right');
+            } else {
+                $input.attr('dir', 'ltr').css('text-align', 'left');
+            }
+
+            // --- Define the Validation Function ---
+            const validate = function() {
+                const rawValue = $input.val().trim();
+
+                // FIX: Allow input to be cleared (Delete/Backspace Fix)
+                if (rawValue === '') {
+                    if (settings.debug) console.log("Input is empty, allowing it to stay cleared.");
+                    return;
+                }
+
+                let value = parseFloat(rawValue);
+
+                // Handle non-numeric text
+                if (isNaN(value)) {
+                    value = minVal;
+                }
+
+                // 1. Enforce MIN value (always enforced)
+                if (value < minVal) {
+                    value = minVal;
+                }
+
+                // 2. Conditionally enforce MAX value (only if maxVal is defined)
+                else if (hasMaxValue && value > maxVal) {
+                    value = maxVal;
+                }
+
+                // Update the input field
+                $input.val(value);
+
+                if (settings.debug) {
+                    console.log(`Value validated to: ${value}`);
+                }
+            };
+
+            // --- Attach Event Handlers ---
+            $input.on('change blur', validate);
+            validate();
+        });
+    };
+}(jQuery));
+</script>

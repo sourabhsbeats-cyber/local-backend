@@ -1,10 +1,7 @@
 {% extends "sbadmin/base.html" %}
 {% load custom_filters %}
-{% block title %}Import Products{% endblock %}
+{% block title %}Import Product{% endblock %}
 {% block content %}
-
-<!-- DROPZONE CSS -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css"/>
 
 <style>
     .import-steps {
@@ -55,18 +52,7 @@
         text-align: center;
     }
 
-    /* dropzone box */
-    #vendorDropzone {
-        border: 2px dashed #cdd6e2 !important;
-        background: #fafbff;
-        border-radius: 10px;
-        padding: 45px;
-        cursor: pointer;
-    }
-    #vendorDropzone:hover {
-        background: #f1f6ff;
-        border-color: #8ab4f8 !important;
-    }
+
 </style>
 
 
@@ -76,7 +62,7 @@
         <h4 class="text-center mb-4">Map fields</h4>
 
         <!-- Steps -->
-        <div class="import-steps">
+       <div class="import-steps">
             <div class="step-item ">
                 <div class="step-circle bg-success">
                     <i class="fas fa-primary text-success"></i>1
@@ -140,65 +126,7 @@
         </form>
 
     </div>
-
 </div>
 
-
-<!-- DROPZONE SCRIPT -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.js"></script>
-
-<script>
-Dropzone.autoDiscover = false;
-
-var selectedFile = null;
-
-// Init Dropzone
-var dz = new Dropzone("#vendorDropzone", {
-    url: "#",
-    autoProcessQueue: false,
-    maxFiles: 1,
-    addRemoveLinks: true,
-    acceptedFiles: ".csv,.tsv,.xls,.xlsx",
-    dictRemoveFile: "Remove",
-
-    init: function () {
-
-        // When file added
-        this.on("addedfile", function(file) {
-            selectedFile = file;
-            document.getElementById("uploaded_file_name").value = file.name;
-        });
-
-        // When file removed
-        this.on("removedfile", function() {
-            selectedFile = null;
-            document.getElementById("uploaded_file_name").value = "";
-        });
-    }
-});
-
-
-// Attach file to form on submit
-document.getElementById("importForm").addEventListener("submit", function (e) {
-
-    if (!selectedFile) {
-        alert("Please upload a file before proceeding.");
-        e.preventDefault();
-        return false;
-    }
-
-    // Convert dropzone file → real input file
-    var dt = new DataTransfer();
-    dt.items.add(selectedFile);
-
-    var input = document.createElement("input");
-    input.type = "file";
-    input.name = "import_file";
-    input.files = dt.files;
-    input.hidden = true;
-
-    this.appendChild(input);
-});
-</script>
 
 {% endblock %}

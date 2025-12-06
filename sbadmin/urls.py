@@ -16,11 +16,26 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-from django.conf.urls import handler404
 from django.shortcuts import render
-
+from django.urls import re_path
+from django.conf import settings
+from sbadmin.pagenot_fount_view import custom_404
+from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', include('store_admin.urls')),
 ]
+
+handler404 = "sbadmin.pagenot_fount_view.custom_404"
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+if settings.DEBUG:
+    def trigger404(request, exception=None):
+        return custom_404(request, exception)
+
+    urlpatterns += [
+        re_path(r"^.*$", trigger404),  # ✅ sends exception safely
+    ]
 

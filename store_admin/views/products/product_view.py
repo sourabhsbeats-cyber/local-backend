@@ -1,36 +1,48 @@
-from sys import get_int_max_str_digits
-from xmlrpc.client import Boolean
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.contrib import messages
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib import messages
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpResponseBadRequest
-from store_admin.models.payment_terms_model import PaymentTerm
-from store_admin.models.address_model import Addresses
-from django.db import transaction
-from django.db.models import Value as V
-from django.db.models.functions import Concat
-from django.urls import reverse
-from django.shortcuts import render, redirect
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.decorators import login_required
-from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails, \
-    ProductStaticAttributes
-from store_admin.models.setting_model import Category, Brand, Manufacturer
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
-from django.db.models import Min
-from django.db import IntegrityError
-from django.db.models import Subquery, OuterRef, Value, CharField, When, Case
-from django.db.models.functions import Coalesce
-from django.core.paginator import Paginator
-from store_admin.models import Country, State
+from logging import exception
 
+from django.db import transaction
+from django.urls import reverse
+from django.shortcuts import render
+from django.shortcuts import get_object_or_404
+from store_admin.helpers import get_int, get_bool_int, get_decimal
+from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails, \
+    ProductStaticAttributes, ProductDynamicAttributes, ProductImages
+from store_admin.models.setting_model import Category, Brand, Manufacturer, AttributeDefinition
+from store_admin.models.vendor_models import Vendor, VendorContact
+from django.db import IntegrityError
+from store_admin.models import Country
+from store_admin.models.warehouse_setting_model import Warehouse
+from store_admin.models.warehouse_transaction_model import ProductWarehouse
+from django.db.models import IntegerField, TextField
+from django.db.models import Exists
+from rest_framework.decorators import api_view
+from django.conf import settings
+from django.http import JsonResponse
+import json
+from rest_framework import serializers
+from django.contrib.auth.decorators import login_required
+import math
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from django.db.models import Sum, Value, CharField, OuterRef, Subquery, Case, When, Q
+from django.db.models.functions import Coalesce
+from rest_framework.renderers import JSONRenderer
+from rest_framework.decorators import api_view, renderer_classes, permission_classes
+import os
+from django.templatetags.static import static
+class TabulatorPagination(PageNumberPagination):
+    page_size = 20
+    page_query_param = "page"
+    page_size_query_param = "size"
+    max_page_size = 50  # ✅ cap at 50
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImages
+        fields = ["product_image_id", "product_id", "image_path", "cdn_url", "uploaded_at"]
+        
 #Product Add New Form - Only GET
 @login_required
 def add_new(request):
@@ -49,11 +61,48 @@ def add_new(request):
     }
     return render(request, 'sbadmin/pages/product/add/addnew_form.html', context)
 
+@login_required
+def save_product_image(request):
+    if request.method == "POST":
+        cdn = request.POST.get("cdn_url")
+        img = ProductImages(product_id=request.POST["product_id"])
+
+        if cdn:
+            img.cdn_url, img.image_path = cdn, None
+        elif request.FILES.get("file"):
+            img.image_path = request.FILES["file"]
+            img.save()  # save first so path is created
+            #img.cdn_url = f"{settings.MEDIA_URL}{img.image_path.name}"
+            img.cdn_url = f"{settings.CDN_DOMAIN}{settings.MEDIA_URL}{img.image_path.name}"
+        img.save()
+        return JsonResponse({"status": "saved", "cdn_url": img.cdn_url})
+
+@api_view(["GET"])
+def list_product_images(request, product_id):
+    q = ProductImages.objects.filter(product_id=request.GET.get("product_id")) if request.GET.get("product_id") else ProductImages.objects.all()
+    return JsonResponse(ProductImageSerializer(q, many=True).data)
+
+@api_view(["DELETE"])
+def delete_product_image(request, product_image_id):
+    try:
+        img = ProductImages.objects.get(product_image_id=product_image_id)  # ❗ primary key lookup fix
+    except ProductImages.DoesNotExist:
+        return JsonResponse({"status": "not found"}, status=404)
+
+    # If local image exists → delete physical file
+    if img.image_path:
+        p = img.image_path.path
+        os.path.exists(p) and os.remove(p)
+
+    #  If image_path is None → still return success
+    img.delete()
+    return JsonResponse({"status": "deleted"}, status=200)
+
 #edit form
 @login_required
 def edit_product(request, product_id):
     product = get_object_or_404(Product, product_id=product_id)
-    category = Category.objects.filter(status=1).all()
+    #category = Category.objects.filter(status=1).all()
     brand = Brand.objects.filter(status=1).all()
     manufacturers = Manufacturer.objects.filter(status=1).all()
     vendors = Vendor.objects.filter(status=1).all()
@@ -61,14 +110,34 @@ def edit_product(request, product_id):
     price_info = ProductPriceDetails.objects.filter(product_id=product_id).first()
 
     static_attributes = ProductStaticAttributes.objects.filter(product_id=product_id).first()
-
+    custom_atributes = AttributeDefinition.objects.all()
+    product_images = ProductImages.objects.filter(product_id=product_id).all()
+    warehouses = Warehouse.objects.all().order_by("warehouse_name").annotate(
+        current_qty=Coalesce(
+            Subquery(
+                ProductWarehouse.objects.filter(
+                    product_id=product_id,
+                    warehouse_id=OuterRef("warehouse_id")
+                ).order_by("-product_wh_id").values("stock")[:1],
+                output_field=IntegerField()
+            ), 0
+        ),
+        is_enabled=Exists(
+            ProductWarehouse.objects.filter(
+                product_id=product_id,
+                warehouse_id=OuterRef("warehouse_id")
+            )
+        )
+    )
     countries_list = Country.objects.values('name', 'id')
     context = {
+        'custom_atributes':custom_atributes,
         'user': request.user.id,
         'brands': brand,
+        'warehouses': warehouses,
         'manufacturers': manufacturers,
         'countries_list': countries_list,
-        'vendors': vendors,
+        'vendors': vendors,'product_images':product_images, 
         'static_attributes': static_attributes,
         'product':product, 'shipping_info':shipping_info, 'price_info':price_info
     }
@@ -89,71 +158,74 @@ def delete(request, contact_id):
 
 @login_required
 def listing(request):
-    products = Product.objects.annotate(
-        brand_name=Coalesce(
-            Subquery(
-                Brand.objects.filter(brand_id=OuterRef('brand_id'))
-                .values('name')[:1]
-            ),
-            Value("", output_field=CharField())
-        ),
-        manufacturer_name=Coalesce(
-            Subquery(
-                Manufacturer.objects.filter(manufacturer_id=OuterRef('manufacturer_id'))
-                .values('name')[:1]
-            ),
-            Value("", output_field=CharField())
-        ),
-        product_type_name=Case(
-            When(product_type=1, then=Value("Standard")),
-            When(product_type=2, then=Value("Parent")),
-            When(product_type=3, then=Value("Child")),
-            When(product_type=4, then=Value("Bundle")),
-            default=Value("Unknown"),
-            output_field=CharField()
-        )
-    ).values(
-        'product_id',
-        'title',
-        'sku',
-        'product_type',
-        'product_type_name',
-        'brand_id',
-        'brand_name',
-        'manufacturer_id',
-        'manufacturer_name',
-        'stock_status',
-        'publish_status',
-        'status',
-        'created_at'
-    )
-
-    # ---- Search ----
-    search_query = request.GET.get("q", "").strip()
-
-    if search_query:
-        products = products.filter(
-            Q(title__icontains=search_query) |
-            Q(sku__icontains=search_query) |
-            Q(brand_name__icontains=search_query) |
-            Q(manufacturer_name__icontains=search_query)
-        )
-
-    # ---- Pagination ----
-    paginator = Paginator(products, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
     # ---- Context ----
     context = {
         "user": request.user.id,
-        "allproducts": page_obj,  # for listing loop
-        "page_obj": page_obj,  # for pagination UI
-        "search_query": search_query,
     }
     return render(request, 'sbadmin/pages/product/all_listing.html', context)
 
-#edit form save action
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@renderer_classes([JSONRenderer])
+def products_json(request):
+    stock_sub = ProductWarehouse.objects.values("product_id").annotate(
+        total_stock=Sum("stock")
+    ).values("product_id", "total_stock")
+    qs = Product.objects.annotate(
+        total_stock_qty=Coalesce(
+            Subquery(stock_sub.filter(product_id=OuterRef("product_id")).values("total_stock")[:1]),
+            Value(0),
+            output_field=IntegerField()  # ✅ numeric
+        ),
+        product_type_name=Case(
+            When(product_type="1", then=Value("Standard")),
+            When(product_type="2", then=Value("Parent")),
+            When(product_type="3", then=Value("Child")),
+            When(product_type="4", then=Value("Bundle")),
+            default=Value("Unknown"),
+            output_field=TextField()  # ✅ pure text
+        ),
+        brand_name_val=Coalesce(
+            Subquery(Brand.objects.filter(brand_id=OuterRef("brand_id")).values("name")[:1]),
+            Value(""),
+            output_field=TextField()  # ✅ pure text
+        ),
+    )
+    q = request.GET.get("q", "").strip()
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(sku__icontains=q) | Q(brand_name_val__icontains=q))
+
+    try:
+        page = int(request.GET.get("page", 1))
+    except:
+        page = 1
+
+    try:
+        size = int(request.GET.get("size", 20))
+    except:
+        size = 20
+
+    size = min(size, 50)  # ✅ max 50 cap
+
+    total = qs.count()
+    start = (page - 1) * size
+    end = start + size
+
+    data = list(qs.order_by("product_id")[start:end].values(
+        "product_id", "title", "sku", "brand_name_val", "product_type_name", "total_stock_qty"
+    ))
+
+    last_page = math.ceil(total / size) if total else 1
+
+    #  Return EXACT Tabulator compatible JSON
+    return Response({
+        "data": data,
+        "last_page": last_page,
+        "total": total, "row_count":200
+
+    })
+
+# edit form save action
 @login_required
 def save(request):
     if request.method != "POST":
@@ -325,8 +397,6 @@ def save(request):
         error_message = f"An unexpected error occurred: {e}"
         return JsonResponse({"status": False, "message": error_message})
 
-
-
 @login_required
 def delete_product(request, product_id):
     if request.method != "DELETE":
@@ -338,22 +408,16 @@ def delete_product(request, product_id):
 
     try:
         product.delete()
-        price = ProductPriceDetails.objects.filter(product_id=product_id).first()
-        if price:
-            price.delete()
-        ship = ProductShippingDetails.objects.filter(product_id=product_id).first()
-        if ship:
-            ship.delete()
-        attribs = ProductStaticAttributes.objects.filter(product_id=product_id).first()
-        if attribs:
-            attribs.delete()
+        ProductPriceDetails.objects.filter(product_id=product_id).delete()
+        ProductShippingDetails.objects.filter(product_id=product_id).delete()
+        ProductStaticAttributes.objects.filter(product_id=product_id).delete()
+        ProductWarehouse.objects.filter(product_id=product_id).delete()
+        ProductDynamicAttributes.objects.filter(product_id=product_id).delete()
 
         return JsonResponse({"status": True, "message": "Product deleted successfully"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)}, status=500)
 
-from django.http import JsonResponse
-import json
 @login_required
 def delete_product_bulk(request):
     if request.method != "POST":
@@ -373,62 +437,9 @@ def delete_product_bulk(request):
 
     ProductStaticAttributes.objects.filter(product_id__in=ids).delete()
 
+    ProductDynamicAttributes.objects.filter(product_id__in=ids).delete()
+    ProductWarehouse.objects.filter(product_id__in=ids).delete()
     return JsonResponse({"status": "success", "deleted": len(ids)})
-
-
-def to_boolean_int(value_list):
-    if not value_list or not value_list[0]:
-        return None  # Or 0, depending on your default logic for an unchecked box
-
-    return 1 if str(value_list[0]).lower() in ['true', '1', 'on'] else 0
-
-def to_int_bool(value_list):
-    value = value_list[0] if isinstance(value_list, list) and value_list else None
-    if value is None:
-        return None
-    value_lower = str(value).lower()
-    if value_lower in ('true', '1', 'on'):
-        return 1
-    if value_lower in ('false', '0', 'off'):
-        return 0
-    return None
-
-from decimal import Decimal, InvalidOperation
-
-def get_decimal(data, key):
-    raw = data.get(key)
-    if raw is None:
-        return None
-    try:
-        value = raw.strip()
-        return Decimal(value) if value else None
-    except (InvalidOperation, AttributeError):
-        return None
-
-
-from typing import Optional, List, Union
-
-
-def get_int(data, key):
-    try:
-        raw = data.get(key)
-        return int(raw.strip()) if raw and raw.strip().lstrip("-").isdigit() else None
-    except Exception as e:
-        print(e)
-        return None
-
-def get_bool_int(data, key):
-    raw = data.get(key) if hasattr(data, "get") else data[key] if key in data else None
-    if raw is None:
-        return None
-
-    raw = str(raw).strip().lower()
-    if raw in ("true", "1", "yes", "y"):
-        return 1
-    if raw in ("false", "0", "no", "n"):
-        return 0
-    return None
-
 
 @login_required
 def create_product(request):
@@ -589,3 +600,153 @@ def create_product(request):
         error_message = f"An unexpected error occurred: {e}"
         return JsonResponse({"status": False, "message": error_message})
 
+@login_required
+def add_dynamic_attribute(request):
+    if request.method != "POST":
+        return JsonResponse({"status": False, "message": "Invalid request"})
+
+    data = request.POST
+    product_id = data.get("product_id")
+    attribute_id = data.get("attribute_id")
+    attribute_values = data.get("attrib_values", "").strip()
+    user_id = request.user.id
+
+    if not product_id or not attribute_id:
+        return JsonResponse({"status": False, "message": "Product and Attribute required"})
+
+    if ProductDynamicAttributes.objects.filter(
+        product_id=product_id,
+        attribute_id=attribute_id
+    ).exists():
+        return JsonResponse({"status": False, "message": "Attribute already added for this product"})
+
+    try:
+        ProductDynamicAttributes.objects.create(
+            product_id=product_id,
+            attribute_id=attribute_id,
+            attribute_values=attribute_values or None,
+            created_by=user_id,
+        )
+        return JsonResponse({"status": True, "message": "Inserted"})
+    except Exception as ex:
+        return JsonResponse({"status": False, "message": str(ex)})
+
+@login_required
+def list_dynamic_attributes(request):
+    product_id = request.GET.get("product_id")
+    if not product_id:
+        return JsonResponse({"status": False, "message": "Invalid product"})
+
+    dyn_rows = list(
+        ProductDynamicAttributes.objects.filter(product_id=product_id).values(
+            "dynamic_attribute_id", "product_id", "attribute_id", "attribute_values"
+        )
+    )
+    attrib_ids = [r["attribute_id"] for r in dyn_rows]
+    attrib_rows = list(
+        AttributeDefinition.objects.filter(attribute_id__in=attrib_ids).values(
+            "attribute_id", "attribute_name", "attribute_type", "default_value", "option_list"
+        )
+    )
+    attrib_map = {a["attribute_id"]: a for a in attrib_rows}
+    data = []
+    for r in dyn_rows:
+        real = attrib_map.get(r["attribute_id"], {})
+        data.append({
+            **r,
+            "attribute_name": real.get("attribute_name"),
+            "attribute_type": real.get("attribute_type"),
+            "default_value": real.get("default_value"),
+            "option_list": real.get("option_list"),
+        })
+    return JsonResponse({"status": True, "data": data})
+
+@login_required
+def update_dynamic_attribute(request):
+    if request.method != "POST":
+        return JsonResponse({"status": False, "message": "Invalid request"})
+
+    data = request.POST
+    dynamic_attrib_id = data.get("dynamic_attrib_id")
+    attrib_values = data.get("attrib_values", "").strip()
+
+    if not dynamic_attrib_id:
+        return JsonResponse({"status": False, "message": "Attribute ID required"})
+
+    try:
+        ProductDynamicAttributes.objects.filter(
+            dynamic_attribute_id=dynamic_attrib_id
+        ).update(
+            attribute_values=attrib_values or None,
+            created_by=request.user.id,
+        )
+        return JsonResponse({"status": True, "message": "Updated"})
+    except Exception as ex:
+        return JsonResponse({"status": False, "message": str(ex)})
+
+@login_required
+def remove_dynamic_attribute(request):
+    if request.method != "POST":
+        return JsonResponse({"status": False, "message": "Invalid request"})
+
+    dynamic_attrib_id = request.POST.get("dynamic_attrib_id")
+    if not dynamic_attrib_id:
+        return JsonResponse({"status": False, "message": "Attribute ID required"})
+
+    try:
+        ProductDynamicAttributes.objects.filter(
+            dynamic_attribute_id=dynamic_attrib_id
+        ).delete()
+        return JsonResponse({"status": True, "message": "Removed"})
+    except Exception as ex:
+        return JsonResponse({"status": False, "message": str(ex)})
+
+def api_product_search(request):
+    try:
+        product_image_sub = ProductImages.objects.filter(
+            product_id=OuterRef("product_id")
+        ).order_by("product_image_id").values("cdn_url")[:1]
+
+        # Total Stock (may be missing)
+        stock_sub = ProductWarehouse.objects.filter(
+            product_id=OuterRef("product_id")
+        ).values("product_id").annotate(
+            qty=Sum("stock")
+        ).values("qty")[:1]
+
+        # Sale Price (may be missing)
+        sale_price_sub = ProductPriceDetails.objects.filter(
+            product_id=OuterRef("product_id")
+        ).values("sale_price")[:1]
+
+        # Base queryset
+        qs = Product.objects.annotate(
+            image=Coalesce(Subquery(product_image_sub), Value(None), output_field=TextField()),
+            qty=Coalesce(Subquery(stock_sub), Value(0), output_field=IntegerField()),
+            sale_price=Coalesce(Subquery(sale_price_sub), Value(None), output_field=IntegerField()),
+        )
+
+        # Search filter
+        q = request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(title__icontains=q) |
+                Q(sku__icontains=q)
+            )
+        NO_IMAGE = static("no_product_image.png")
+        # Build Response
+        data = []
+        for p in qs[:20]:  # limit 20 results
+            data.append({
+                "id": p.product_id,
+                "title": p.title,
+                "image":p.image if p.image else NO_IMAGE,
+                "stock_qty": p.qty,
+                "sku": p.sku,
+                "price": p.sale_price,
+            })
+
+        return JsonResponse({"status": True, "data": data})
+    except Exception as e:
+        print(e)
+        return JsonResponse({"status":False, "data":[]})

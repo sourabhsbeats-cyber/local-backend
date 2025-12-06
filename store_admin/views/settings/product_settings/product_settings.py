@@ -5,7 +5,8 @@ from django.contrib import messages
 from store_admin.models.payment_terms_model import PaymentTerm
 from django.contrib.auth.decorators import login_required
 
-from store_admin.models.setting_model import Manufacturer, Brand, Category
+from store_admin.models.product_model import ProductStaticAttributes
+from store_admin.models.setting_model import Manufacturer, Brand, Category, AttributeDefinition, UnitOfMeasurements
 
 
 @login_required
@@ -88,6 +89,83 @@ def add_new_manufacturer(request):
 
     return JsonResponse({"status": False, "error": "Invalid request"})
 
+
+@login_required
+def manage_product_attributes(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+        #print(action)
+        #return JsonResponse({"status": True, "message": action})
+        # --- Create ---
+        if action == "create":
+            try:
+                if AttributeDefinition.objects.filter(attribute_name__icontains=request.POST.get("attribute_name")).exists():
+                    return JsonResponse({"status": False, "message": "Attribute name already exists"})
+
+                AttributeDefinition.objects.create(
+                    attribute_name=request.POST.get("attribute_name"),
+                    attribute_type=request.POST.get("attribute_type"),
+                    default_value=request.POST.get("default_value"),
+                    option_list=request.POST.get("option_list", None),
+                    created_by=request.user.id
+                )
+            except Exception as e:
+                print(e)
+                return JsonResponse({"status": False, "message": "Error creating"})
+            return JsonResponse({"status":True, "message":"Attribute created successfully." })
+
+        # --- Edit ---
+        elif action == "edit":
+            term = get_object_or_404(AttributeDefinition, attribute_id=request.POST.get("attribute_id"))
+            if AttributeDefinition.objects.filter(
+                    attribute_name__icontains=request.POST.get("attribute_name", "").strip()
+            ).exclude(
+                attribute_id=request.POST.get("attribute_id")
+            ).exists():
+                return JsonResponse({"status": False, "message": "Attribute name already exists"})
+
+            term.attribute_name = request.POST.get("attribute_name")
+            term.attribute_type = request.POST.get("attribute_type")
+            term.default_value = request.POST.get("default_value")
+            term.option_list = request.POST.get("option_list")
+            term.save()
+            return JsonResponse({"status": True, "message": f"Attribute '{term.attribute_name}' updated successfully."})
+
+        # --- Delete ---
+        elif action == "delete":
+            term = AttributeDefinition.objects.filter(attribute_id=request.POST.get("attribute_id")).delete()
+            return JsonResponse({"status": True, "message": f"Attribute deleted successfully."})
+
+    # --- Get / Paginated List ---
+    search_query = request.GET.get("q", "").strip()
+    terms = AttributeDefinition.objects.all().order_by("attribute_name")
+    if search_query:
+        terms = terms.filter(attribute_name__icontains=search_query)
+
+    paginator = Paginator(terms, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+    return render(
+        request,
+        "sbadmin/pages/settings/custom_attributes/attribute_listing.html",
+        {"terms": page_obj, "page_obj": page_obj, "search_query": search_query},
+    )
+
+import json
+@login_required
+def delete_product_attributes(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Invalid request"})
+
+    data = json.loads(request.body)
+    ids = data.get("ids", [])
+
+    if not ids:
+        return JsonResponse({"status": "error", "message": "No attribute selected"})
+
+    AttributeDefinition.objects.filter(attribute_id__in=ids).delete()
+
+    return JsonResponse({"status": "success", "deleted": len(ids)})
 
 
 @login_required
@@ -183,5 +261,54 @@ def manage_product_manufacturers(request):
     return render(
         request,
         "sbadmin/pages/product/settings/manage_product_manufacturers.html",
+        {"terms": page_obj, "page_obj": page_obj, "search_query": search_query},
+    )
+
+@login_required
+def manage_unit_of_measures(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+
+        # --- Create ---
+        if action == "create":
+            UnitOfMeasurements.objects.create(
+                name=request.POST.get("name"),
+                status=request.POST.get("status"),
+                created_by=request.user.id
+            )
+            messages.success(request, "Record created successfully.")
+            return redirect("manage_unit_of_measures")
+
+        # --- Edit ---
+        elif action == "edit":
+            term = get_object_or_404(UnitOfMeasurements, measurement_id=request.POST.get("measurement_id"))
+
+            term.name = request.POST.get("name")
+            term.status = request.POST.get("status")
+            term.save()
+            messages.success(request, f"Record '{term.name}' updated successfully.")
+            return redirect("manage_unit_of_measures")
+
+        # --- Delete ---
+        elif action == "delete":
+            term = get_object_or_404(UnitOfMeasurements, measurement_id=request.POST.get("measurement_id"))
+            term.delete()
+            messages.warning(request, f"Record '{term.name}' deleted successfully.")
+            return redirect("manage_unit_of_measures")
+
+    # --- Get / Paginated List ---
+    search_query = request.GET.get("q", "").strip()
+    terms = UnitOfMeasurements.objects.all().order_by("name")
+
+    if search_query:
+        terms = terms.filter(name__icontains=search_query)
+
+    paginator = Paginator(terms, 10)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
+
+    return render(
+        request,
+        "sbadmin/pages/product/settings/manage_product_units.html",
         {"terms": page_obj, "page_obj": page_obj, "search_query": search_query},
     )

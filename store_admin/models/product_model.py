@@ -1,13 +1,11 @@
 from django.db import models
 
-from django.db import models
-
-
 class Product(models.Model):
     product_id = models.AutoField(primary_key=True)
 
     # PRODUCT TYPE
-    product_type = models.CharField(max_length=120, blank=True, null=True)
+    product_type = models.PositiveSmallIntegerField(blank=False, null=False)
+
     parent_sku = models.CharField(max_length=120, blank=True, null=True)
     bundle_sku = models.CharField(max_length=120, blank=True, null=True)
     is_alias = models.BooleanField(default=False)
@@ -88,6 +86,7 @@ class Product(models.Model):
     # OTHER
     warranty = models.IntegerField(blank=True, null=True)
     product_tags = models.TextField(blank=True, null=True)
+    main_image = models.TextField(blank=True, null=True)
 
     preferred_vendor = models.IntegerField(blank=True, null=True)
     amazon_size = models.CharField(max_length=50)
@@ -104,23 +103,25 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.sku} - {self.title}"
 
-
-class ProductImage(models.Model):
+class ProductImages(models.Model):
+    product_image_id = models.AutoField(primary_key=True)
     product_id = models.PositiveIntegerField()
-    #image = models.ImageField(upload_to="product_images/")
+    image_path = models.FileField(upload_to="product_images/", null=True, blank=True)
+    cdn_url = models.URLField(null=True, blank=True)  # new field for CDN
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Image for product {self.product_id}"
-
-
+    class Meta:
+        db_table = 'store_admin_product_images'
 
 class ProductShippingDetails(models.Model):
     shipping_details_id = models.AutoField(primary_key=True)
     product_id = models.IntegerField(null=True, blank=True)
     fast_dispatch = models.IntegerField(null=True, blank=True)
     free_shipping = models.IntegerField(null=True, blank=True)
-    bulky_product = models.CharField(max_length=45, null=True, blank=True)
+    bulky_product = models.PositiveSmallIntegerField(choices=[(1,"Yes"),(0,"No")],null=True,
+    blank=True, default=None)
     international_note = models.CharField(max_length=120, null=True, blank=True)
     example_reference = models.CharField(max_length=50, null=True, blank=True)
     ships_from = models.CharField(max_length=50, null=True, blank=True)
@@ -130,7 +131,6 @@ class ProductShippingDetails(models.Model):
 
     class Meta:
         db_table = 'store_admin_product_shipping_details'
-
 
 class ProductPriceDetails(models.Model):
     # price_id is the auto-created primary key
@@ -151,10 +151,6 @@ class ProductPriceDetails(models.Model):
     class Meta:
         db_table = 'store_admin_product_price_details'
 
-
-from django.db import models
-
-
 class ProductStaticAttributes(models.Model):
     """
     Stores physical and descriptive attributes that are generally
@@ -172,7 +168,7 @@ class ProductStaticAttributes(models.Model):
     attrib_size = models.CharField(max_length=50,null=True,blank=True,verbose_name="Size"    )
     attrib_color = models.CharField(max_length=50,null=True,blank=True,
         verbose_name="Color"    )
-    attrib_compatibility = models.CharField(max_length=50,null=True,blank=True,        verbose_name="Compatibility"    )
+    attrib_compatibility = models.TextField(null=True,blank=True,verbose_name="Compatibility"    )
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.IntegerField(null=True)
     class Meta:
@@ -181,4 +177,26 @@ class ProductStaticAttributes(models.Model):
         db_table = 'store_admin_product_static_attributes'
     def __str__(self):
         return f"Attributes for Product ID: {self.product_id}"
+
+class ProductType(models.Model):
+    """
+    Stores Base Product Type - Simple, Child, Parent, Standard
+    """
+    product_type_id = models.IntegerField(primary_key=True)
+    type_name = models.CharField(max_length=50, null=False)
+
+    class Meta:
+        db_table = 'store_admin_product_type'
+
+
+class ProductDynamicAttributes(models.Model):
+    dynamic_attribute_id = models.AutoField(primary_key=True, db_column="dynamic_attribute_id")
+    product_id = models.IntegerField()
+    attribute_id = models.IntegerField()
+    attribute_values = models.CharField(max_length=250, null=True, blank=True, db_column="attribute_values")
+    created_by = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "store_admin_product_dynamic_attributes"
 

@@ -12,6 +12,7 @@ from .views.settings.product_settings import product_settings
 urlpatterns = [
     #vendor management
     path('vendors/', vendor_views.all_vendors, name='vendor_listing'),
+    path('api/getsingle_vendor/<int:vendor_id>', vendor_views.api_get_vendor_by_id, name='get_single_vendor'),
     path('addvendor/', vendor_views.add_new_vendor, name='add_new_vendor'),
     path('editvendor/<int:vendor_id>', vendor_views.edit_vendor, name='edit_vendor'),
     path("delete/<int:vendor_id>/", vendor_views.delete_vendor, name="delete_vendor_contact"),

@@ -39,7 +39,7 @@
             </ul>
           </li>-->
           <li class="nav-item">
-            <a href="/dashboard" class="nav-link {% if request.path == '/dashboard/' %}active{% endif %}">
+            <a href="{% url 'dashboard' %}" class="nav-link {% if request.path == '/dashboard/' %}active{% endif %}">
               <i class="nav-icon fas fa-th"></i>
               <p>
                 Dashboard
@@ -127,7 +127,7 @@
           </li>
 
           <li class="nav-item">
-            <a href="#" class="nav-link">
+            <a href="{% url 'po_listing' %}" class="nav-link">
               <i class="nav-icon fas fa-tag"></i>
               <p>Purchase Order</p>
             </a>
@@ -167,6 +167,20 @@
                   <p>Manufactures</p>
                 </a>
               </li>
+              <li class="nav-item">
+                <a href="{% url 'manage_product_attributes' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Attributes</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'manage_unit_of_measures' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Unit Of Measurements</p>
+                </a>
+              </li>
+
+
             </ul>
           </li>
 
@@ -183,13 +197,13 @@
             <ul class="nav nav-treeview">
 
               <li class="nav-item">
-                <a href="/users" class="nav-link">
+                <a href="{% url 'manage_users' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>Users</p>
                 </a>
               </li>
               <li class="nav-item">
-                <a href="/roles" class="nav-link">
+                <a href="{% url 'manage_user_roles' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>Roles</p>
                 </a>
@@ -209,23 +223,23 @@
             </a>
             <ul class="nav nav-treeview">
               <li class="nav-item">
-                <a href="/all_countries" class="nav-link">
+                <a href="{% url 'all_countries' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>Country</p>
                 </a>
               </li>
               <li class="nav-item">
-                <a href="/payment_terms" class="nav-link">
+                <a href="{% url 'payment_terms' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>Payment Terms</p>
                 </a>
               </li>
-              <!--<li class="nav-item">
-                <a href="/departments" class="nav-link">
+              <li class="nav-item">
+                <a href="{% url 'manage_warehouse_listings' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
-                  <p>Department</p>
+                  <p>Warehouse</p>
                 </a>
-              </li>-->
+              </li><!---->
             </ul>
           </li>
 

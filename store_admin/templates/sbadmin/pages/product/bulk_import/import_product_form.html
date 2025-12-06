@@ -1,6 +1,10 @@
 {% extends "sbadmin/base.html" %}
-{% block title %}Import Product{% endblock %}
+{% block title %}Import Products{% endblock %}
+
 {% block content %}
+
+<!-- DROPZONE CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css"/>
 
 <style>
     .import-steps {
@@ -67,25 +71,12 @@
 
 
 <div class="content-wrapper">
-    <section class="content-header">
-    <div class="container-fluid">
-      <div class="row mb-2 align-items-center">
-        <div class="col-sm-6">
-          <h4 class="m-0"></h4>
-        </div>
-        <div class="col-sm-6">
-          <ol class="breadcrumb float-sm-right">
-            <li class="breadcrumb-item"><a href="{% url 'all_products' %}">Product</a></li>
-            <li class="breadcrumb-item active">Bulk Import</li>
-          </ol>
-        </div>
-      </div>
-    </div>
-  </section>
 
-<a href="{% url 'vendor_listing' %}" class="float-right pt-2 btn btn-tool">
+    <div class="row float-right">
+        <a href="{% url 'all_products' %}" class="float-right pt-2 btn btn-tool">
           <i class="fas fa-times"></i>
         </a>
+    </div>
 
     <div class="container mt-4">
         <h4 class="text-center mb-4">Products - Select File</h4>
@@ -96,34 +87,29 @@
                 <div class="step-circle">1</div> Configure
             </div>
             <div class="step-divider"></div>
-
             <div class="step-item">
-                <div class="step-circle">2</div> Map Fields
+                <div class="step-circle">2</div> Preview
             </div>
             <div class="step-divider"></div>
-
             <div class="step-item">
-                <div class="step-circle">3</div> Preview
+                <div class="step-circle">3</div> Confirm
             </div>
         </div>
-        {% if messages %}
-            {% for msg in messages %}
-              <div class="alert border-danger bg-white d-flex align-items-center" role="alert" style="min-height: 80px; border-color: #00bcd4;">
-                    <i class="fas fa-exclamation-triangle fa-3x text-danger mr-3 flex-shrink-0"></i>
-                    <div class="flex-grow-1 text-left">
-                        <div class="text-sm font-weight-bold">{{ msg }}</div>
-                    </div>
-              </div>
-            {% endfor %}
+         {% if messages %}
+            <div class="container mt-3">
+              {% for message in messages %}
+                  <div class="alert alert-danger alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="close" data-dismiss="alert">&times;</button>
+                  </div>
+              {% endfor %}
+            </div>
         {% endif %}
-        <!-- FORM -->
-        <form id="importForm" method="post" enctype="multipart/form-data"
-              action="{% url 'import_product_stage_map' %}">
+
+        <form method="post" enctype="multipart/form-data"
+              action="">
             {% csrf_token %}
-
             <div class="upload-wrapper">
-
-                <!-- DROPZONE UPLOAD BOX -->
                 <div id="vendorDropzone" class="dropzone">
                     <div class="dz-message">
                         <i class="fas fa-cloud-upload-alt upload-icon" style="font-size:45px;color:#8ab4f8;"></i>
@@ -131,56 +117,43 @@
                         <p class="text-muted">or click to browse</p>
                     </div>
                 </div>
-
-                <!-- Store file name -->
                 <input type="hidden" id="uploaded_file_name" name="uploaded_file_name">
-
                 <div class="mt-2 text-center">
                     Download a
-                    <a download title="Comma seperated CSV template" href="{% url 'download_product_template' 'product' 'csv' %}" class="text-primary">sample CSV</a>
+                    <a download href="{% url 'download_product_template' 'product' 'csv' %}" class="text-primary">sample CSV</a>
                     or
                     <a download href="{% url 'download_product_template' 'product' 'xlsx' %}" class="text-primary">sample XLS</a>
                 </div>
-
-
                 <!-- Duplicate Handling -->
                 <div class="mt-4 mb-3 px-5">
-
                     <div class="row">
                         <div class="col-sm-6 text-center">
-                            <label class="font-weight-bold ">Duplicate Handling:</label>
+                            <label class="font-weight-bold">Duplicate Handling:</label>
                         </div>
-
                         <div class="col-sm-6 text-left">
-
                             <label class="d-flex align-items-start">
                                 <input type="radio" name="dup" value="skip_duplicate" class="mr-2" checked>
-                                <div><strong>Skip Duplicates</strong></div>
+                                <span class="mt-n1 cursor-pointer"><strong>Skip Duplicates</strong></span>
                             </label>
-
+                                <small>Ignore products with the same SKU. Do not update existing products. Only create new ones.</small>
                             <label class="d-flex align-items-start mt-3">
                                 <input type="radio" name="dup" value="overwrite_existing" class="mr-2">
-                                <div><strong>Overwrite products</strong></div>
+                                <span class="mt-n1 cursor-pointer"><strong>Overwrite products</strong></span>
                             </label>
-
-                            <label class="d-flex align-items-start mt-3">
-                                <input type="radio" name="dup" value="allow_duplicates" class="mr-2">
-                                <div><strong>Add duplicates as new product</strong></div>
+                            <small>Update existing products that match the SKU. Create new records if the SKU is new.</small>
+                            <label class="text-gray d-flex align-items-start mt-3 ">
+                                <input disabled type="radio" name="dup" value="allow_duplicates" class="mr-2">
+                                <span class="mt-n1 "><strong>Add duplicates as new product</strong></span>
                             </label>
-
                         </div>
                     </div>
-
                 </div>
-
-
                 <!-- Encoding -->
                 <div class="mt-4">
                     <div class="row">
                         <div class="col-sm-6 text-center">
                             <label><strong>Character Encoding</strong></label>
                         </div>
-
                         <div class="col-sm-6">
                             <select class="form-control form-control-sm" name="encoding">
                                 <option value="utf-8">UTF-8 (Unicode)</option>
@@ -190,32 +163,21 @@
                         </div>
                     </div>
                 </div>
-
-
-                <!-- Footer Buttons -->
                 <div class="mt-4 mb-5 d-flex justify-content-between">
-
                     <a href="{% url 'all_products' %}" class="btn btn-secondary btn-sm">Cancel</a>
-                    <button type="submit" class="btn btn-primary btn-sm">Next</button>
+                    <button type="button" id="submitBtn" class="btn btn-primary btn-sm">Next</button>
                 </div>
-
             </div>
         </form>
-
     </div>
-
 </div>
 
 
+<!-- DROPZONE SCRIPT -->
 <script>
-
-
-
 Dropzone.autoDiscover = false;
 
 var selectedFile = null;
-
-// Init Dropzone
 var dz = new Dropzone("#vendorDropzone", {
     url: "#",
     autoProcessQueue: false,
@@ -226,13 +188,21 @@ var dz = new Dropzone("#vendorDropzone", {
 
     init: function () {
 
-        // When file added
+        this.on("maxfilesexceeded", function(file) {
+            this.removeAllFiles();
+            this.addFile(file);
+        });
+
+        this.on("uploadprogress", function (file, progress) {
+            let progressBar = file.previewElement.querySelector(".dz-upload");
+            progressBar.style.width = progress + "%";
+        });
+
         this.on("addedfile", function(file) {
             selectedFile = file;
             document.getElementById("uploaded_file_name").value = file.name;
         });
 
-        // When file removed
         this.on("removedfile", function() {
             selectedFile = null;
             document.getElementById("uploaded_file_name").value = "";
@@ -240,28 +210,64 @@ var dz = new Dropzone("#vendorDropzone", {
     }
 });
 
-
 // Attach file to form on submit
-document.getElementById("importForm").addEventListener("submit", function (e) {
+document.getElementById("submitBtn").addEventListener("click", function (e) {
+
+    e.preventDefault();
+    e.stopPropagation();
 
     if (!selectedFile) {
-        toastr.error("Please upload a file before proceeding.")
-        e.preventDefault();
-        return false;
+        toastr.error("Please upload a file before proceeding.");
+        return;
     }
 
-    // Convert dropzone file → real input file
-    var dt = new DataTransfer();
-    dt.items.add(selectedFile);
+    let formData = new FormData();
+    formData.append("import_file", selectedFile);
+    var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    formData.append("csrfmiddlewaretoken", csrfToken);
+    formData.append("encoding", document.querySelector('[name="encoding"]').value);
+    const dub = document.querySelector('input[name="dup"]:checked').value;
+    if (dub)
+        formData.append("dub", dub);
 
-    var input = document.createElement("input");
-    input.type = "file";
-    input.name = "import_file";
-    input.files = dt.files;
-    input.hidden = true;
-
-    this.appendChild(input);
+    // AJAX Request
+    $.ajax({
+        url: "{% url 'import_product_file_upload' %}",   // Your Django/FastAPI URL here
+        type: "POST",
+        data: formData,
+        processData: false,
+        contentType: false,
+        beforeSend: function () {
+            //$("#submitBtn").attr("disabled", true);
+        },
+        success: function (response) {
+            if (response.status)
+            {
+                $("#submitBtn").attr("disabled", true);
+                $("#submitBtn").html("Submitting ...");
+                toastr.success("File uploaded successfully!");
+                setTimeout(()=>{
+                    window.location.href = response?.data.redirect_url;
+                },600)
+            }else{
+                toastr.error("Error");
+                Swal.fire({
+                    title: "Error",
+                    html: response.message,
+                    icon: "warning",
+                    showCancelButton: false,
+                    confirmButtonText: "Ok",
+                });
+            }
+        },
+        error: function (xhr) {
+            toastr.error("Upload failed!");
+        },
+        complete: function () {
+        }
+    });
 });
+
 </script>
 
 {% endblock %}

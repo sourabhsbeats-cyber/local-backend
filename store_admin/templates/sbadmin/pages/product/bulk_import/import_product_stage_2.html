@@ -1,6 +1,6 @@
 {% extends "sbadmin/base.html" %}
 {% load custom_filters %}
-{% block title %}Import Products{% endblock %}
+{% block title %}Import Product{% endblock %}
 {% block content %}
 
 <style>
@@ -77,14 +77,14 @@
                 <div class="step-circle">
                     <i class="fas fa-check-circle text-success"></i>
                 </div>
-                <div>Map Fields</div>
+                <div>Preview</div>
             </div>
 
             <div class="step-item">
                 <div class="step-circle">
                     <i class="fas fa-info-circle text-primary"></i>
                 </div>
-                <div>Preview</div>
+                <div>Confirm</div>
             </div>
         </div>
 
@@ -118,7 +118,7 @@
                         {% for row in records_preview %}
                         <tr>
                             {% for h in headers %}
-                                <td>{{ row|get_item:h|default_if_none:"" }}</td>
+                                <td style="max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{{ row|get_item:h|default_if_none:"" }}</td>
                             {% endfor %}
                         </tr>
                         {% endfor %}
@@ -128,7 +128,7 @@
 
             <!-- Footer Buttons -->
             <div class="mt-4 d-flex justify-content-between mb-5">
-                <a href="{% url 'import_product_stage_map' %}" class="btn btn-secondary btn-sm">Previous</a>
+                <a href="{% url 'all_products' %}" class="btn btn-secondary btn-sm">Cancel</a>
                 <button type="submit" class="btn btn-success btn-sm">
                     <i class="fas fa-check mr-1"></i> Confirm & Import
                 </button>

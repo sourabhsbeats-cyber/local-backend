@@ -27,9 +27,8 @@ SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', cast=bool)
-
+CDN_DOMAIN = config('CDN_DOMAIN')
 ALLOWED_HOSTS = config("ALLOWED_HOSTS").split(",")
-
 
 # Application definition
 
@@ -60,9 +59,12 @@ ROOT_URLCONF = 'sbadmin.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'store_admin', 'templates')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'store_admin', 'templates'),  # ✅ app level
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
+            "debug": False,  # ✅ Add or change this line here
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',

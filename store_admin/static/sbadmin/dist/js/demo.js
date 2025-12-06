@@ -37,7 +37,7 @@
     'navbar-orange',
   ]
  $container.append(
-    '<a href="../logout"><i class="fas fa-power-off mr-2"></i> Logout </a><hr class="mb-2"/>'
+    '<a href="/logout"><i class="fas fa-power-off mr-2"></i> Logout </a><hr class="mb-2"/>'
   )
   $container.append(
     '<h5>Customize </h5><hr class="mb-2"/>'

@@ -169,6 +169,36 @@ def all_vendors(request):
 
     return render(request, 'sbadmin/pages/vendor/all_listing.html', context)
 
+
+def api_get_vendor_by_id(request, vendor_id):
+    try:
+        vendor = Vendor.objects.annotate(
+            name=Concat(
+                'salutation', V(' '),
+                'first_name', V(' '),
+                'last_name'
+            )
+        ).values(
+            'id',
+            'name',
+            'display_name',
+            'company_name',
+            'vendor_code',
+            'currency',
+            'payment_method',
+            'payment_term_id'
+        ).get(id=vendor_id)
+
+        return JsonResponse({
+            "status": True,
+            "data": vendor
+        })
+
+    except Vendor.DoesNotExist:
+        return JsonResponse({
+            "status": False,
+            "message": "Vendor not found"
+        }, status=404)
 import re
 @login_required
 def save_vendor(request):
