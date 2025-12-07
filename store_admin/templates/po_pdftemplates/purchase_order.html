@@ -1,0 +1,234 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Purchase Order</title>
+
+<style>
+
+    /* ---------------------- FONT FIX ---------------------- */
+    @font-face {
+        font-family: 'Inter';
+        src: url('{{ base_url }}{% static "fonts/static/Inter_18pt-Regular.ttf" %}') format("truetype");
+        font-weight: 400;
+    }
+
+    @font-face {
+        font-family: 'Inter';
+        src: url('{{ base_url }}{% static "fonts/static/Inter_18pt-SemiBold.ttf" %}') format("truetype");
+        font-weight: 600;
+    }
+
+    body {
+        font-family: 'Inter', sans-serif;
+        color: #333;
+        font-size: 13px;
+        line-height: 1.22;
+        margin: 0;
+    }
+
+    /* ---------------------- PAGE + FOOTER FIX ---------------------- */
+    @page {
+        size: A4;
+        margin: 6mm 6mm 14mm 6mm;
+
+        /* Footer line */
+        @bottom-left {
+            content: "";
+            border-top: 1px solid #999;
+            width: 100%;
+            margin-top: 4px;
+        }
+
+        /* Footer centered text, one line, no wrap */
+        @bottom-center {
+            content: "{{ company_name }} | {{ company_website }} | {{ company_phone }} • Page " counter(page) " of " counter(pages);
+            font-size: 9px;
+            color: #555;
+            text-align: center;
+            white-space: nowrap;
+        }
+    }
+
+    /* ---------------------- HEADER ---------------------- */
+
+    .header-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px; /* spacing fix */
+    }
+
+    .header-table td {
+        vertical-align: top;
+    }
+
+    .header-left { width: 60%; }
+    .header-right { width: 40%; text-align: right; }
+
+    .company-name {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+
+    .po-title {
+        font-size: 28px;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    /* ---------------------- ADDRESS BLOCK FIX ---------------------- */
+
+    .address-table {
+        width: 100%;
+        margin-top: 10px; /* spacing reduced */
+        margin-bottom: 12px;
+    }
+
+    .address-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+        font-size: 14px;
+    }
+
+    .address-block {
+        white-space: pre-line; /* KEY FIX: preserves line breaks */
+        line-height: 17px;
+    }
+
+    /* ---------------------- ITEMS TABLE ---------------------- */
+
+    .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+        font-size: 12px;
+    }
+
+    .items-table th {
+        background: #333;
+        color: #fff;
+        padding: 8px;
+        text-align: left;
+        font-weight: 600;
+    }
+
+    .items-table td {
+        padding: 8px;
+        border: 1px solid #ddd;
+    }
+
+    .right { text-align: right; }
+
+    /* ---------------------- SUMMARY ---------------------- */
+
+    .summary-table {
+        width: 30%;
+        margin-left: auto;
+        margin-top: 16px;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+
+    .summary-table td {
+        padding: 6px;
+    }
+
+    .summary-label { text-align: left; color: #333; }
+    .summary-value { text-align: right; font-weight: 600; }
+
+</style>
+</head>
+
+<body>
+
+<!-- HEADER -->
+<table class="header-table">
+    <tr>
+        <td class="header-left">
+            <img src="{{ logo_url }}" style="width:260px; margin-bottom:12px;">
+            <div class="company-name">{{ company_name }}</div>
+
+            <div>{{ company_tagline }}</div>
+            <div>{{ company_address.line1 }}</div>
+            <div>{{ company_address.line2 }}</div>
+            <div>{{ company_address.city }} {{ company_address.postcode }}</div>
+            <div>{{ company_address.country }}</div>
+            <div style="margin-top:4px;">{{ company_phone }} | {{ company_email }}</div>
+        </td>
+
+        <td class="header-right">
+            <div class="po-title">PURCHASE ORDER</div>
+            <div><strong># {{ po.number }}</strong></div>
+            <div>Date: {{ po.date }}</div>
+            <div>Ref#: {{ po.ref }}</div>
+        </td>
+    </tr>
+</table>
+
+
+<!-- ADDRESSES -->
+<table class="address-table">
+    <tr>
+        <td style="width:50%;">
+            <div class="address-title">Vendor Address</div>
+            <strong>{{ po.vendor.name }}</strong>
+            <div class="address-block">{{ po.vendor.address }}</div>
+        </td>
+
+        <td style="width:5%;"></td>
+
+        <td style="width:45%;">
+            <div class="address-title">Deliver To</div>
+            <strong>{{ po.deliver_to.name }}</strong>
+            <div class="address-block">{{ po.deliver_to.address }}</div>
+        </td>
+    </tr>
+</table>
+
+
+<!-- ITEMS TABLE -->
+<table class="items-table">
+    <thead>
+        <tr>
+            <th style="width:30px;">#</th>
+            <th>Item & Description</th>
+            <th style="width:70px;" class="right">Qty</th>
+            <th style="width:90px;" class="right">Rate</th>
+            <th style="width:100px;" class="right">Amount</th>
+        </tr>
+    </thead>
+
+    <tbody>
+        {% for item in po.items %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ item.name }}</td>
+            <td class="right">{{ item.qty }}</td>
+            <td class="right">{{ item.rate|floatformat:2 }}</td>
+            <td class="right">{{ item.amount|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+
+<!-- SUMMARY -->
+<table class="summary-table">
+    <tr>
+        <td class="summary-label">Sub Total</td>
+        <td class="summary-value">{{ subtotal|floatformat:2 }}</td>
+    </tr>
+    <tr>
+        <td class="summary-label">GST ({{ gst_percent }}%)</td>
+        <td class="summary-value">{{ gst_amount|floatformat:2 }}</td>
+    </tr>
+    <tr>
+        <td class="summary-label" style="font-weight:600;">Total</td>
+        <td class="summary-value">{{ total|floatformat:2 }}</td>
+    </tr>
+</table>
+
+</body>
+</html>

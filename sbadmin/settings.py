@@ -142,18 +142,19 @@ LOGOUT_REDIRECT_URL = '/login/'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_URL = '/static/'
+#STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 if os.environ.get("DJANGO_ENV") == "production":
     # Server mode
     STATIC_ROOT = '/var/www/html/sbadmin/static/'
-    STATICFILES_DIRS = []
+
 else:
     # Local development
-    STATICFILES_DIRS = [
+    STATIC_ROOT = os.path.join(BASE_DIR, 'static')
+
+STATICFILES_DIRS = [
         os.path.join(BASE_DIR, 'store_admin', 'static'),
     ]
-
 #STATIC_ROOT = '/var/www/html/sbadmin/static/'
 #STATICFILES_DIRS = [os.path.join(BASE_DIR, 'store_admin', 'static')]
 # Default primary key field type

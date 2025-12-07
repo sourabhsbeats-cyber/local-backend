@@ -10,6 +10,7 @@ class POStatus(models.IntegerChoices):
 
 class PurchaseOrder(models.Model):
     po_id = models.AutoField(primary_key=True)
+    po_number = models.CharField(max_length=20)
     vendor_id = models.IntegerField(max_length=50)
     vendor_code = models.CharField(max_length=50)
     vendor_name = models.CharField(max_length=200)

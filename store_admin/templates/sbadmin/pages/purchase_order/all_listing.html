@@ -84,10 +84,10 @@ document.addEventListener("DOMContentLoaded", function () {
         height:"400px",
       layout: "fitColumns",
       placeholder:"No Records found",
-      ajaxURL: "{% url 'all_products_json' %}",
+      ajaxURL: "{% url 'all_purchases_json' %}",
       ajaxConfig: "GET",
       pagination: true,
-      paginationMode: "remote",movableColumns: true,
+      paginationMode: "remote", movableColumns: true,
       paginationSize: 20,
       paginationCounter: "pages",
       paginationSizeSelector: [20, 30, 40, 50], // max 50 allowed
@@ -114,27 +114,50 @@ document.addEventListener("DOMContentLoaded", function () {
               headerHozAlign:"center",
               hozAlign:"center", headerSort:false,
               width:40},
-          {title:"#", field:"rowno"},
-          {title:"Supplier Code", field:"supplier_code", width:120, headerHozAlign:"center",
-              hozAlign:"center",},
-          {title:"Product", field:"brand_name_val", width:220},
-          {title:"Delivery Date", field:"product_type_name" , hozAlign:"center", width:180},
-          {title:"Order QTY", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Unit", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Price", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Discount", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Disc. Price", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Tax Rate", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Total", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Unit Cost", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Costing", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Total Unit Cost", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Final Cost", field:"total_stock_qty",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"", width:90, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
-              const id = cell.getValue();
-              const url = "{% url 'edit_product' 0 %}".replace("0", id);
-              return `<a href="${url}" class="btn btn-sm btn-outline-success mr-1"><i class="fas fa-pen"></i></a>
-                      <button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${id})"><i class="fas fa-trash-alt"></i></button>`;
+          {
+                title: "Order No",
+                field: "po_number",
+                width: 110,
+                headerHozAlign: "center",
+                hozAlign: "center",
+                formatter: function (cell) {
+                    const po_id = cell.getData().po_id;
+                    const po_number = cell.getValue();
+                    const url = "{% url 'create_order' 0 %}".replace("0", po_id);
+
+                    return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
+                }
+            },
+          {title:"Order Date", field:"order_date", width:100},
+          {title:"Delivery Date", field:"delivery_date" , hozAlign:"center", width:120},
+          {title:"Vendor Name", field:"vendor_name",hozAlign:"center",width:120,headerHozAlign:"center"},
+          {title:"Reference", field:"vendor_reference",hozAlign:"center",width:110,headerHozAlign:"center"},
+          {
+                title: "Status",
+                field: "status_id",
+                width: 120,
+                hozAlign: "center",
+                headerHozAlign: "center",
+                formatter: function (cell) {
+                    const status = cell.getValue();
+
+                    const statusMap = {
+                        0: "Created",
+                        1: "Approved",
+                        2: "Cancelled",
+                        3: "Completed"
+                    };
+
+                    return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
+                }
+          },
+          {title:"Warehouse", field:"warehouse_name",hozAlign:"center",width:150,headerHozAlign:"center"},
+          {title:"Currency", field:"currency_code",hozAlign:"center",width:90,headerHozAlign:"center"},
+          {title:"Total", field:"total_val",hozAlign:"center",width:120,headerHozAlign:"center"},
+          {title:"", width:70, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
+              const po_id = cell.getValue();
+              const url = "{% url 'create_order' 0 %}".replace("0", po_id);
+              return `<button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${po_id})"><i class="fas fa-trash-alt"></i></button>`;
           }}
       ]
   });

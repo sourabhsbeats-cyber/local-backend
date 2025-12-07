@@ -16,8 +16,9 @@ urlpatterns = [
     path('create/', purchase_orders_view.create_order, name='create_order'),                 # no ID → create new draft PO
     path('create/<int:po_id>/', purchase_orders_view.create_order, name='create_order'),    # with ID → edit PO
     path('save', purchase_orders_view.save_po, name='save_po_order'),
+    path('generatepdf', purchase_orders_view.generate_po_pdf, name='generate_po_order'),
 
     path('listing', purchase_orders_view.listing, name='po_listing'),
-    #path('api/allproducts', product_view.products_json, name='all_products_json'),
+    path('api/allpurchases', purchase_orders_view.all_purchases, name='all_purchases_json'),
 ]
 

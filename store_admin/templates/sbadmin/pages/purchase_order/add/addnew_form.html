@@ -8,7 +8,7 @@
     <div class="container-fluid">
       <div class="row mb-2 align-items-center">
         <div class="col-sm-6">
-          <h4 class="m-0">Purchase Order - Create</h4>
+          <h4 class="m-0">Purchase Order - <strong>{{ po.po_number }}</strong></h4>
         </div>
         <div class="col-sm-6">
           <ol class="breadcrumb float-sm-right">
@@ -20,7 +20,7 @@
     </div>
   </section>
   <div class="card-header pr-0">
-    <a href="{% url 'all_products' %}" class="text-danger float-right pt-2 btn btn-tool">
+    <a href="{% url 'po_listing' %}" class="text-danger float-right pt-2 btn btn-tool">
       <i class="fas fa-times"></i>
     </a>
   </div>
@@ -49,13 +49,13 @@
                     <div class="form-group row ">
                         <label class="col-sm-3 col-form-label">Currency Code</label>
                         <div class="col-sm-9">
-                            <input type="text"  value="{{ po.currency_code }}" name="currency_code" id="currency_code" class="w-50 form-control" disabled/>
+                            <input type="text"  value="{{ po.currency_code|hide_none }}" name="currency_code" id="currency_code" class="w-50 form-control" disabled/>
                         </div>
                     </div>
                     <div class="form-group row ">
                         <label class="col-sm-3 col-form-label">Vendor Reference</label>
                         <div class="col-sm-9">
-                          <input type="text" value="{{ po.vendor_reference }}" name="vendor_reference" id="vendor_reference" class="w-50 form-control" />
+                          <input type="text" value="{{ po.vendor_reference|hide_none }}" name="vendor_reference" id="vendor_reference" class="w-50 form-control" />
                         </div>
                     </div>
                     <div class="form-group row">
@@ -103,45 +103,45 @@
                     <div class="form-group row">
                         <label class="col-sm-3 col-form-label">Delivery Name</label>
                         <div class="col-sm-9">
-                          <input type="text" value="{{ po.delivery_name }}" id="delivery_name" name="delivery_name" class="form-control w-50" placeholder=""/>
+                          <input type="text" value="{{ po.delivery_name|hide_none }}" id="delivery_name" name="delivery_name" class="form-control w-50" placeholder=""/>
                         </div>
                     </div>
 
                     <div class="form-group row ">
                         <label class="col-sm-3 col-form-label">Address Line 1</label>
                         <div class="col-sm-9">
-                          <input type="text" value="{{ po.address_line1 }}"  id="address_line1" name="address_line1" class="form-control w-50" placeholder=""/>
+                          <input type="text" value="{{ po.address_line1|hide_none }}"  id="address_line1" name="address_line1" class="form-control w-50" placeholder=""/>
                         </div>
                     </div>
                     <div class="form-group row ">
                         <label class="col-sm-3 col-form-label">Address Line 2</label>
                         <div class="col-sm-9">
-                          <input type="text"  value="{{ po.address_line2 }}"  name="address_line2" id="address_line2" class="w-50 form-control" />
+                          <input type="text"  value="{{ po.address_line2|hide_none }}"  name="address_line2" id="address_line2" class="w-50 form-control" />
                         </div>
                     </div>
                     <div class="form-group row ">
                         <label class="col-sm-3 col-form-label">Suburb</label>
                         <div class="col-sm-9">
-                          <input type="text" name="suburb"  value="{{ po.suburb }}" id="suburb" class="w-50 form-control" >
+                          <input type="text" name="suburb"  value="{{ po.suburb|hide_none }}" id="suburb" class="w-50 form-control" >
                         </div>
                     </div>
                     <div class="form-group row">
                         <label class="col-sm-3 col-form-label">City</label>
                         <div class="col-sm-9">
-                          <input type="text" name="city"  value="{{ po.city }}"  id="city" class="w-50 form-control" >
+                          <input type="text" name="city"  value="{{ po.city|hide_none }}"  id="city" class="w-50 form-control" >
                         </div>
                     </div>
                      <div class="form-group row">
                         <label class="col-sm-3 col-form-label">State</label>
                         <div class="col-sm-9">
-                          <input type="text" name="state"  value="{{ po.state }}"   id="state" class="w-50 form-control" >
+                          <input type="text" name="state"  value="{{ po.state|hide_none }}"   id="state" class="w-50 form-control" >
                         </div>
                     </div>
 
                     <div class="form-group row">
                         <label class="col-sm-3 col-form-label">Post Code</label>
                         <div class="col-sm-9">
-                          <input type="text" name="post_code" value="{{ po.post_code }}"  id="post_code" class="w-50 form-control" />
+                          <input type="text" name="post_code" value="{{ po.post_code|hide_none }}"  id="post_code" class="w-50 form-control" />
                         </div>
                     </div>
 
@@ -159,7 +159,7 @@
                     <div class="form-group row">
                         <label class="col-sm-3 col-form-label">Tax %</label>
                         <div class="col-sm-9">
-                          <input type="number" value="{{ po.tax_percentage }}" name="tax_percentage" data-min-value="0" data-max-value="100" id="tax_percentage" class="percentager w-50 form-control" />
+                          <input type="number" value="{{ po.tax_percentage|hide_none }}" name="tax_percentage" data-min-value="0" data-max-value="100" id="tax_percentage" class="percentager w-50 form-control" />
                         </div>
                     </div>
                 </div>
@@ -242,7 +242,7 @@
             <div class="col-6">
 
               <p class="lead">Comments:</p>
-                <textarea id="comments" class="form-control " rows="4" style="width:75%" name="comments">{{ po.comments }}</textarea>
+                <textarea id="comments" class="form-control " rows="4" style="width:75%" name="comments">{{ po.comments|hide_none }}</textarea>
             </div>
             <!-- /.col -->
             <div class="col-2">
@@ -273,14 +273,16 @@
             <div class="col-12">
               <!--<button href="invoice-print.html" class="btn btn-default"><i class="fas fa-print"></i> Print</button>-->
               <button title="Create Purchase Order" id="btn_po_create" type="button"
-                      class="btn btn-success float-right mr-2"><i class="far fa-credit-card"></i> Create
+                      class="btn btn-success float-right mr-2"><i class="far fa-credit-card"></i> Save
               </button>
             <!--  <button type="button" id="btn_po_save" class="btn btn-info float-right mr-2">
                  <i class="fa fa-save"></i> Save
               </button>-->
-              <button title="Generate PDF" id="btn_po_generate_pdf" type="button" class="btn btn-primary float-right mr-2" >
+
+              <button {% if not can_pdf_generate %}disabled{% endif %} title="Generate PDF" id="btn_po_generate_pdf" type="button" class="btn btn-primary float-right mr-2" >
                 <i class="fas fa-download"></i> Generate PDF
               </button>
+
               <a href="{% url 'all_products' %}" class="btn btn-secondary ml-2" ><i class="fas fa-history"></i>
                 Cancel</a>
             </div>
@@ -474,8 +476,8 @@ function renderLineItems() {
             </td>
             <td class="editable qty align-middle text-decoration-underline  text-right">${item.qty}</td>
             <td class="editable price align-middle text-decoration-underline  text-right">${item.price}</td>
-            <td class="editable tax align-middle text-decoration-underline  text-right">${item.tax}</td>
-            <td class="editable discount align-middle text-decoration-underline text-right">${item.discount}</td>
+            <td class=" tax align-middle text-decoration-underline  text-right">${item.tax}</td>
+            <td class="editable discount align-middle text-right">${item.discount}</td>
             <td id="sub_total_${index}" class=" discount align-middle text-right">${item.sub_total.toFixed(2)}</td>
             <td id="tax_amount_${index}" class=" discount align-middle text-right">${item.tax_amount.toFixed(2)}</td>
             <td id="line_total_${index}" class="align-middle text-right">${item.line_total.toFixed(2)}</td>
@@ -707,6 +709,55 @@ function validatePOForm(){
 
 document.addEventListener("DOMContentLoaded", function () {
     $(".percentager").smartNumericInput();
+
+    const po_generate_pdf = document.getElementById("btn_po_generate_pdf");
+    po_generate_pdf.addEventListener("click", function(e){
+         e.preventDefault();
+        e.stopPropagation();
+        if(validatePOForm()){
+            let jsonData = {"po_id":"{{ po.po_id }}"};
+            po_generate_pdf.disabled = true;
+            po_generate_pdf.innerHTML = `<i class="fa fa-spinner fa-spin"></i> Generating...`;
+            fetch("{% url 'generate_po_order' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify(jsonData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("Network response was not ok");
+                }
+                return response.blob();
+            })
+            .then(blob  => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "purchase_order.pdf";
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                a.remove();
+                window.URL.revokeObjectURL(url);
+
+                toastr.success("PDF downloaded successfully!");
+            })
+            .catch(error => {
+                toastr.error("Error saving PO.");
+                console.error("Fetch error:", error);
+            })
+            .finally(() => {
+                po_generate_pdf.disabled = false;
+                po_generate_pdf.innerHTML = `<i class="fa fa-file-pdf"></i> Generate PDF`;
+            });
+            //po_create.setAttribute("disabled", true)
+        }
+    });
+
     const po_create = document.getElementById("btn_po_create");
     po_create.addEventListener("click", function(e){
         e.preventDefault();
