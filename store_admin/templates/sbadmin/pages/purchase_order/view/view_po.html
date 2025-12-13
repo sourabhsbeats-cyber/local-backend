@@ -1,0 +1,841 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Add PO{% endblock %}
+{% block content %}
+<style>
+    .back-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1px solid #e5e8ec;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    color: #333;
+    box-shadow: 0px 3px 10px rgba(0,0,0,0.05);
+    transition: 0.2s ease;
+    padding: 0;
+}
+
+.back-btn:hover {
+    background: #f9fafb;
+    border-color: #d6d9dd;
+}</style>
+<div class="content-wrapper">
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="page-wrapper">
+                <div class="col-md-12 p-0 m-0  clearfix">
+                    <div class="col-lg-9  float-left">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div class="d-flex align-items-center">
+                                <button class="back-btn" onclick="window.history.back()">
+                                    <i class="fa fa-chevron-left"></i>
+                                </button>
+                                <h4 class="mb-0 font-weight-bold">Order #{{ po.po_number }}</h4>
+                                <span class="status-active ml-2">
+                                    <i class="fa fa-bolt fa-small text-small"></i> 
+                                    <span class="badge badge-pill badge-info">{% if po.status_id == 0 %}
+                                        New
+                                        {% elif po.status_id == 1 %}
+                                        Approved
+                                        {% elif po.status_id == 2 %}
+                                        Cancelled
+                                        {% elif po.status_id == 3 %}
+                                        Completed
+                                        {% endif %} 
+                                    </span>
+                                </span>
+                            </div>
+                            <div>
+                                <button id="btn_po_generate_pdf" class="btn btn-light border mr-2" style="border-radius: 8px;">
+                                    <i class="fa fa-download mr-1"></i> Export
+                                </button>
+
+                                <a href="{% url 'create_order' po.po_id %}" class="btn btn-light border" style="border-radius: 8px;">
+                                    <i class="fas fa-pencil-alt mr-1"></i> Edit
+                                </a>
+
+                                <div class="vertical-divider mx-3 d-inline-block"></div>
+
+                                <div class="btn-group mr-2">
+                                    <button type="button" class="btn btn-dark" style="border:1px solid #fff;border-radius:8px 0 0 8px;">
+                                        Action
+                                    </button>
+                                    <button type="button" class="btn btn-dark dropdown-toggle dropdown-icon"
+                                            data-toggle="dropdown"
+                                            style="border-radius:0 8px 8px 0;border:1px solid #fff">
+                                    </button>
+
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit </a>
+                                        <!--<a class="dropdown-item" href="#">Another action</a>
+                                        <a class="dropdown-item" href="#">Something else</a>
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item" href="#">Separated link</a>-->
+                                    </div>
+                                </div>
+
+                                <div class="dropdown d-inline-block">
+                                    <button class="more-btn" data-toggle="dropdown">
+                                        <i class="fa fa-ellipsis-h text-muted"></i>
+                                    </button>
+
+                                    <div class="dropdown-menu dropdown-menu-right">
+                                        <a class="dropdown-item" target="_blank" href="{% url 'create_order' po.po_id %}">Print</a>
+                                       <!-- <a class="dropdown-item" href="#">Another Action</a> 
+                                        <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item" href="#">Separated link</a> -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-sm-6">
+                                <div style="font-size:14px;">
+                                    <span class="text-muted">Created by</span> Admin
+                                    <i class="fa fa-circle text-secondary ml-1" style="font-size:6px;"></i>
+                                    <i class="fa fa-box ml-2 mr-1 text-secondary"></i> <span id="total_products"></span>
+                                </div>
+                            </div>
+
+                            <div class="col-sm-6 text-right">
+                                <div style="font-size:14px;">
+                                    <span class="text-muted">Order created</span> {{ po.created_at }}
+                                </div>
+                            </div>
+                        </div>
+                         <div class="card-custom pt-2 mt-3 ">
+                            <div class="card-header p-2 clearfix">
+                                <div class="user-block float-left help-text" title="Vendor Details">
+                                     <div id="avatarBox" class="avatar-circle user-avatar"></div>
+                                    <span class="username"><a href="#">{{ vendor.vendor_code }}</a></span>
+                                    <span class="description">{{ po.vendor_name }}</span>
+                                </div>
+                                <div class="btn-soft-wrap float-right">
+                                    <button class="btn-soft btn-light btn"><i class="fa fa-paperclip"></i> (0) Attachments</button>
+                                   <button {% if vendor.email_address %}
+                                            onclick="window.location='mailto:{{ vendor.email_address }}?subject=PO%20Request'"
+                                        {% else %} disabled {% endif %} class="btn-soft btn-light btn">
+                                        <i class="fa fa-envelope"></i> Send Email
+                                    </button>
+                                    <button  {% if vendor.mobile_number %} onclick="window.location='tel:{{ vendor.mobile_number }}'"
+                                        {% else %}  disabled {% endif %} class="btn-soft btn-light btn" >
+                                        <i class="fa fa-phone"></i> {{ vendor.mobile_number|default:"No Phone" }}
+                                    </button>
+                                </div>
+
+                            </div>
+
+                            <div class="card-body">
+
+
+                                <div class="col-md-4 p-2 pl-0 float-left invoice-col">
+                                  <b><span class="text-muted">Reference #</span> {{ po.vendor_reference }}</b><br>
+                                  <b>Vendor Code:</b> {{ po.vendor_code }}<br>
+                                  <b>Vendor Name:</b> {{ po.vendor_name }}<br>
+                                  <b>Currency Code:</b> {{ po.currency_code }}<br>
+                                  <b>Order Date:</b> {{ po.order_date }}<br>
+                                  <b>Expected Delivery Date:</b> {{ po.delivery_date }}<br>
+                                </div>
+                               
+
+                                <div class="col-md-4 p-2 float-left">
+                                    <div class=" invoice-col">
+                                      <h6 class="text-muted"><b>Shipping Info</b></h6>
+                                      <span id="trackingRef"><b>Tracking Ref:</b> {% if shipping.tracking_number == "" %} 
+                                        {% else %} {{ shipping.tracking_number }}</span></b>
+                                        <button class="copy-btn" onclick="copyTrackingRef('ref')">
+                                            <i class="fa fa-copy"></i>
+                                        </button>{% endif %}<div class="clearfix"></div>
+                                        <span class="float-left"><b>Link:</b></span>
+                                            {% if shipping.website %}
+                                                <div class="float-left ml-2" 
+                                                    id="trackingLink">
+                                                    {{ shipping.website }}
+                                                </div>
+                                                <button class="copy-btn float-left ml-2" onclick="copyTrackingRef('link')">
+                                                    <i class="fa fa-copy"></i>
+                                                </button>
+                                            {% endif %}
+                                            <div class="clearfix"></div>
+                                      <b>Provider:</b> {{ shipping.provider }}<div class="clearfix"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 p-2 pt-0 float-left">
+                                    <div class=" invoice-col">
+                                        <div class=" ">
+                                            <strong><i class="far fa-file-alt mr-1"></i> Tax:  <span class="text-muted">{{ po.tax_percentage }}%</span> </strong>
+                                        </div>
+                                        <hr/>
+                                         <div class="">
+                                            <strong><i class="fas fa-map-marker-alt mr-1"></i> Warehouse Location</strong>
+                                            <p class="text-muted">
+                                                {% for payment_term in payment_terms %}
+                                                    {% if po.payment_term_id == payment_term.id %}
+                                                        {{ payment_term.name }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </p>
+                                        </div>
+
+                                        <div class="">
+                                            <strong><i class="far fa-file-alt mr-1"></i> Payment Terms</strong>
+                                            <p class="text-muted">
+                                                {% for warehouse in warehouses %}
+                                                    {% if po.warehouse_id == warehouse.warehouse_id %}
+                                                        {{ warehouse.warehouse_name }}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card-footer p-2 " >
+                                <div class="user-block d-flex align-items-center help-text" title="Deliver To">
+                                    <div class="icon-circle mr-2">
+                                        <i class="fa fa-map-marker-alt"></i>
+                                    </div>
+                                    <div>
+                                        <span class="font-weight-bold">{{ po.delivery_name }}</span><br>
+                                        <span class="text-muted">{{ po.address_line1 }} {{ po.address_line2 }},
+                                            {{ po.state }}, {{ po.city }} - {{ po.post_code }},
+                                            {% for country in country_list %}
+                                                {% if po.country_id == country.id %}{{ country.name }} {% endif %}
+                                            {% endfor %}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3  float-left">
+                        <div class="card">
+                          <div class="card-header p-2">
+                            <ul class="nav nav-pills">
+                              <li class="nav-item"><a class="nav-link active" href="#activity" data-toggle="tab">Payments</a></li>
+                              <li class="nav-item"><a class="nav-link" href="#timeline" data-toggle="tab">Notes</a></li>
+
+                            </ul>
+                          </div><!-- /.card-header -->
+                          <div class="card-body">
+                            <div class="tab-content">
+                              <div class="tab-pane active" id="activity">
+                                <!-- Post -->
+                                <div class="post">
+                                  <div class="user-block">
+                                    <div class=" shadow-sm" >
+
+                        <!-- STATUS -->
+                        <div class="mb-3">
+                            <small class="text-muted font-weight-bold">STATUS:</small>
+                            <span class="badge badge-pill status-pill ml-1">Unpaid</span>
+                        </div>
+                        <!-- INVOICE -->
+                        <div class="mb-3 pb-3 border-bottom">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fa fa-file-invoice text-secondary mr-2"></i>
+                                <span class="font-weight-bold">Invoice</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">INV-001</span>
+                                <span class="text-dark font-weight-bold" id="po_out_standing_invoice">$600.00</span>
+                            </div>
+                        </div>
+                        <!--
+                        <div class="mb-3 pb-3 border-bottom">
+                        <div class="d-flex align-items-center mb-2">
+                                <i class="fa fa-wallet text-secondary mr-2"></i>
+                                <span class="font-weight-bold">Payment Receive</span>
+                                <span class="badge badge-light ml-2">1</span>
+                            </div> 
+                            <div class="d-flex justify-content-between mb-1">
+                                <div>
+                                    <span class="font-weight-bold">#1</span>
+                                    <span class="ml-2">6 Nov 2022</span><br>
+                                    <small class="text-muted">Bank transfer</small>
+                                </div>
+                                <span class="text-success font-weight-bold">+ $200.00</span>
+                            </div>
+                        </div>-->
+                        <!-- PAYMENT SUMMARY -->
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Paid</span>
+                                <span class="font-weight-bold">0.00</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="text-muted">Outstanding</span>
+                                <span class="font-weight-bold" id="po_out_standing">$400.00</span>
+                            </div>
+                        </div>
+                        <!-- BUTTON -->
+                        <div class="dropdown">
+                            <button class="btn btn-success btn-block dropdown-toggle"
+                                    type="button"
+                                    data-toggle="dropdown">
+                                Record Payment
+                            </button>
+
+                            <div class="dropdown-menu w-100">
+                                <a class="dropdown-item" href="#">Add Payment</a>
+                                <a class="dropdown-item" href="#">Refund</a>
+                            </div>
+                        </div>
+                        </div>
+                        </div>
+                        </div>
+                        </div>
+                        <div class="tab-pane" id="timeline">
+                            {{ po.comments|default:"--" }}
+                        </div>
+                                </div>
+                            </div>
+
+                        </div><!-- /.card-body -->
+                    </div>
+                </div><!-- div row end -->
+
+                <div class="col-md-12 clearfix row">
+                    <div class="card-custom p-3">
+                        <h5 class="mb-3">Products ({{ line_items|length }} Rows)</h5>
+                        <div class="table-responsive">
+                            <table class=" table" style="table-layout: fixed;">
+                                <thead>
+                                    <tr class="text-muted small">
+                                        <th style="width:40%;">ITEM DETAILS</th>
+                                        <th style="width:10%;">ORDER TYPE</th>
+                                        <th style="width:100px;">ORDER REF</th>
+                                        <th style="width:10%;"class="text-center">BARCODE LABEL TYPE</th>
+                                        <th style="width:10%;"class="text-center">QUANTITY</th>
+                                        <th style="width:10%;"class="text-right">RATE</th>
+                                        <th style="width:10%;"class="text-right">TOTAL PRICE</th>
+                                        <th style="width:10%;"class="text-right">DISCOUNT</th>
+                                        <th style="width:10%;"class="text-right">SUB TOTAL</th>
+                                        <th style="width:10%;"class="text-right">TAX</th>
+                                        <th style="width:10%;"class="text-right">TAX TOTAL</th>
+                                        <th style="width:10%;"class="text-right"> TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="product_line_item" class="border-bottom"></tbody>
+                            </table>
+                            <table class="summary-box float-right" style="width: 300px;">
+                                <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
+                                <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
+                                <tr><td>Surcharges</td><td class="text-right" id="surcharge_total_excl_tax">$0.00</td></tr>
+                                <tr><td>GST Total</td><td class="text-right" id="gst_total">$0.00</td></tr>
+                                <tr><td colspan="2" >&nbsp;</td></tr>
+                                <tr><td class="text-success" >Grand Total (Incl. GST)</td><td class="text-right" id="grand_total_incl_tax">$0.00</td></tr>
+                                <input type="hidden" id="surchase_total" value="{{ po.surcharge_total }}"/>
+                                <input type="hidden" id="shipping_total" value="{{ po.shipping_charge }}"/>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+ {% csrf_token %}
+ <style>
+    #trackingLink{
+        max-width:120px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:inline-block;
+    }
+    .status-pill {
+    background: #d4f5e9;
+    color: #0b8e5f;
+    font-size: 11px;
+    padding: 4px 10px;
+}
+
+.card i {
+    font-size: 18px;
+}
+
+.badge-light {
+    background: #f1f1f1;
+    color: #6c757d;
+}
+</style>
+  <script>
+function copyTrackingRef(ref) {
+    var text = document.getElementById(ref=="ref"?"trackingRef":"trackingLink").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        if(ref=="ref")
+            toastr.info("Tracking reference copied!");
+        else
+            toastr.info("Tracking link copied!");
+    });
+}
+</script>
+                                <script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    let name = "{{ po.vendor_name|default:'' }}";
+    let first = name.trim().charAt(0).toUpperCase();
+
+    if (!first) first = "?";  // fallback if name empty
+
+    document.getElementById("avatarBox").innerText = first;
+});
+</script>
+                                <style>
+                                    .user-block .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f1f1f1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 24px;
+    color: #444;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+
+    float: left;                 /* IMPORTANT → aligns same as image */
+    margin-right: 10px;          /* spacing like image */
+}
+
+                                    .avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #f1f1f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 20px;
+    color: #4a4a4a;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+}
+.copy-btn {
+    border: 1px solid #dcdfe3;
+    background: #fff;
+    padding: 1px 2px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: 0.2s ease;
+}
+
+.copy-btn i {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.copy-btn:hover {
+    background: #f3f4f6;
+    border-color: #c9ccd1;
+}
+
+                                </style>
+
+<script>
+
+document.addEventListener("DOMContentLoaded", function () {
+    function getCSRFToken() {
+        return document.querySelector('[name=csrfmiddlewaretoken]').value;
+    }
+
+    const po_generate_pdf = document.getElementById("btn_po_generate_pdf");
+    po_generate_pdf.addEventListener("click", function(e){
+         e.preventDefault();
+        e.stopPropagation();
+        let jsonData = {"po_id":"{{ po.po_id }}"};
+        po_generate_pdf.disabled = true;
+        po_generate_pdf.innerHTML = `<i class="fa fa-spinner fa-spin"></i> Exporting...`;
+        fetch("{% url 'generate_po_order' %}", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify(jsonData)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("Network response was not ok");
+            }
+            return response.blob();
+        })
+        .then(blob  => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "purchase_order.pdf";
+            document.body.appendChild(a);
+            a.click();
+
+            // Cleanup
+            a.remove();
+            window.URL.revokeObjectURL(url);
+
+            toastr.success("PDF downloaded successfully!");
+        })
+        .catch(error => {
+            toastr.error("Error saving PO.");
+            console.error("Fetch error:", error);
+        })
+        .finally(() => {
+            po_generate_pdf.disabled = false;
+            po_generate_pdf.innerHTML = `<i class="fa fa-download mr-1"></i> Export`;
+        });
+    });
+});
+</script>
+<style>
+.page-wrapper {
+}
+.card-custom {
+    border: 1px solid #dfdfdf;
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.product-img {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.vertical-divider {
+    width: 1px;
+    height: 24px;
+    vertical-align:middle;
+    background-color: #e2e6ea;
+}
+
+.more-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e5e8ec;
+    background: #fff;
+    border-radius: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    vertical-align:middle;
+}
+
+.more-btn:hover {
+    background: #f9fafb;
+    border-color: #dce1e6;
+}
+
+.btn-soft-wrap .btn-soft {
+    display: inline-block;
+    border: 1px solid #e4e7eb;
+    background: #fff;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #374151;
+    margin-right: 12px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.btn-soft-wrap .btn-soft i {
+    margin-right: 6px;
+    font-size: 15px;
+    color: #374151;
+}
+
+.btn-soft-wrap .btn-soft:hover {
+    background: #f9fafb;
+    border-color: #d5d9dd;
+}
+
+.icon-circle {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-circle i {
+    color: #6b7280;
+    font-size: 18px;
+}
+</style>
+
+<script>
+    document.querySelectorAll('.help-text').forEach(function (el) {
+    new bootstrap.Tooltip(el);
+});
+</script>
+{{ line_items|json_script:"initial_line_items" }}
+<script>
+// Clamp %
+function clampPercentage(v) {
+    if (!v) return 0;
+    v = parseFloat(v);
+    return Math.max(0, Math.min(100, v));
+}
+
+function calculateSubtotal() {
+    const qty = parseFloat($("#row_qty").val()) || 0;
+    const price = parseFloat($("#row_price").val()) || 0;
+    let discount = clampPercentage($("#row_discount_percentage").val());
+
+    let subtotal = qty * price;
+    subtotal -= subtotal * (discount / 100);
+
+    $("#row_sub_total_detail").text("Subtotal: " + subtotal.toFixed(2));
+}
+
+let lineItems = JSON.parse(document.getElementById("initial_line_items").textContent);
+
+renderLineItems()
+// RENDER TABLE
+function renderLineItems() {
+    const tbody = $("#product_line_item");
+    if (!lineItems.length) {
+        tbody.html(`<tr><td colspan="10" class="text-center">No records found</td></tr>`);
+        return;
+    }
+    let html = "";
+    lineItems.forEach((item, index) => {
+        html += `
+        <tr data-index="${index}" class="po-line-row">
+            <td class="align-middle">
+                <div class="d-flex align-items-center">
+                    <img src="${item.row_item.image}" width="28" height="28" class="rounded border mr-2">
+                    <div>
+                        <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.row_item.sku}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>ASIN:</strong> ${item.row_item.asin}, <strong>FNSKU:</strong> ${item.row_item.fnsku}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>EAN:</strong> ${item.row_item.ean}, <strong>Prep Type:</strong> ${item.row_item.prep_type}</div>
+                    </div>
+                </div>
+            </td>
+            <td class="align-middle text-center">${item.row_item.order_type || "--"}</td>
+            <td class="align-middle text-center" style="overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;">${item.row_item.order_ref || "--"}</td>
+            <td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>
+            <td class=" qty align-middle text-decoration-dotted text-right">${item.qty}</td>
+            <td class="price align-middle text-decoration-dotted text-right">${formatAUD(item.price)}</td>
+            <td class="price align-middle text-decoration-dotted text-right">${formatAUD(item.price*item.qty)}</td>
+              <td class=" discount align-middle text-decoration-dotted text-right"  title="Discount Percentage">${item.discount}%</td>
+            <td id="sub_total_${index}" class=" discount align-middle text-right">${formatAUD(item.sub_total.toFixed(2))}</td>
+            <td class=" tax align-middle  text-decoration-dotted text-right" title="Tax Percentage">${item.row_item.is_taxable?0:item.tax}%</td>
+             <td id="tax_amount_${index}" class=" discount align-middle text-right">${formatAUD(item.tax_amount.toFixed(2))}</td>
+            <td id="line_total_${index}" class="align-middle text-right">${formatAUD(item.line_total.toFixed(2))}</td>
+        </tr>`;
+    });
+    html += `<tr><td class="align-middle text-center border-none" colspan="4"></td><td id="qty_total_td" class="align-middle text-right">0</td><td class="align-middle text-right"></td>
+    <td class="align-middle text-right"  id="price_total_td"></td><td class="align-middle text-right"></td><td class="align-middle text-right" id="sub_total_td"></td>
+    <td class="align-middle text-right"></td><td class="align-middle text-right"  id="tax_total_td"></td><td class="align-middle text-right"  id="final_total_td">38</td>
+    </tr>`
+    tbody.html(html);
+    updatePOTotals();
+}
+
+// CLICK → INLINE EDITOR
+$(document).on("click", "tr.po-line-row td.editable", function () {
+    const td = $(this);
+    if (td.find("input").length) return;
+    let tooltipTxt = "Input"
+    if (td.hasClass('qty')) {
+        tooltipTxt = "Qty Input "
+    }else if(td.hasClass('price')){
+        tooltipTxt = "Product Unit Cost"
+    }else if(td.hasClass('tax')){
+        tooltipTxt = "Tax % On SUB TOTAL"
+    }else if(td.hasClass('discount')){
+        tooltipTxt = "Discount % On SUB TOTAL"
+    }
+    td.html(`<input  data-toggle="tooltip"
+                           data-placement="top" title="${tooltipTxt}" type="number" class=" form-control help-text form-control-sm edit-field" value="${td.text().trim()}">`)
+    const $input = td.find("input");
+    td.find("input").focus();
+
+    new bootstrap.Tooltip($input[0], {
+        placement: 'top',
+        title: tooltipTxt, // You can also get this from the data-attribute
+        container: 'body' // Important for dynamically added elements
+    });
+});
+
+
+$(document).on("blur", ".edit-field", function () {
+    const input = $(this);
+    const td = input.closest("td");
+    const index = td.closest("tr").data("index");
+    const item = lineItems[index];
+
+    let newVal = parseFloat(input.val());
+    if (isNaN(newVal)) newVal = 0;
+
+    // Validation rules
+    const rules = {
+        qty: {
+            validate: v => v > 0 && Number.isInteger(v),
+            error: "Quantity must be a whole number greater than zero.",
+            assign: v => item.qty = v
+        },
+        price: {
+            validate: v => v >= 1 && Math.floor(Math.abs(v)).toString().length <= 5,
+            error: "Invalid Price. Must be ≥ 1 and max 5 digits.",
+            assign: v => item.price = v
+        },
+        discount: {
+            validate: v => v >= 0 && v <= 100,
+            error: "Discount must be between 0 and 100.",
+            assign: v => item.discount = v
+        },
+        tax: {
+            validate: v => v >= 0 && v <= 100,
+            error: "Tax must be between 0 and 100.",
+            assign: v => item.tax = v
+        }
+    };
+
+    // Detect which column was edited
+    let col = Object.keys(rules).find(key => td.hasClass(key));
+    if (!col) return;
+
+    const rule = rules[col];
+
+    // Validation check
+    if (!rule.validate(newVal)) {
+        input.val(item[col]);
+        input.focus();
+        toastr.error(rule.error);
+        return;
+    }
+
+    // Update the item
+    rule.assign(newVal);
+
+    // -----------------------------------
+    // RE-CALCULATE TOTALS
+    // -----------------------------------
+    let sub_total = item.qty * item.price;
+    sub_total -= sub_total * (item.discount / 100);
+
+    let tax_total = sub_total * (item.tax / 100);
+    let line_total = sub_total + tax_total;
+
+    // Update array values
+    item.sub_total = sub_total;   // before tax
+    item.tax_total = tax_total;   // only tax amount
+    item.line_total = line_total; // final row total
+    // Update UI
+    $(`#sub_total_${index}`).text(sub_total.toFixed(2));
+    $(`#tax_amount_${index}`).text(tax_total.toFixed(2));
+    $(`#line_total_${index}`).text(line_total.toFixed(2));
+    td.text(newVal);
+
+    updatePOTotals();
+});
+
+// DELETE LINE ITEM
+$(document).on("click", ".delete-item", function () {
+    lineItems.splice($(this).data("index"), 1);
+    renderLineItems();
+    updatePOTotals();
+});
+
+
+// -----------------------------------------------
+// TOTALS
+// -----------------------------------------------
+function updatePOTotals() {
+    if (lineItems.length === 0) {
+        $("#po_sub_total").text("0.00");
+        $("#po_tax_total").text("0.00");
+        $("#po_total").text("0.00");
+        return;
+    }
+    const surcharge_total = parseFloat("{{ po.surcharge_total }}");
+    const shipping_total = parseFloat("{{ po.shipping_charge }}");
+
+    let total_sub = 0;
+    let total_tax = 0;
+    let total_line = 0;
+    let total_qty = 0;
+    let qty_rate = 0;
+
+    lineItems.forEach(item => {
+        console.log(item)
+        total_qty += item.qty || 0;
+        total_sub += item.sub_total || 0;
+        total_tax += item.tax_amount || 0;
+        total_line += item.line_total || 0;
+
+        qty_rate += (item.qty *item.price )
+    });
+
+    $("#qty_total_td").text(total_qty);
+    $("#price_total_td").text(formatAUD(qty_rate));
+    $("#sub_total_td").text(formatAUD(total_sub));
+    $("#tax_total_td").text(formatAUD(total_tax));
+    $("#final_total_td").text(formatAUD(total_line));
+    
+
+    $("#surcharge_total_excl_tax").text(formatAUD(surcharge_total.toFixed(2)));
+    
+    const sur_ship_total = surcharge_total+shipping_total;
+    const sur_ship_tax = sur_ship_total * (parseFloat("{{ po.tax_percentage }}") / 100);
+    const tax_total = sur_ship_tax+total_tax;
+
+    const grant_total = (total_sub+total_tax+sur_ship_tax+sur_ship_total); // adding total with line item total
+    //total_sub+total_tax+sur_ship_tax
+    //+total_tax+sur_ship_tax+sur_ship_total
+
+    $("#total_products").text(`${total_qty} Products`)
+    $("#sub_total_excl_tax").text(formatAUD(total_sub.toFixed(2)));
+    $("#shipping_charge_val").text(formatAUD(shipping_total.toFixed(2)));
+    
+    $("#gst_total").text(formatAUD((tax_total).toFixed(2)));
+    
+    $("#grand_total_incl_tax").text(formatAUD(grant_total.toFixed(2)));
+     $("#po_out_standing").text(formatAUD(grant_total.toFixed(2)));
+     $("#po_out_standing_invoice").text(formatAUD(grant_total.toFixed(2)));
+    
+
+}
+function formatAUD(value) {
+    if (value === null || value === undefined || value === "") return "$0.00";
+
+    value = value.toString().replace(/,/g, "");
+
+    // detect negative
+    let isNegative = false;
+    if (value < 0) {
+        isNegative = true;
+        value = Math.abs(value);
+    }
+
+    if (isNaN(value)) return value;
+
+    let num = parseFloat(value).toFixed(2);
+    let parts = num.split(".");
+    let int = parts[0];
+    let dec = parts[1];
+
+    int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ","); 
+
+    // prepend minus sign BEFORE dollar symbol
+    return (isNegative ? "-$" : "$") + int + "." + dec;
+}
+
+</script>
+
+{% endblock %}

@@ -1,5 +1,28 @@
-(function($) {
-  $.extend($.summernote.lang, {
+/*!
+ * 
+ * Super simple WYSIWYG editor v0.9.1
+ * https://summernote.org
+ *
+ * Copyright 2013~ Hackerwins and contributors
+ * Summernote may be freely distributed under the MIT license.
+ *
+ * Date: 2024-10-09T10:22Z
+ *
+ */
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(self, () => {
+return /******/ (() => { // webpackBootstrap
+var __webpack_exports__ = {};
+(function ($) {
+  $.extend(true, $.summernote.lang, {
     'es-EU': {
       font: {
         bold: 'Lodia',
@@ -11,7 +34,7 @@
         strikethrough: 'Marratua',
         subscript: 'Subscript',
         superscript: 'Superscript',
-        size: 'Letren neurria',
+        size: 'Letren neurria'
       },
       image: {
         image: 'Irudia',
@@ -33,14 +56,14 @@
         maximumFileSizeError: 'Maximum file size exceeded.',
         url: 'Irudiaren URL helbidea',
         remove: 'Remove Image',
-        original: 'Original',
+        original: 'Original'
       },
       video: {
         video: 'Bideoa',
         videoLink: 'Bideorako esteka',
         insert: 'Bideo berri bat txertatu',
         url: 'Bideoaren URL helbidea',
-        providers: '(YouTube, Vimeo, Vine, Instagram edo DailyMotion)',
+        providers: '(YouTube, Vimeo, Vine, Instagram edo DailyMotion)'
       },
       link: {
         link: 'Esteka',
@@ -49,7 +72,7 @@
         edit: 'Editatu',
         textToDisplay: 'Estekaren testua',
         url: 'Estekaren URL helbidea',
-        openInNewWindow: 'Leiho berri batean ireki',
+        openInNewWindow: 'Leiho berri batean ireki'
       },
       table: {
         table: 'Taula',
@@ -59,10 +82,10 @@
         addColRight: 'Add column right',
         delRow: 'Delete row',
         delCol: 'Delete column',
-        delTable: 'Delete table',
+        delTable: 'Delete table'
       },
       hr: {
-        insert: 'Marra horizontala txertatu',
+        insert: 'Marra horizontala txertatu'
       },
       style: {
         style: 'Estiloa',
@@ -74,16 +97,16 @@
         h3: '3. izenburua',
         h4: '4. izenburua',
         h5: '5. izenburua',
-        h6: '6. izenburua',
+        h6: '6. izenburua'
       },
       lists: {
         unordered: 'Ordenatu gabeko zerrenda',
-        ordered: 'Zerrenda ordenatua',
+        ordered: 'Zerrenda ordenatua'
       },
       options: {
         help: 'Laguntza',
         fullscreen: 'Pantaila osoa',
-        codeview: 'Kodea ikusi',
+        codeview: 'Kodea ikusi'
       },
       paragraph: {
         paragraph: 'Paragrafoa',
@@ -92,7 +115,7 @@
         left: 'Ezkerrean kokatu',
         center: 'Erdian kokatu',
         right: 'Eskuinean kokatu',
-        justify: 'Justifikatu',
+        justify: 'Justifikatu'
       },
       color: {
         recent: 'Azken kolorea',
@@ -102,7 +125,7 @@
         transparent: 'Gardena',
         setTransparent: 'Gardendu',
         reset: 'Lehengoratu',
-        resetToDefault: 'Berrezarri lehenetsia',
+        resetToDefault: 'Berrezarri lehenetsia'
       },
       shortcut: {
         shortcuts: 'Lasterbideak',
@@ -110,7 +133,7 @@
         textFormatting: 'Testuaren formatua',
         action: 'Ekintza',
         paragraphFormatting: 'Paragrafoaren formatua',
-        documentStyle: 'Dokumentuaren estiloa',
+        documentStyle: 'Dokumentuaren estiloa'
       },
       help: {
         'insertParagraph': 'Insert Paragraph',
@@ -139,16 +162,21 @@
         'formatH5': 'Change current block\'s format as H5',
         'formatH6': 'Change current block\'s format as H6',
         'insertHorizontalRule': 'Insert horizontal rule',
-        'linkDialog.show': 'Show Link Dialog',
+        'linkDialog.show': 'Show Link Dialog'
       },
       history: {
         undo: 'Desegin',
-        redo: 'Berregin',
+        redo: 'Berregin'
       },
       specialChar: {
         specialChar: 'SPECIAL CHARACTERS',
-        select: 'Select Special characters',
-      },
-    },
+        select: 'Select Special characters'
+      }
+    }
   });
 })(jQuery);
+/******/ 	return __webpack_exports__;
+/******/ })()
+;
+});
+//# sourceMappingURL=summernote-es-EU.js.map

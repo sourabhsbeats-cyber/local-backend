@@ -32,17 +32,10 @@ from rest_framework.renderers import JSONRenderer
 from rest_framework.decorators import api_view, renderer_classes, permission_classes
 import os
 from django.templatetags.static import static
-class TabulatorPagination(PageNumberPagination):
-    page_size = 20
-    page_query_param = "page"
-    page_size_query_param = "size"
-    max_page_size = 50  # ✅ cap at 50
 
-class ProductImageSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = ProductImages
-        fields = ["product_image_id", "product_id", "image_path", "cdn_url", "uploaded_at"]
-        
+from store_admin.views.serializers.product_serializers import ProductImageSerializer
+
+
 #Product Add New Form - Only GET
 @login_required
 def add_new(request):
@@ -175,7 +168,7 @@ def products_json(request):
         total_stock_qty=Coalesce(
             Subquery(stock_sub.filter(product_id=OuterRef("product_id")).values("total_stock")[:1]),
             Value(0),
-            output_field=IntegerField()  # ✅ numeric
+            output_field=IntegerField()  #  numeric
         ),
         product_type_name=Case(
             When(product_type="1", then=Value("Standard")),
@@ -183,12 +176,12 @@ def products_json(request):
             When(product_type="3", then=Value("Child")),
             When(product_type="4", then=Value("Bundle")),
             default=Value("Unknown"),
-            output_field=TextField()  # ✅ pure text
+            output_field=TextField()  #  pure text
         ),
         brand_name_val=Coalesce(
             Subquery(Brand.objects.filter(brand_id=OuterRef("brand_id")).values("name")[:1]),
             Value(""),
-            output_field=TextField()  # ✅ pure text
+            output_field=TextField()  #  pure text
         ),
     )
     q = request.GET.get("q", "").strip()
@@ -274,6 +267,7 @@ def save(request):
             product_details.fnsku = data.get('fnsku')
             product_details.fba_sku = data.get('fba_sku')
             product_details.is_fba = True if data.get('is_fba') else False
+            product_details.is_taxable = True if data.get('is_taxable') else False
             product_details.isbn_type = data.get('isbn_type')
             product_details.barcode_label_type = data.get('barcode_label_type')
             product_details.prep_type = data.get('prep_type', 'no_prep_needed')
@@ -481,8 +475,8 @@ def create_product(request):
             product_details.sku = data.get('sku')
             product_details.title = data.get('title')
             product_details.subtitle = data.get('subtitle')
-            product_details.description = data.get('description')
-            product_details.short_description = data.get('short_description')
+            product_details.description = data.get('description').strip()
+            product_details.short_description = data.get('short_description').strip()
 
             product_details.brand_id = brand_id
             product_details.manufacturer_id = manufacturer_id
@@ -500,6 +494,7 @@ def create_product(request):
             product_details.fba_sku = data.get('fba_sku')
 
             product_details.is_fba = True if data.get('is_fba') else False
+            product_details.is_taxable = True if data.get('is_taxable') else False
 
             product_details.isbn_type = data.get('isbn_type')
             product_details.barcode_label_type = data.get('barcode_label_type')
@@ -521,6 +516,7 @@ def create_product(request):
             product_details.created_by = request.user.id
 
             #shipping info
+            product_details.full_clean()
             product_details.save()
 
             # --- 2. Create Shipping Details ---
@@ -701,6 +697,7 @@ def remove_dynamic_attribute(request):
     except Exception as ex:
         return JsonResponse({"status": False, "message": str(ex)})
 
+#auto complete product search
 def api_product_search(request):
     try:
         product_image_sub = ProductImages.objects.filter(
@@ -724,6 +721,14 @@ def api_product_search(request):
             image=Coalesce(Subquery(product_image_sub), Value(None), output_field=TextField()),
             qty=Coalesce(Subquery(stock_sub), Value(0), output_field=IntegerField()),
             sale_price=Coalesce(Subquery(sale_price_sub), Value(None), output_field=IntegerField()),
+            prep_type_name=Case(When(prep_type="no_prep_needed", then=Value("No Prep Needed")),
+                When(prep_type="polybag", then=Value("Polybagging")), When(prep_type="bubble_wrap", then=Value("Bubble Wrap")),
+                When(prep_type="labeling", then=Value("Labeling")), default=Value(""),output_field=TextField()
+            ),
+            barcode_label_type_name= Case(When(barcode_label_type="manufacturer", then=Value("Manufacturer")),
+                When(barcode_label_type="amazon_barcode", then=Value("Amazon Barcode")),  default=Value(""),
+                                          output_field=TextField()
+            ),
         )
 
         # Search filter
@@ -743,6 +748,11 @@ def api_product_search(request):
                 "image":p.image if p.image else NO_IMAGE,
                 "stock_qty": p.qty,
                 "sku": p.sku,
+                "asin": p.asin,
+                "fnsku": p.fnsku,
+                "ean":p.ean, "prep_type":p.prep_type_name,
+                "is_taxable":p.is_taxable,
+                "barcode_label_type":p.barcode_label_type_name,
                 "price": p.sale_price,
             })
 

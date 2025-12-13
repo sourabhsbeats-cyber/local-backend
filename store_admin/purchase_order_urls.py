@@ -12,9 +12,10 @@ from .views.settings.product_settings import product_settings
 urlpatterns = [
     #path('download_sample/<str:file_type>/<str:file_format>', bulk_import_product_view.download_product_template, name='download_product_template'),
    # path("delete_bulk/", product_view.delete_product_bulk, name="delete_products_bulk"),
-    #path("delete/<int:product_id>/", product_view.delete_product, name="delete_product_single"),
+    path("delete/<int:po_id>/", purchase_orders_view.delete_po, name="delete_po_single"),
     path('create/', purchase_orders_view.create_order, name='create_order'),                 # no ID → create new draft PO
     path('create/<int:po_id>/', purchase_orders_view.create_order, name='create_order'),    # with ID → edit PO
+    path('view/<int:po_id>', purchase_orders_view.view_po_order, name='view_po_order'),    # with ID → edit PO
     path('save', purchase_orders_view.save_po, name='save_po_order'),
     path('generatepdf', purchase_orders_view.generate_po_pdf, name='generate_po_order'),
 

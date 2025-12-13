@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db import models
 
 class POStatus(models.IntegerChoices):
-    CREATED = 0, "Created"
+    New = 0, "New"
     APPROVED = 1, "Approved"
     CANCELLED = 2, "Cancelled"
     COMPLETED = 3, "Completed"
@@ -42,8 +42,15 @@ class PurchaseOrder(models.Model):
     sub_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # qty*price
     tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtital 's tax amount
     summary_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtotal + taxamount
-
-
+    surcharge_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # surchase_total
+    shipping_charge = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # shipping_charge
+    def save(self, *args, **kwargs):
+        sub_total = Decimal(self.sub_total)
+        surcharge_total = Decimal(self.surcharge_total)
+        shipping_charge = Decimal(self.shipping_charge) 
+        final_total = sub_total+surcharge_total+shipping_charge
+        self.line_total = final_total.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+        super().save(*args, **kwargs)
 
     #discount_amt = models.DecimalField(max_digits=12, decimal_places=2,
      #                                  default=0)  # subtotal's discount percentage amount
@@ -75,6 +82,8 @@ class PurchaseOrderItem(models.Model):
     created_by = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     unit = models.CharField(max_length=10, blank=True, null=True)
+    order_ref = models.CharField(max_length=80, blank=True, null=True)
+    order_type = models.CharField(max_length=80, blank=True, null=True)
     def save(self, *args, **kwargs):
         # Auto calculate line amount:
         qty = Decimal(self.qty)
@@ -97,3 +106,35 @@ class PurchaseOrderItem(models.Model):
 
     class Meta:
         db_table = 'store_admin_purchase_order_item'
+
+class PurchaseOrderVendor(models.Model):
+    po_vendor_id = models.AutoField(primary_key=True)
+    po_id  = models.IntegerField()
+    po_number = models.CharField(max_length=80)
+    order_date = models.DateTimeField(blank=True, null= True)
+    invoice_date = models.DateTimeField(blank=True, null= True)
+    invoice_due_date = models.DateTimeField(blank=True, null= True)
+    invoice_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
+    delivery_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
+
+    created_by = models.IntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'store_admin_purchase_order_vendor_details'
+
+
+class PurchaseOrderShipping(models.Model):
+    po_shipping_id = models.AutoField(primary_key=True)
+    po_id  = models.IntegerField()
+
+    provider = models.CharField(max_length=80)
+    website = models.CharField(max_length=180)
+    tracking_number = models.CharField(max_length=80)
+
+    created_by = models.IntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+    class Meta:
+        db_table = 'store_admin_purchase_order_shipping_details'

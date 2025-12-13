@@ -10,7 +10,7 @@
     <div class="container-fluid">
       <div class="row mb-2">
         <div class="col-sm-6">
-          <h1>View Purchases</h1>
+          <h1>All Purchases</h1>
         </div>
         <div class="col-sm-6">
             <div class="float-right">
@@ -54,7 +54,7 @@
           <div class=" float-right">
             <button type="button" style="display: none;"  id="bulkDeleteBtn"
                     class="btn btn-outline-danger btn-sm" title="Delete selected records"
-                    onclick="deleteSelected()">
+                    onclick="deleteSelected(event)">
                 <i class="fas fa-trash"></i> Delete
             </button>
         </div>
@@ -110,42 +110,42 @@ document.addEventListener("DOMContentLoaded", function () {
       },
 
       columns:[
-          {formatter:"rowSelection",headerTooltip:"Select All", titleFormatter:"rowSelection",
-              headerHozAlign:"center",
-              hozAlign:"center", headerSort:false,
-              width:40},
+          { title: "ID", field: "po_id", visible: false },
+          { formatter:"rowSelection", minWidth:40, hozAlign:"center" },
           {
                 title: "Order No",
                 field: "po_number",
-                width: 110,
+                minWidth: 110,
                 headerHozAlign: "center",
                 hozAlign: "center",
                 formatter: function (cell) {
                     const po_id = cell.getData().po_id;
                     const po_number = cell.getValue();
-                    const url = "{% url 'create_order' 0 %}".replace("0", po_id);
+                    const url = "{% url 'view_po_order' 0 %}".replace("0", po_id);
 
                     return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                 }
             },
-          {title:"Order Date", field:"order_date", width:100},
-          {title:"Delivery Date", field:"delivery_date" , hozAlign:"center", width:120},
-          {title:"Vendor Name", field:"vendor_name",hozAlign:"center",width:120,headerHozAlign:"center"},
-          {title:"Reference", field:"vendor_reference",hozAlign:"center",width:110,headerHozAlign:"center"},
+          {title:"Order Date", field:"order_date", minWidth:100},
+          {title:"Delivery Date", field:"delivery_date" , hozAlign:"center", minWidth:120},
+          {title:"Vendor Name", field:"vendor_name",hozAlign:"center",minWidth:120,headerHozAlign:"center"},
+          {title:"Reference", field:"vendor_reference",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
           {
                 title: "Status",
                 field: "status_id",
-                width: 120,
+                minWidth: 120,
                 hozAlign: "center",
                 headerHozAlign: "center",
                 formatter: function (cell) {
                     const status = cell.getValue();
 
                     const statusMap = {
-                        0: "Created",
-                        1: "Approved",
-                        2: "Cancelled",
-                        3: "Completed"
+                        0: "New",
+                        1: "Placed",
+                        2: "Delivered",
+                        3: "Back Order",
+                        4: "Cancelled",
+                        4: "Archieved"
                     };
 
                     return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
@@ -153,12 +153,16 @@ document.addEventListener("DOMContentLoaded", function () {
           },
           {title:"Warehouse", field:"warehouse_name",hozAlign:"center",width:150,headerHozAlign:"center"},
           {title:"Currency", field:"currency_code",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Total", field:"total_val",hozAlign:"center",width:120,headerHozAlign:"center"},
+          {title:"Total", field:"total_val",hozAlign:"center",width:120,headerHozAlign:"center", formatter: "money",
+    formatterParams: { symbol: "$",  precision: 2 }},
           {title:"", width:70, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
-              const po_id = cell.getValue();
+              const po_id = cell.getRow().getData().po_id;
               const url = "{% url 'create_order' 0 %}".replace("0", po_id);
-              return `<button class="btn btn-sm btn-outline-danger" onclick="deleteProduct(${po_id})"><i class="fas fa-trash-alt"></i></button>`;
-          }}
+              return `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePO(${po_id},event)"><i class="fas fa-trash-alt"></i></button>`;
+          },
+            cellClick:function(e){
+                e.stopPropagation();  // ✔ avoid row-selection on delete
+            }}
       ]
   });
   const bulkDeleteBtn = document.getElementById("bulkDeleteBtn");
@@ -198,9 +202,11 @@ document.addEventListener("DOMContentLoaded", function () {
         table.setPage(1);
       });
 
-      window.deleteProduct = pid=>{ return;
+      window.deletePO =(pid, event)=>{
+          event.stopPropagation();
+          event.preventDefault();
           Swal.fire({
-            title: "Delete Product?",
+            title: "Delete PO?",
             text: "This action cannot be undone.",
             icon: "warning",
             showCancelButton: true,
@@ -210,7 +216,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (!result.value) return;
             if (result.value) {
                 // Note: Ensure this URL matches your urls.py pattern perfectly
-                fetch("{% url 'delete_product_single' 0 %}".replace("0",pid), {
+                fetch("{% url 'delete_po_single' 0 %}".replace("0",pid), {
                     method: "DELETE",
                     headers: {
                         "X-CSRFToken": "{{ csrf_token }}",
@@ -220,7 +226,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 .then(r => r.json())
                 .then(data => {
                     if(data.status){
-                        Swal.fire("Deleted", "Product removed successfully", "success")
+                        Swal.fire("Deleted", "PO removed successfully", "success")
                         .then(() => table.setData());
                     } else {
                         Swal.fire("Error", data.message || "Something went wrong", "error");
@@ -231,18 +237,20 @@ document.addEventListener("DOMContentLoaded", function () {
         });
       };
 
-        window.deleteSelected = () => {
-            const selectedIds = table.getSelectedData().map(r => r.product_id);
+        window.deleteSelected = (e) => {
+            e.stopPropagation();  e.preventDefault();
+            const selectedIds = table.getSelectedData().map(r => r.po_id);
             if (!selectedIds.length) return;
-            return;
+
             Swal.fire({
                 title: "Delete Selected?",
-                text: `You are about to delete ${selectedIds.length} products. This cannot be undone.`,
+                text: `You are about to delete ${selectedIds.length} Orders. This cannot be undone.`,
                 icon: "warning",
                 showCancelButton: true,
                 confirmButtonColor: "#d33",
                 confirmButtonText: "Yes, delete them!"
             }).then((result) => {
+                return;
                 if (!result.value) return;
                 if (result.value) {
                     fetch("{% url 'delete_products_bulk' %}", {
@@ -278,19 +286,6 @@ document.getElementById("main-action-btn").addEventListener("click", function(e)
 
 </script>
 <style>
-    #tabuar-table .tabulator-col {
-        background-color: #daecff;
-        cursor: pointer;
-    }
-    @media (hover: hover) and (pointer: fine) {
-         #tabuar-table .tabulator-row.tabulator-selectable:hover {
-            background-color: #e5edf7;
-            cursor: pointer;
-        }
-    }
-    #tabuar-table .tabulator-row.tabulator-row-even {
-        background-color: #eff1f3;
-    }
     #tabuar-table .tabulator-footer {
         background-color: #fafafa;
         border-top: 1px solid #999;

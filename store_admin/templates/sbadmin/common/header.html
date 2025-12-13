@@ -5,138 +5,160 @@
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/icheck-bootstrap/icheck-bootstrap.min.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/jqvmap/jqvmap.min.css' %}">
-<!--<link rel="stylesheet" href="{% static 'sbadmin/dist/css/adminlte.min.css' %}">-->
 <link rel="stylesheet" href="{% static 'sbadmin/dist/css/adminlte.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/overlayScrollbars/css/OverlayScrollbars.min.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/daterangepicker/daterangepicker.css' %}">
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/summernote/summernote-bs4.css' %}">
- <link rel="stylesheet" href="{% static 'sbadmin/plugins/toastr/toastr.min.css' %}">
+<link rel="stylesheet" href="{% static 'sbadmin/plugins/toastr/toastr.min.css' %}">
 <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700" rel="stylesheet">
-<!--
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
-"Inter", "Source Sans Pro", Helvetica, Arial, sans-serif;-->
-<!-- Select2 CSS
-D:\sbadmin\sbadmin\store_admin\static\fonts
-
-
-<link rel="stylesheet" href="{% static 'sbadmin/static/fonts/static/Inter_18pt-Regular.ttf' %}">
-<link rel="stylesheet" href="{% static 'sbadmin/static/fonts/static/Inter_18pt-Light.ttf' %}">
-<link rel="stylesheet" href="{% static 'sbadmin/static/fonts/static/Inter_18pt-SemiBold.ttf' %}">
--->
-<!--
-<link rel="stylesheet" href="{% static 'sbadmin/plugins/select2/css/select2.min.css' %}"> -->
 <link rel="stylesheet" href="{% static 'sbadmin/plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css' %}">
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.css" />
+<link rel="stylesheet" href="{% static 'sbadmin/plugins/ekko-lightbox/ekko-lightbox.css' %}">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-toggle@2.2.2/css/bootstrap-toggle.min.css">
+<link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
+
+<!-- ============================= -->
+<!--            JS TOP            -->
+<!-- ============================= -->
+
+<!-- jQuery FULL -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="{% static 'sbadmin/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+<!-- jQuery UI -->
 <script src="{% static 'sbadmin/plugins/jquery-ui/jquery-ui.min.js' %}"></script>
-
-
-
 <script>
   $.widget.bridge('uibutton', $.ui.button)
 </script>
-<!--
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>-->
-<!-- SweetAlert + Full JS -->
-<script  src="{% static 'sbadmin/plugins/select2/js/select2.min.js' %}"> </script>
+<!-- Typeahead -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/typeahead.js/0.11.1/typeahead.bundle.min.js"></script>
+<!-- Select2 -->
+<script src="{% static 'sbadmin/plugins/select2/js/select2.min.js' %}"></script>
+<!-- SweetAlert -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<!-- Dropzone -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.9.3/dropzone.min.js"></script>
+<!-- Toastr -->
 <script src="{% static 'sbadmin/plugins/toastr/toastr.min.js' %}"></script>
+<!-- Ekko Lightbox -->
 <script src="{% static 'sbadmin/plugins/ekko-lightbox/ekko-lightbox.min.js' %}"></script>
-<link rel="stylesheet" href="{% static 'sbadmin/plugins/ekko-lightbox/ekko-lightbox.css' %}">
-  <!-- <script src="{% static 'sbadmin/plugins/filterizr/jquery.filterizr.min.js' %}"></script>-->
-<style>
-.form-control-sm + .select2-container .select2-selection--single {
-    height: calc(1.5em + 0.5rem + 2px) !important;
-    padding: 0.25rem 0.5rem;
-}
-.form-control-sm + .select2-container .select2-selection__rendered {
-    font-size: 0.875rem;
-    padding: 0;
-}
-.form-control-sm + .select2-container .select2-selection__arrow {
-    height: calc(1.5em + 0.5rem + 2px) !important;
-}
-.select2-container--default .select2-dropdown .select2-results__option {
-    font-size: 0.875rem;
-}
-.no-select {
-    user-select: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-}
-</style>
-
-<style>
-.project-tab {
-    margin-top: -8%;
-}
-.project-tab #tabs{
-    background: #007b5e;
-    color: #eee;
-}
-.project-tab #tabs h6.section-title{
-    color: #eee;
-}
-.project-tab #tabs .nav-tabs .nav-item.show .nav-link, .project-tab .nav-tabs .nav-link.active {
-    color: #0062cc;
-    background-color: transparent;
-    border-color: transparent transparent #f3f3f3;
-    border-bottom: 2px solid !important;
-    font-weight: bold;
-}
-.project-tab .nav-link {
-    border: 0px solid transparent;
-}
-.project-tab a{
-    text-decoration: none;
-    color: #333;
-}
-.cursor-pointer {
-  cursor: pointer;
-}
-/*
-.swal2-compact-design .swal2-header{
-    padding:8px;
-}
-*/
-.swal2-compact-design {
-  width: 350px !important;
-  padding: 10px !important;
-  font-size: 0.9em !important;
-}
-
-.swal2-compact-design .swal2-icon {
-  font-size: 0.8em !important; /* Scales the icon size */
-  margin: 10px auto !important;
-}
-
-.swal2-compact-design .swal2-actions button {
-  padding: 0.375em 0.75em !important;
-  font-size: 0.85em !important;
-}
-.swal2-compact-design .swal2-actions{
-    padding: 0 0 0.3rem;
-}
-.dropzone .dz-preview.dz-file-preview .dz-image {
-    background: linear-gradient(to bottom, #328dcc, #2478b2) !important;
-}
-.dropzone .dz-preview .dz-progress{ background:none !important;}
-.dropzone .dz-preview .dz-details .dz-filename span, .dropzone .dz-preview .dz-details .dz-size span {
-    background-color: white !important;
-}
-</style>
-
-
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-toggle@2.2.2/css/bootstrap-toggle.min.css">
+<!-- Tabulator -->
+<script src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+<!-- Summernote -->
+<script src="{% static 'sbadmin/plugins/summernote/summernote-bs4.min.js' %}"></script>
+<!-- Bootstrap Toggle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-toggle@2.2.2/js/bootstrap-toggle.min.js"></script>
 
+<!-- ============================= -->
+<!--  IMPORTANT PART: POPPER + BS4 -->
+<!-- ============================= -->
 
-<!-- TABULATOR -->
-<link href="https://unpkg.com/tabulator-tables@6.3.1/dist/css/tabulator.min.css" rel="stylesheet">
-<script type="text/javascript" src="https://unpkg.com/tabulator-tables@6.3.1/dist/js/tabulator.min.js"></script>
+<!-- Popper v1.x (required for Bootstrap 4.3.1 tooltips) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.1/umd/popper.min.js"></script>
+
+<!-- Bootstrap 4.3.1 JS (REQUIRED for tooltip) -->
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+
+<!-- Your old bootstrap.bundle intentionally left commented -->
+<!-- <script src="{% static 'sbadmin/plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script> -->
+
+
+<!-- ============================= -->
+<!--         CUSTOM CSS           -->
+<!-- ============================= -->
+
+<style>
+    .tt-menu { width: 100%; background: #fff; border: 1px solid #ccc; border-radius: .25rem; padding: .5rem 0; margin-top: 2px; z-index: 2000 !important; }
+    .tt-suggestion { padding: .375rem .75rem; cursor: pointer; font-size: 14px; line-height: 1.5; }
+    .tt-suggestion:hover, .tt-suggestion.tt-cursor { background-color: #0d6efd; color: #fff; }
+    .tt-hint { color: #999 !important; }
+    .twitter-typeahead { width: 100%; }
+    .typeahead { background-color: #fff !important; }
+
+    .form-control-sm + .select2-container .select2-selection--single { height: calc(1.5em + 0.5rem + 2px) !important; padding: 0.25rem 0.5rem; }
+    .form-control-sm + .select2-container .select2-selection__rendered { font-size: 0.875rem; padding: 0; }
+    .form-control-sm + .select2-container .select2-selection__arrow { height: calc(1.5em + 0.5rem + 2px) !important; }
+
+    .select2-container--default .select2-dropdown .select2-results__option { font-size: 0.875rem; }
+    .no-select { user-select: none; }
+</style>
+
+<style>
+.project-tab { margin-top: -8%; }
+.project-tab #tabs{ background: #007b5e; color: #eee; }
+.project-tab #tabs .nav-tabs .nav-item.show .nav-link, .project-tab .nav-tabs .nav-link.active {
+    color: #0062cc; border-bottom: 2px solid !important; font-weight: bold;
+}
+.cursor-pointer { cursor: pointer; }
+
+.swal2-compact-design { width: 350px !important; padding: 10px !important; font-size: 0.9em !important; }
+.swal2-compact-design .swal2-actions button { padding: 0.375em 0.75em !important; font-size: 0.85em !important; }
+
+.dropzone .dz-preview.dz-file-preview .dz-image { background: linear-gradient(to bottom, #328dcc, #2478b2) !important; }
+.dropzone .dz-preview .dz-progress{ background:none !important;}
+.dropzone .dz-preview .dz-details .dz-filename span,
+.dropzone .dz-preview .dz-details .dz-size span { background-color: white !important; }
+</style>
+
+
+<!-- ============================= -->
+<!--      Tooltip Activation       -->
+<!-- ============================= -->
+
+<script>
+$(function () {
+    $('[data-toggle="tooltip"]').tooltip();
+});
+</script>
+
+<style>
+    /* Dark modern tooltip style */
+.tooltip.bs-tooltip-top .tooltip-arrow::before,
+.tooltip.bs-tooltip-bottom .tooltip-arrow::before,
+.tooltip.bs-tooltip-left .tooltip-arrow::before,
+.tooltip.bs-tooltip-right .tooltip-arrow::before {
+    background-color: #1f2533 !important;
+}
+
+.tooltip-inner {
+    background-color: #1f2533 !important;
+    color: #fff !important;
+    padding: 6px 10px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
+    max-width: 250px;
+    text-align: center;
+}
+.tooltip {
+    opacity: 1 !important;
+}
+
+.tooltip.show {
+    filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.25));
+}
+.content-wrapper{
+   /* background-color: #f4f6f9 !important;*/
+}
+/*
+@font-face {
+    font-family: "Roboto";
+    src: url("{% static 'fonts/roboto/Roboto-Regular.ttf' %}") format("truetype");
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: "Roboto";
+    src: url("{% static 'fonts/roboto/Roboto-Medium.ttf' %}") format("truetype");
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: "Roboto";
+    src: url("{% static 'fonts/roboto/Roboto-Bold.ttf' %}") format("truetype");
+    font-weight: 700;
+}
+
+body {
+    font-family: "Roboto", sans-serif !important;
+    line-height: 1.32;
+}*/
+</style>

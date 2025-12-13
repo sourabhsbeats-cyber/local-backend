@@ -1,5 +1,28 @@
-(function($) {
-  $.extend($.summernote.lang, {
+/*!
+ * 
+ * Super simple WYSIWYG editor v0.9.1
+ * https://summernote.org
+ *
+ * Copyright 2013~ Hackerwins and contributors
+ * Summernote may be freely distributed under the MIT license.
+ *
+ * Date: 2024-10-09T10:22Z
+ *
+ */
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(self, () => {
+return /******/ (() => { // webpackBootstrap
+var __webpack_exports__ = {};
+(function ($) {
+  $.extend(true, $.summernote.lang, {
     'sv-SE': {
       font: {
         bold: 'Fet',
@@ -9,9 +32,9 @@
         height: 'Radavstånd',
         name: 'Teckensnitt',
         strikethrough: 'Genomstruken',
-        subscript: 'Subscript',
-        superscript: 'Superscript',
-        size: 'Teckenstorlek',
+        subscript: 'Nedsänkt',
+        superscript: 'Upphöjd',
+        size: 'Teckenstorlek'
       },
       image: {
         image: 'Bild',
@@ -22,25 +45,25 @@
         floatLeft: 'Vänsterjusterad',
         floatRight: 'Högerjusterad',
         floatNone: 'Ingen justering',
-        shapeRounded: 'Shape: Rounded',
-        shapeCircle: 'Shape: Circle',
-        shapeThumbnail: 'Shape: Thumbnail',
-        shapeNone: 'Shape: None',
+        shapeRounded: 'Form: Avrundad',
+        shapeCircle: 'Form: Cirkel',
+        shapeThumbnail: 'Form: Miniatyr',
+        shapeNone: 'Form: Ingen',
         dragImageHere: 'Dra en bild hit',
-        dropImage: 'Drop image or Text',
+        dropImage: 'Släpp bild eller text',
         selectFromFiles: 'Välj från filer',
-        maximumFileSize: 'Maximum file size',
-        maximumFileSizeError: 'Maximum file size exceeded.',
+        maximumFileSize: 'Maximal filstorlek',
+        maximumFileSizeError: 'Maximal filstorlek har överskridits.',
         url: 'Länk till bild',
         remove: 'Ta bort bild',
-        original: 'Original',
+        original: 'Original'
       },
       video: {
         video: 'Filmklipp',
         videoLink: 'Länk till filmklipp',
         insert: 'Infoga filmklipp',
         url: 'Länk till filmklipp',
-        providers: '(YouTube, Vimeo, Vine, Instagram, DailyMotion eller Youku)',
+        providers: '(YouTube, Vimeo, Vine, Instagram, DailyMotion eller Youku)'
       },
       link: {
         link: 'Länk',
@@ -49,20 +72,20 @@
         edit: 'Redigera',
         textToDisplay: 'Visningstext',
         url: 'Till vilken URL ska denna länk peka?',
-        openInNewWindow: 'Öppna i ett nytt fönster',
+        openInNewWindow: 'Öppna i ett nytt fönster'
       },
       table: {
         table: 'Tabell',
-        addRowAbove: 'Add row above',
-        addRowBelow: 'Add row below',
-        addColLeft: 'Add column left',
-        addColRight: 'Add column right',
-        delRow: 'Delete row',
-        delCol: 'Delete column',
-        delTable: 'Delete table',
+        addRowAbove: 'Lägg till rad ovanför',
+        addRowBelow: 'Lägg till rad under',
+        addColLeft: 'Lägg till kolumn åt vänster',
+        addColRight: 'Lägg till kolumn åt höger',
+        delRow: 'Radera rad',
+        delCol: 'Radera kolumn',
+        delTable: 'Radera tabell'
       },
       hr: {
-        insert: 'Infoga horisontell linje',
+        insert: 'Infoga horisontell linje'
       },
       style: {
         style: 'Stil',
@@ -74,16 +97,16 @@
         h3: 'Rubrik 3',
         h4: 'Rubrik 4',
         h5: 'Rubrik 5',
-        h6: 'Rubrik 6',
+        h6: 'Rubrik 6'
       },
       lists: {
         unordered: 'Punktlista',
-        ordered: 'Numrerad lista',
+        ordered: 'Numrerad lista'
       },
       options: {
         help: 'Hjälp',
         fullscreen: 'Fullskärm',
-        codeview: 'HTML-visning',
+        codeview: 'HTML-visning'
       },
       paragraph: {
         paragraph: 'Justera text',
@@ -92,7 +115,7 @@
         left: 'Vänsterjusterad',
         center: 'Centrerad',
         right: 'Högerjusterad',
-        justify: 'Justera text',
+        justify: 'Justera text'
       },
       color: {
         recent: 'Senast använda färg',
@@ -102,7 +125,7 @@
         transparent: 'Genomskinlig',
         setTransparent: 'Gör genomskinlig',
         reset: 'Nollställ',
-        resetToDefault: 'Återställ till standard',
+        resetToDefault: 'Återställ till standard'
       },
       shortcut: {
         shortcuts: 'Kortkommandon',
@@ -111,45 +134,50 @@
         action: 'Funktion',
         paragraphFormatting: 'Avsnittsformatering',
         documentStyle: 'Dokumentstil',
-        extraKeys: 'Extra keys',
+        extraKeys: 'Extra tangenter'
       },
       help: {
-        'insertParagraph': 'Insert Paragraph',
-        'undo': 'Undoes the last command',
-        'redo': 'Redoes the last command',
-        'tab': 'Tab',
-        'untab': 'Untab',
-        'bold': 'Set a bold style',
-        'italic': 'Set a italic style',
-        'underline': 'Set a underline style',
-        'strikethrough': 'Set a strikethrough style',
-        'removeFormat': 'Clean a style',
-        'justifyLeft': 'Set left align',
-        'justifyCenter': 'Set center align',
-        'justifyRight': 'Set right align',
-        'justifyFull': 'Set full align',
-        'insertUnorderedList': 'Toggle unordered list',
-        'insertOrderedList': 'Toggle ordered list',
-        'outdent': 'Outdent on current paragraph',
-        'indent': 'Indent on current paragraph',
-        'formatPara': 'Change current block\'s format as a paragraph(P tag)',
-        'formatH1': 'Change current block\'s format as H1',
-        'formatH2': 'Change current block\'s format as H2',
-        'formatH3': 'Change current block\'s format as H3',
-        'formatH4': 'Change current block\'s format as H4',
-        'formatH5': 'Change current block\'s format as H5',
-        'formatH6': 'Change current block\'s format as H6',
-        'insertHorizontalRule': 'Insert horizontal rule',
-        'linkDialog.show': 'Show Link Dialog',
+        'insertParagraph': 'Infoga paragraf',
+        'undo': 'Ångra senaste kommandot',
+        'redo': 'Gör om senaste kommandot',
+        'tab': 'Lägg till indrag',
+        'untab': 'Ta bort indrag',
+        'bold': 'Tillämpa fet stil',
+        'italic': 'Tillämpa kursiv stil',
+        'underline': 'Tillämpa understruken stil',
+        'strikethrough': 'Tillämpa genomstruken stil',
+        'removeFormat': 'Rensa formatering',
+        'justifyLeft': 'Tillämpa vänsterjustering',
+        'justifyCenter': 'Tillämpa centrering',
+        'justifyRight': 'Tillämpa högerjustering',
+        'justifyFull': 'Tillämpa justerad text',
+        'insertUnorderedList': 'Tillämpa punktlista',
+        'insertOrderedList': 'Tillämpa numrerad lista',
+        'outdent': 'Minska indrag för aktuell paragraf',
+        'indent': 'Öka indrag för aktuell paragraf',
+        'formatPara': 'Ändra formatet för aktuellt block till en paragraf (P-tagg)',
+        'formatH1': 'Ändra formatet för aktuellt block till rubrik 1',
+        'formatH2': 'Ändra formatet för aktuellt block till rubrik 2',
+        'formatH3': 'Ändra formatet för aktuellt block till rubrik 3',
+        'formatH4': 'Ändra formatet för aktuellt block till rubrik 4',
+        'formatH5': 'Ändra formatet för aktuellt block till rubrik 5',
+        'formatH6': 'Ändra formatet för aktuellt block till rubrik 6',
+        'insertHorizontalRule': 'Infoga horisontell linje',
+        'linkDialog.show': 'Visa dialogruta för länk'
       },
       history: {
         undo: 'Ångra',
-        redo: 'Gör om',
+        redo: 'Gör om'
       },
       specialChar: {
-        specialChar: 'SPECIAL CHARACTERS',
-        select: 'Select Special characters',
-      },
-    },
+        specialChar: 'SPECIALTECKEN',
+        select: 'Välj specialtecken'
+      }
+    }
   });
 })(jQuery);
+/******/ 	return __webpack_exports__;
+/******/ })()
+;
+});
+//# sourceMappingURL=summernote-sv-SE.js.map

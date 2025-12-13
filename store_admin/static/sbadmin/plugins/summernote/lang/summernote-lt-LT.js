@@ -1,5 +1,28 @@
-(function($) {
-  $.extend($.summernote.lang, {
+/*!
+ * 
+ * Super simple WYSIWYG editor v0.9.1
+ * https://summernote.org
+ *
+ * Copyright 2013~ Hackerwins and contributors
+ * Summernote may be freely distributed under the MIT license.
+ *
+ * Date: 2024-10-09T10:22Z
+ *
+ */
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(self, () => {
+return /******/ (() => { // webpackBootstrap
+var __webpack_exports__ = {};
+(function ($) {
+  $.extend(true, $.summernote.lang, {
     'lt-LT': {
       font: {
         bold: 'Paryškintas',
@@ -11,7 +34,7 @@
         strikethrough: 'Perbrauktas',
         superscript: 'Viršutinis',
         subscript: 'Indeksas',
-        size: 'Šrifto dydis',
+        size: 'Šrifto dydis'
       },
       image: {
         image: 'Paveikslėlis',
@@ -33,14 +56,14 @@
         maximumFileSizeError: 'Maskimalus failo dydis viršytas!',
         url: 'Paveikslėlio URL adresas',
         remove: 'Ištrinti paveikslėlį',
-        original: 'Original',
+        original: 'Original'
       },
       video: {
         video: 'Video',
         videoLink: 'Video Link',
         insert: 'Insert Video',
         url: 'Video URL?',
-        providers: '(YouTube, Vimeo, Vine, Instagram, DailyMotion or Youku)',
+        providers: '(YouTube, Vimeo, Vine, Instagram, DailyMotion or Youku)'
       },
       link: {
         link: 'Nuoroda',
@@ -49,7 +72,7 @@
         edit: 'Redaguoti',
         textToDisplay: 'Rodomas tekstas',
         url: 'Koks URL adresas yra susietas?',
-        openInNewWindow: 'Atidaryti naujame lange',
+        openInNewWindow: 'Atidaryti naujame lange'
       },
       table: {
         table: 'Lentelė',
@@ -59,10 +82,10 @@
         addColRight: 'Add column right',
         delRow: 'Delete row',
         delCol: 'Delete column',
-        delTable: 'Delete table',
+        delTable: 'Delete table'
       },
       hr: {
-        insert: 'Įterpti horizontalią liniją',
+        insert: 'Įterpti horizontalią liniją'
       },
       style: {
         style: 'Stilius',
@@ -74,16 +97,16 @@
         h3: 'Antraštė 3',
         h4: 'Antraštė 4',
         h5: 'Antraštė 5',
-        h6: 'Antraštė 6',
+        h6: 'Antraštė 6'
       },
       lists: {
         unordered: 'Suženklintasis sąrašas',
-        ordered: 'Sunumeruotas sąrašas',
+        ordered: 'Sunumeruotas sąrašas'
       },
       options: {
         help: 'Pagalba',
         fullscreen: 'Viso ekrano režimas',
-        codeview: 'HTML kodo peržiūra',
+        codeview: 'HTML kodo peržiūra'
       },
       paragraph: {
         paragraph: 'Pastraipa',
@@ -92,7 +115,7 @@
         left: 'Kairinė lygiuotė',
         center: 'Centrinė lygiuotė',
         right: 'Dešininė lygiuotė',
-        justify: 'Abipusis išlyginimas',
+        justify: 'Abipusis išlyginimas'
       },
       color: {
         recent: 'Paskutinė naudota spalva',
@@ -102,7 +125,7 @@
         transparent: 'Permatoma',
         setTransparent: 'Nustatyti skaidrumo intensyvumą',
         reset: 'Atkurti',
-        resetToDefault: 'Atstatyti numatytąją spalvą',
+        resetToDefault: 'Atstatyti numatytąją spalvą'
       },
       shortcut: {
         shortcuts: 'Spartieji klavišai',
@@ -111,7 +134,7 @@
         action: 'Veiksmas',
         paragraphFormatting: 'Pastraipos formatavimas',
         documentStyle: 'Dokumento stilius',
-        extraKeys: 'Papildomi klavišų deriniai',
+        extraKeys: 'Papildomi klavišų deriniai'
       },
       help: {
         'insertParagraph': 'Insert Paragraph',
@@ -140,16 +163,21 @@
         'formatH5': 'Change current block\'s format as H5',
         'formatH6': 'Change current block\'s format as H6',
         'insertHorizontalRule': 'Insert horizontal rule',
-        'linkDialog.show': 'Show Link Dialog',
+        'linkDialog.show': 'Show Link Dialog'
       },
       history: {
         undo: 'Anuliuoti veiksmą',
-        redo: 'Perdaryti veiksmą',
+        redo: 'Perdaryti veiksmą'
       },
       specialChar: {
         specialChar: 'SPECIAL CHARACTERS',
-        select: 'Select Special characters',
-      },
-    },
+        select: 'Select Special characters'
+      }
+    }
   });
 })(jQuery);
+/******/ 	return __webpack_exports__;
+/******/ })()
+;
+});
+//# sourceMappingURL=summernote-lt-LT.js.map

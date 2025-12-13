@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, Permis
 from django.db import models
 from django.forms import DateTimeField
 
+from store_admin.helpers import name_validator, email_validator, mobile_validator
 from store_admin.models import PaymentTerm
 from store_admin.models.geo_models import Country,State
 #from store_admin.models.payment_terms_model import PaymentTerm
@@ -13,14 +14,14 @@ class Vendor(models.Model):
     id = models.AutoField(primary_key=True)
     vendor_type = models.CharField(max_length=50, blank=True)
     salutation = models.CharField(max_length=20, blank=True)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100, blank=True)
+    first_name = models.CharField(max_length=100, validators=[name_validator])
+    last_name = models.CharField(max_length=100, validators=[name_validator])
     company_name = models.CharField(max_length=255, blank=True)
-    display_name = models.CharField(max_length=255, blank=True)
+    display_name = models.CharField(max_length=255, validators=[name_validator])
     vendor_code = models.CharField(max_length=50, unique=True)
-    email_address = models.CharField(max_length=255, blank=True)
-    work_phone = models.CharField(max_length=50, blank=True)
-    mobile_number = models.CharField(max_length=50, blank=True)
+    email_address = models.CharField(max_length=255, blank=True, validators=[email_validator])
+    work_phone = models.CharField(max_length=50, blank=True, validators=[mobile_validator])
+    mobile_number = models.CharField(max_length=50, blank=True, validators=[mobile_validator])
 
     registered_business = models.BooleanField(default=False)
     company_abn = models.CharField(max_length=50, blank=True)
@@ -65,8 +66,8 @@ class VendorContact(models.Model):
     department = models.CharField(max_length=100)
     email = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=50, blank=True)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100, blank=True)
+    first_name = models.CharField(max_length=100, validators=[name_validator], blank=True)
+    last_name = models.CharField(max_length=100, validators=[name_validator], blank=True)
     role = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     created_by = models.PositiveIntegerField(default=0)

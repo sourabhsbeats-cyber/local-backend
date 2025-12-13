@@ -14,7 +14,7 @@ headers = ['Brand', 'SKU', 'Title', 'Subtitle', 'Description', 'Short Desc',
                     'Retail Price (RRP)', 'Cost per Item', 'Product Margin %', 'Profit', 'Minimum Price',
                     'Maximum Price', 'Estimated Shipping Cost', 'Preferred Vendor', 'Vendor SKU', 'Parent SKU',
                     'Colour', 'Size', 'Material', 'Compatibility', 'Height (cm)', 'Width (cm)', 'Depth (cm)',
-                    'Weight (kg)', 'Fast Dispatch', 'Free Shipping', 'Is the product bulky?', 'Shipping Logic',
+                    'Weight (kg)', 'Fast Dispatch', 'Free Shipping', 'Is the product bulky?', 'Is Taxable', 'Shipping Logic',
                     'International Note', 'Example Reference (optional)', 'Ships from', 'Handling Time (days)',
                     'SBAU', 'Local 3PL', 'China', 'USA', 'Main Image']
 
@@ -144,7 +144,8 @@ export_prod_sql = """
               AND product_id = p.product_id
        ), 0
     ) AS "USA",
-    p.main_image AS "Main Image"
+    p.main_image AS "Main Image",
+    p.is_taxable AS "Is Taxable"
 	FROM store_admin_product p
 	 LEFT JOIN store_admin_brand b ON b.brand_id = p.brand_id
 	 LEFT JOIN store_admin_manufacturer m ON m.manufacturer_id = p.manufacturer_id
@@ -204,10 +205,10 @@ def export_products_xlsx(request):
 
         writer = csv.writer(response)
 
-        # 2️⃣ Write header row exactly as received from SQL
+        # Write header row exactly as received from SQL
         writer.writerow(cols)
 
-        # 3️⃣ Write each data row safely
+        #  Write each data row safely
         for r in rows:
             obj = dict(zip(cols, r))  # tuple → dict mapping
             writer.writerow([
@@ -267,6 +268,7 @@ def export_products_xlsx(request):
                 obj.get("China") or "",#stock
                 obj.get("USA") or "",#stock
                 obj.get("Main Image") or "",
+                "Yes" if obj.get("Is Taxable") else "No",
             ])
 
         return response

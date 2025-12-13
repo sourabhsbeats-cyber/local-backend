@@ -1,0 +1,255 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tax Invoice</title>
+
+<style>
+@font-face {
+    font-family: "Roboto";
+    src: url("{% static 'fonts/roboto/Roboto-Regular.ttf' %}") format("truetype");
+    font-weight: 400;
+}
+
+@font-face {
+    font-family: "Roboto";
+    src: url("{% static 'fonts/roboto/Roboto-Medium.ttf' %}") format("truetype");
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: "Roboto";
+    src: url("{% static 'fonts/roboto/Roboto-Bold.ttf' %}") format("truetype");
+    font-weight: 700;
+}
+
+body {
+    font-family: "Roboto", sans-serif;
+    font-size: 12px;
+    line-height: 1.32;
+    color: #222;
+    margin: 0;
+}
+
+@page {
+    size: A4;
+    margin: 6mm 6mm 12mm 6mm;
+}
+
+/* ---------------------------------- TABLE DEFAULTS ---------------------------------- */
+table { width: 100%; border-collapse: collapse; }
+td, th { border: 1px solid #888; padding: 6px 5px; vertical-align: top; }
+
+/* Lighter border (matching sample) */
+table, td, th {
+    border-color: #888; /* light but visible */
+}
+
+/* Simple helpers */
+.center { text-align: center; }
+.right { text-align: right; }
+
+/* ---------------------------------- HEADER ---------------------------------- */
+.header-title { font-size: 16px; font-weight: 700; }
+.header-table td { border: none; padding-bottom: 4px; }
+
+/* ---------------------------------- SHIPPING / ORDER HEADER ---------------------------------- */
+.top-info-table th {
+    font-weight: normal !important;
+    font-size: 11px;
+    line-height: 18px;
+    border-color: #777;
+    padding: 4px 6px;
+}
+
+.group-header {
+    font-size: 11px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* Column widths based on your requirement */
+.col-pg { width: 5%; min-width: 40px; }
+.col-order { width: 11%; }
+.col-ship { width: 57%; }
+.col-terms { width: 24%; }
+
+/* ---------------------------------- ITEM TABLE ---------------------------------- */
+.item-table {
+    border-left: 1px solid #777;
+    border-right: 1px solid #777;
+}
+
+.item-table th {
+    background: #f7f7f7;
+    font-size: 11px;
+    border-color: #777;
+}
+
+.item-table td {
+    border-bottom: 1px solid #ddd;
+}
+
+/* ---------------------------------- FOOTER ---------------------------------- */
+.footer-left {
+    width: 60%;
+    padding: 15px;
+    border: 1px solid #777;
+}
+
+.footer-summary {
+    width: 40%;
+    border: 1px solid #777;
+    border-left: none; /* avoid double border */
+}
+
+.footer-summary table td {
+    border: none;
+    padding: 4px 10px;
+    font-size: 12px;
+}
+
+.total-row td {
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.tagline-row {
+    border: 1px solid #777;
+    border-top: none;
+    padding: 6px 10px;
+    font-style: italic;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ------------------------- LOGO & VENDOR ------------------------- -->
+<table class="header-table">
+<tr>
+    <td style="width:60%; border:none;">
+        <img src="{{ logo_url }}" style="height:60px;">
+    </td>
+    <td style="width:40%; border:none;" class="right">
+        {{ po.vendor.name }}<br>
+        {{ po.vendor.address }}<br>
+        {{ po.vendor.address2 }}
+    </td>
+</tr>
+</table>
+
+
+<!-- ------------------------- DELIVERY + INVOICE BOX ------------------------- -->
+<table style="margin-top:10px;">
+<tr>
+    <td style="width:60%; border:none;">
+        <strong>Deliver To:</strong><br>
+        <div style="margin-top:4px;">
+            {{ company_name }}<br>
+            {{ company_address.line }}<br>
+            {{ company_address.state }} {{ company_address.city }} {{ company_address.postcode }}<br>
+            {{ company_address.country }}<br>
+            <br>
+            Phone: {{ company_phone }} | Email: {{ company_email }}
+        </div>
+    </td>
+
+    <td style="width:40%; border:none;">
+        <table>
+            <tr><td colspan="2" style="padding-top:8px;padding-bottom:8px;" class="center header-title">Tax Invoice</td></tr>
+            <tr><td style="padding-top:8px;padding-bottom:8px;"><strong>INVOICE:</strong></td><td>{{ po.invoice_number }}</td></tr>
+            <tr><td style="padding-top:8px;padding-bottom:8px;"><strong>DATE:</strong></td><td>{{ po.order_date}}</td></tr>
+        </table>
+    </td>
+</tr>
+
+<tr>
+    <td colspan="2" style="border:none; padding-top:6px;">
+        <u>Special Instructions:</u>
+        {{ po.special_instructions|default:"-" }}<br>
+    </td>
+</tr>
+</table>
+
+
+<!-- ------------------------- ORDER HEADER ------------------------- -->
+<table class="top-info-table">
+<thead>
+<tr>
+    <th style="border:none"  class="col-pg">PG.<br>1</th>
+    <th style="border:none"  class="col-ship group-header">
+        <strong>SHIP VIA:</strong> {{ shipping_details.provider }}<br>
+        <strong>WEBSITE:</strong> {{ shipping_details.website }}<br>
+        <strong>TRACKING REF:</strong> {{ shipping_details.tracking_number }}
+    </th>
+
+    <th style="border:none"  class="col-terms left group-header">
+        <strong>TERMS</strong>: {{ po.payment_term }}<br/>
+        <strong>DUE DATE</strong>: {{ po.delivery_date }}<br/>
+        <strong>ORDER NO.</strong>: {{ po.order_no }}
+    </th>
+</tr>
+</thead>
+</table>
+
+
+<!-- ------------------------- ITEM TABLE ------------------------- -->
+<table class="item-table " style="margin-top:12px;">
+<thead>
+<tr>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:40px;">QTY</th>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:80px;">ITEM</th>
+    <th style="border-top:none;background-color:black;color:white;">DESCRIPTION</th>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:80px;">CARTON</th>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:70px;">COST<br><small>(excl. GST)</small></th>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:50px;">DISC</th>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:80px;">AMOUNT<br><small>(excl. GST)</small></th>
+    <th class="center" style="background-color:black;color:white;border-top:none;width:30px;">GST</th>
+</tr>
+</thead>
+
+<tbody>
+{% for item in po.items %}
+<tr>
+    <td class="center">{{ item.qty }}</td>
+    <td class="center">{{ item.sku }}</td>
+    <td>{{ item.name }}</td>
+    <td class="center">--</td>
+    <td class="right">{{ item.rate|aud }}</td>
+    <td class="right">{{ item.discount_amt|default:"0.00"|aud }}</td>
+    <td class="right">{{ item.line_total|aud }}</td>
+    <td class="center">{{ item.tax_percentage }}%</td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+
+<!-- ------------------------- FOOTER ------------------------- -->
+<table style="margin-top:10px;">
+<tr>
+    <td class="footer-left" style="border:none">
+        <h3>Thank you for your order!</h3>
+        <p>
+            The total value of Unique products requested has been charged to your Credit Card.
+            If any items were out of stock at time of processing, the refund will be issued within 1-2 business days.
+        </p>
+    </td>
+
+    <td class="footer-summary" style="border:none">
+        <table>
+            <tr><td><strong>SUB TOTAL (ex. GST):</strong></td><td class="right">{{ subtotal|aud }}</td></tr>
+            <tr><td><strong>FREIGHT (ex. GST):</strong></td><td class="right">$0.00</td></tr>
+            <tr><td><strong>GST:</strong></td><td class="right">{{ gst_amount|aud }}</td></tr>
+            <tr class="total-row"><td><strong>TOTAL (incl. GST):</strong></td><td class="right">{{ total|aud }}</td></tr>
+        </table>
+    </td>
+</tr>
+
+
+</table>
+
+</body>
+</html>

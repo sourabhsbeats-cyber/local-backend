@@ -1,59 +1,15 @@
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404
-from django.views.decorators.csrf import csrf_exempt
-from store_admin.models import Country, State
-from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.setting_model import Brand, Manufacturer
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
-from store_admin.models.address_model import Addresses
-from django.db import transaction
-from django.db.models import Min
-from django.db.models import Value as V
-from django.db.models.functions import Concat
-from django.conf import settings
-from django.http import HttpResponseBadRequest
-from urllib.parse import urlencode
-
-from django.shortcuts import render
-from django.contrib import messages
 from store_admin.models.product_model import Product, ProductPriceDetails, ProductStaticAttributes, \
     ProductShippingDetails
-from django.http import JsonResponse
-from django.http import FileResponse, Http404
-import os
 import pandas as pd
-import csv
-import re
-from django.contrib.auth.decorators import login_required
-from datetime import datetime
 from openpyxl import load_workbook
 from openpyxl import load_workbook
-from django.utils.safestring import mark_safe
-from django.shortcuts import redirect
-from django.urls import reverse
-from django.conf import settings
 from django.shortcuts import render, redirect
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from store_admin.models import Country, State
-from store_admin.models.payment_terms_model import PaymentTerm
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
-from store_admin.models.address_model import Addresses
+from store_admin.models import Country
+from store_admin.models.vendor_models import Vendor
 from django.db import transaction
-from django.db.models import Min
-from django.db.models import Value as V
-from django.db.models.functions import Concat
-from django.conf import settings
-from decimal import Decimal, InvalidOperation
-from django.db import transaction
-from django.db.models import Max
 from django.http import FileResponse, Http404
 import os
 import pandas as pd
@@ -64,12 +20,8 @@ from openpyxl import load_workbook
 from django.contrib.auth.decorators import login_required
 from openpyxl import load_workbook  # pip install openpyxl
 from django.conf import settings
-from django.http import HttpResponseBadRequest
 from django.urls import reverse
-from urllib.parse import urlencode
 from django.utils.safestring import mark_safe
-from django.db.models import Q
-
 from store_admin.models.warehouse_setting_model import Warehouse
 from store_admin.models.warehouse_transaction_model import ProductWarehouse
 from store_admin.helpers import to_str, safe_int, safe_decimal, bool_from_str, convert_to_months
@@ -134,6 +86,7 @@ product_field_schema = {
     "FNSKU": {"type": "str",  "required": False},
 
     "FBA SKU": {"type": "str",  "required": False},
+    "Is Taxable": {"type": "bool", "required": False},
     "FBA": {"type": "str", "required": False},
     "Amazon Size": {"type": "str", "required": False},
     "Barcode Label Type": {"type": "str", "required": False},
@@ -154,7 +107,7 @@ product_field_schema = {
     "Estimated Shipping Cost": {"type": "float", "required": False},
     "Preferred Vendor": {"type": "str", "required": False},
     "Vendor SKU": {"type": "str",  "required": False},
-    "Parent SKU": {"type": "str",  "required": False},
+    #"Parent SKU": {"type": "str",  "required": False},
     "Colour": {"type": "str", "required": False},
     "Size": {"type": "str", "required": False},
     "Material": {"type": "str", "required": False},
@@ -166,7 +119,7 @@ product_field_schema = {
     "Fast Dispatch": {"type": "str", "required": False},
     "Free Shipping": {"type": "str", "required": False},
     "Is the product bulky?": {"type": "bool", "required": False},
-    "Shipping Logic": {"type": "str", "required": False},
+    #"Shipping Logic": {"type": "str", "required": False},
     "International Note": {"type": "str", "required": False},
     "Example Reference (optional)": {"type": "str", "required": False},
     "Ships from": {"type": "str", "required": False},
@@ -183,9 +136,9 @@ required_headers = ['Brand', 'SKU', 'Title', 'Subtitle', 'Description', 'Short D
                     'ASIN', 'FNSKU', 'FBA SKU', 'FBA', 'Amazon Size', 'Barcode Label Type', 'Prep Type',
                     'Stock Status', 'Status', 'Publish', 'Warranty', 'Product Tags', 'Sales Price',
                     'Retail Price (RRP)', 'Cost per Item', 'Product Margin %', 'Profit', 'Minimum Price',
-                    'Maximum Price', 'Estimated Shipping Cost', 'Preferred Vendor', 'Vendor SKU', 'Parent SKU',
+                    'Maximum Price', 'Estimated Shipping Cost', 'Preferred Vendor', 'Vendor SKU', 
                     'Colour', 'Size', 'Material', 'Compatibility', 'Height (cm)', 'Width (cm)', 'Depth (cm)',
-                    'Weight (kg)', 'Fast Dispatch', 'Free Shipping', 'Is the product bulky?', 'Shipping Logic',
+                    'Weight (kg)', 'Fast Dispatch', 'Free Shipping', 'Is the product bulky?','Is Taxable',
                     'International Note', 'Example Reference (optional)', 'Ships from', 'Handling Time (days)',
                     'SBAU', 'Local 3PL', 'China', 'USA', 'Main Image']
 cond_options = [
@@ -364,7 +317,7 @@ def preview_import(request, cleaned_filename, dup_option, uploaded_filename):
         # Paths
         temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "product")
         cleaned_path = os.path.join(temp_dir, cleaned_filename)
-        upload_file =  os.path.join(temp_dir, uploaded_filename)
+        #upload_file =  os.path.join(temp_dir, uploaded_filename)
         if not os.path.exists(cleaned_path):
             messages.error(request, f"The file '{cleaned_filename}' could not be located on the server.")
             raise Exception('url_name_for_import_product_form1')
@@ -373,9 +326,9 @@ def preview_import(request, cleaned_filename, dup_option, uploaded_filename):
         validated_rows = df.to_dict('records')
 
         valid_count = len(validated_rows)
+
         headers = df.columns.tolist()
         # Extract headers from dict keys
-        os.remove(upload_file)
         # Render preview page
         return render(request, "sbadmin/pages/product/bulk_import/import_product_stage_2.html", {
             "error": None, "dup_option":dup_option, "cleaned_filename":cleaned_filename,
@@ -384,6 +337,7 @@ def preview_import(request, cleaned_filename, dup_option, uploaded_filename):
             "headers": headers,
         })
     except Exception as e:
+        print(str(e))
         messages.error(request, f"Error reading file: {str(e)}")
         return render(request, "sbadmin/pages/product/bulk_import/import_product_stage_2.html", {
         })
@@ -524,6 +478,7 @@ def final_product_import(request):
             product.fnsku = to_str(row.get("FNSKU")) or None
             product.fba_sku = to_str(row.get("FBA SKU")) or None
             product.is_fba = bool_from_str(row.get("FBA"))
+            product.is_taxable = bool_from_str(row.get("Is Taxable"))
             product.amazon_size = to_str(row.get("Amazon Size")) or ""
 
             # ---------- BARCODE LABEL TYPE ----------

@@ -169,14 +169,12 @@ def all_vendors(request):
 
     return render(request, 'sbadmin/pages/vendor/all_listing.html', context)
 
-
+from django.db.models import F
 def api_get_vendor_by_id(request, vendor_id):
     try:
         vendor = Vendor.objects.annotate(
-            name=Concat(
-                'salutation', V(' '),
-                'first_name', V(' '),
-                'last_name'
+            name=F(
+                'display_name'
             )
         ).values(
             'id',
@@ -189,6 +187,15 @@ def api_get_vendor_by_id(request, vendor_id):
             'payment_term_id'
         ).get(id=vendor_id)
 
+        if not vendor.get("currency", None):
+            try:
+                vendor_detail = Vendor.objects.get(id=vendor.get("id"))
+                vendor_detail.currency = "AUD"
+                vendor_detail.save()
+                vendor.setdefault("currency", "AUD")
+            except Exception as e:
+                vendor.setdefault("currency", "AUD")
+
         return JsonResponse({
             "status": True,
             "data": vendor
@@ -199,7 +206,10 @@ def api_get_vendor_by_id(request, vendor_id):
             "status": False,
             "message": "Vendor not found"
         }, status=404)
+
 import re
+import ast
+
 @login_required
 def save_vendor(request):
     if request.method != "POST":
@@ -280,7 +290,7 @@ def save_vendor(request):
                 vendor.payment_term = PaymentTerm.objects.get(id=int(request.POST["payment_term"]))
             if request.FILES.get("documents"):
                 vendor.documents = request.FILES["documents"]
-
+            vendor.full_clean()
             vendor.save()
             if request.POST["billing_country"]:
                 status = save_address(request, "billing", vendor.id)
@@ -291,10 +301,21 @@ def save_vendor(request):
         return JsonResponse({"status": True, "vendor_id": vendor.id})
 
     except Exception as e:
+        error_text = str(e)
+        try:
+            error_dict = ast.literal_eval(error_text)
+        except:
+            error_dict = {"error": error_text}
+
+        alias = {
+            "first_name": "First Name",
+            "last_name": "Last Name"
+        }
+        formatted_errors = {alias.get(k, k): v for k, v in error_dict.items()}
         return JsonResponse({
             "status": False,
-            "message": f"Error in vendor create" ,
-            "detail": str(e)
+            "message": "Error in vendor create - "+str(formatted_errors),
+            "detail": formatted_errors
         }, status=500)
 
 def save_address(request, type, vendor_id):

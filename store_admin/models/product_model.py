@@ -1,5 +1,14 @@
 from django.db import models
 
+from store_admin.helpers import validate_sku, validate_title_like_name
+
+PREP_TYPE_CHOICES = [
+        ("no_prep_needed", "No Prep Needed"),
+        ("polybag", "Polybagging"),
+        ("bubble_wrap", "Bubble Wrap"),
+        ("labeling", "Labeling"),
+    ]
+
 class Product(models.Model):
     product_id = models.AutoField(primary_key=True)
 
@@ -11,9 +20,9 @@ class Product(models.Model):
     is_alias = models.BooleanField(default=False)
 
     # BASIC INFO
-    sku = models.CharField(max_length=120, unique=True)
-    title = models.CharField(max_length=255)
-    subtitle = models.CharField(max_length=255, blank=True, null=True)
+    sku = models.CharField(max_length=120, validators=[validate_sku], unique=True )
+    title = models.CharField(max_length=255, validators=[validate_title_like_name])
+    subtitle = models.CharField(max_length=255, blank=True,validators=[validate_title_like_name], null=True)
     description = models.TextField(blank=True, null=True)
     short_description = models.TextField(blank=True, null=True)
 
@@ -39,7 +48,7 @@ class Product(models.Model):
     fnsku = models.CharField(max_length=50, blank=True, null=True)
     fba_sku = models.CharField(max_length=50, blank=True, null=True)
     is_fba = models.BooleanField(default=False)
-
+    is_taxable = models.BooleanField(default=0)
     ISBN_TYPE_CHOICES = [
         ("standard", "Standard"),
         ("oversize", "Oversize"),
@@ -52,12 +61,7 @@ class Product(models.Model):
     ]
     barcode_label_type = models.CharField(max_length=20, choices=BARCODE_TYPE_CHOICES, blank=True, null=True)
 
-    PREP_TYPE_CHOICES = [
-        ("no_prep_needed", "No Prep Needed"),
-        ("polybag", "Polybagging"),
-        ("bubble_wrap", "Bubble Wrap"),
-        ("labeling", "Labeling"),
-    ]
+
     prep_type = models.CharField(max_length=20, choices=PREP_TYPE_CHOICES, default="no_prep_needed")
 
     # INVENTORY

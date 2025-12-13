@@ -462,3 +462,47 @@ CREATE TABLE purchase_order_item (
     discount_percentage DECIMAL(5,2) DEFAULT 0,
     amount DECIMAL(12,2) DEFAULT 0,
 );
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_product`
+ADD COLUMN `is_taxable` TINYINT(1) NULL DEFAULT '0' AFTER `main_image`;
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_order`
+ADD COLUMN `surcharge_total` DECIMAL(10,2) NULL DEFAULT '0.00' AFTER `po_number`;
+
+
+
+CREATE TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_order_shipping_details` (
+  `po_shipping_id` INT NOT NULL AUTO_INCREMENT,
+  `po_id` INT NOT NULL,
+  `provider` VARCHAR(80) NULL,
+  `website` VARCHAR(180) NULL,
+  `tracking_number` VARCHAR(80) NULL,
+  `created_by` INT NULL,
+  `created_at` DATETIME(6) NULL,
+  PRIMARY KEY (`po_shipping_id`));
+
+
+use sb_commerce_b2b_dev;
+CREATE TABLE store_admin_purchase_order_vendor_details (
+    po_vendor_id INT AUTO_INCREMENT PRIMARY KEY,
+    po_id INT NOT NULL,
+    po_number VARCHAR(80) NULL,
+    order_date DATETIME NULL,
+    invoice_date DATETIME NULL,
+    invoice_due_date DATETIME NULL,
+    invoice_ref_number VARCHAR(80)  NULL,
+    delivery_ref_number VARCHAR(80)  NULL,
+    created_by INT NULL,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_po_id (po_id)
+)
+
+ENGINE=InnoDB 
+DEFAULT CHARSET=utf8mb4 
+COLLATE=utf8mb4_0900_ai_ci;
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_order_item` 
+ADD COLUMN `order_type` VARCHAR(80) NULL DEFAULT NULL AFTER `unit`,
+ADD COLUMN `order_ref` VARCHAR(80) NULL DEFAULT NULL AFTER `order_type`;
+

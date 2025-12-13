@@ -2,13 +2,22 @@
 {% block title %}Add PO{% endblock %}
 
 {% block content %}
-
+<style>
+    #po_number_display{
+        border-bottom:1px dashed #666;opacity:0.8;
+        font-style: italic; cursor:pointer; padding-right:20px; position:relative;
+    }
+</style>
 <div class="content-wrapper">
   <section class="content-header">
     <div class="container-fluid">
       <div class="row mb-2 align-items-center">
         <div class="col-sm-6">
-          <h4 class="m-0">Purchase Order - <strong>{{ po.po_number }}</strong></h4>
+            <input type="hidden" id="po_number" value="{{ po.po_number }}"/>
+          <div style="font-size: 19px;" class="m-0">Purchase Order - <span class="help-text" title="Click here to Update" id="po_number_display">
+              {{ po.po_number }}
+              <i class="fa fa-pen text-primary" style="position:absolute; right:0; top:6px; font-size:14px;"></i>
+            </span></div>
         </div>
         <div class="col-sm-6">
           <ol class="breadcrumb float-sm-right">
@@ -19,255 +28,454 @@
       </div>
     </div>
   </section>
-  <div class="card-header pr-0">
-    <a href="{% url 'po_listing' %}" class="text-danger float-right pt-2 btn btn-tool">
-      <i class="fas fa-times"></i>
-    </a>
-  </div>
-  <section class="content p-3  invoice">
-            {% csrf_token %}
-            <div class="row col-md-12">
-                <!-- PRODUCT TYPE -->
-                <div class="col-sm-6 p-2">
-                    <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Vendor</label>
-                        <div class="col-sm-9">
-                          <select  name="vendor_id" id="vendor_id" class="w-50 select2" title="Select">
-                              <option value="">Select</option>
-                              {% for vendor in vendors %}
-                                  <option {% if po.vendor_id == vendor.id %}selected{% endif %} value="{{ vendor.id }}">{{ vendor.display_name }} ({{ vendor.vendor_code }}))</option>
-                              {% endfor %}
-                          </select>
-                        </div>
-                    </div>
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Vendor Name</label>
-                        <div class="col-sm-9">
-                          <input type="text" value="{{ po.vendor_name }}" id="vendor_name" name="vendor_name" class="w-50 form-control" placeholder=""/>
-                        </div>
-                    </div>
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Currency Code</label>
-                        <div class="col-sm-9">
-                            <input type="text"  value="{{ po.currency_code|hide_none }}" name="currency_code" id="currency_code" class="w-50 form-control" disabled/>
-                        </div>
-                    </div>
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Vendor Reference</label>
-                        <div class="col-sm-9">
-                          <input type="text" value="{{ po.vendor_reference|hide_none }}" name="vendor_reference" id="vendor_reference" class="w-50 form-control" />
-                        </div>
-                    </div>
-                    <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Invoice Date</label>
-                        <div class="col-sm-9">
-                          <input type="date" value="{{ po.invoice_date|date:'Y-m-d' }}" name="invoice_date" id="invoice_date" class="w-50 form-control" >
-                        </div>
-                    </div>
-                     <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Warehouse</label>
-                        <div class="col-sm-9">
-                          <select required name="warehouse" class="select2 w-50" id="warehouse" title="Select type">
-                              <option value="">Select warehouse</option>
-                              {% for warehouse in warehouses %}
-                                  <option {% if po.warehouse_id == warehouse.warehouse_id %}selected{% endif %} value="{{ warehouse.warehouse_id }}">{{ warehouse.warehouse_name }}</option>
-                              {% endfor %}
-                          </select>
-                        </div>
-                    </div>
-                     <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Order Date</label>
-                        <div class="col-sm-9">
-                          <input type="date" value="{{ po.order_date|date:'Y-m-d' }}" name="order_date" id="order_date" class="w-50 form-control" >
-                        </div>
-                    </div>
-                     <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Delivery Date</label>
-                        <div class="col-sm-9">
-                          <input type="date" value="{{ po.delivery_date|date:'Y-m-d' }}" name="delivery_date" id="delivery_date" class="w-50 form-control" >
-                        </div>
-                    </div>
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Payment Term</label>
-                        <div class="col-sm-9">
-                          <select class="w-50 form-control select2" id="payment_term_id">
-                              {% for payment_term in payment_terms %}
-                                <option {% if po.payment_term_id == payment_term.id %}selected{% endif %} value="{{ payment_term.id }}">{{ payment_term.name }}</option>
-                              {% endfor %}
-                          </select>
-                        </div>
-                    </div>
+   
+  <section class="">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card-section">
+                    <div class="section-title">Order Information</div>
+                    <div class="row">
+                        <div class=" col-sm-12 col-md-12">
+                            <div class="col-sm-6 float-left p-2">
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Vendor</label>
+                                    <div class="col-sm-8">
+                                    <select  name="vendor_id" id="vendor_id" class="w-75  select2" title="Select">
+                                        <option value="">Select</option>
+                                        {% for vendor in vendors %}
+                                            <option {% if po.vendor_id == vendor.id %}selected{% endif %} value="{{ vendor.id }}">{{ vendor.display_name }} ({{ vendor.vendor_code }}))</option>
+                                        {% endfor %}
+                                    </select>
+                                    </div>
+                                </div>
+                                <div class="form-group row ">
+                                    <label class="col-sm-4 col-form-label">Vendor Name</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" value="{{ po.vendor_name }}" id="vendor_name" name="vendor_name" class="w-75  form-control form-control-sm " placeholder="Name"/>
+                                    </div>
+                                </div>
+                                <div class="form-group row ">
+                                    <label class="col-sm-4 col-form-label">Currency Code</label>
+                                    <div class="col-sm-8">
+                                        <input type="text"  value="{{ po.currency_code|hide_none }}" name="currency_code" id="currency_code" class="form-control form-control-sm w-75 " disabled/>
+                                    </div>
+                                </div>
+                                <div class="form-group row ">
+                                    <label class="col-sm-4 col-form-label"> Reference#</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" placeholder="ex:POS01234567" value="{{ po.vendor_reference|hide_none }}" name="vendor_reference" id="vendor_reference" class=" form-control w-75 form-control-sm " />
+                                    </div>
+                                </div>
 
+
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Order Date</label>
+                                    <div class="col-sm-8">
+                                    <input type="date" value="{{ po.order_date|date:'Y-m-d' }}" name="order_date" id="order_date" class="w-50 form-control form-control-sm " >
+                                    </div>
+                                </div>
+                                <div class="form-group row ">
+                                    <label class="col-sm-4 col-form-label">Expected Delivery Date</label>
+                                    <div class="col-sm-8">
+                                    <input type="date" value="{{ po.delivery_date|date:'Y-m-d' }}" name="delivery_date" id="delivery_date" class="w-50 form-control-sm form-control" >
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 float-left p-1">
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Delivery Name</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" value="{{ po.delivery_name|hide_none }}" id="delivery_name" name="delivery_name" class="form-control form-control-sm " />
+                                    </div>
+                                </div>
+
+                                <div class="form-group row ">
+                                    <label class="col-sm-4 col-form-label">Address Line 1</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" value="{{ po.address_line1|hide_none }}"  id="address_line1" name="address_line1" class="form-control-sm form-control " placeholder=""/>
+                                    </div>
+                                </div>
+                                <div class="form-group row ">
+                                    <label class="col-sm-4 col-form-label">Address Line 2</label>
+                                    <div class="col-sm-8">
+                                    <input type="text"  value="{{ po.address_line2|hide_none }}"  name="address_line2" id="address_line2" class="form-control-sm  form-control" />
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">City</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" name="city"  value="{{ po.city|hide_none }}"  id="city" class="form-control form-control-sm" >
+                                    </div>
+                                </div>
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">State/County</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" name="state"  value="{{ po.state|hide_none }}"   id="state" class="form-control form-control-sm" >
+                                    </div>
+                                </div>
+
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">ZIP/Postal Code</label>
+                                    <div class="col-sm-8">
+                                    <input type="text" name="post_code" value="{{ po.post_code|hide_none }}"  id="post_code" class="form-control form-control-sm" />
+                                    </div>
+                                </div>
+
+                                <div class="form-group row">
+                                    <label class="col-sm-4 col-form-label">Country/Region</label>
+                                    <div class="col-sm-8">
+                                    <select id="country_id" name="country_id" class="select2" title="Select">
+                                        <option value="">Select </option>
+                                        {% for country in country_list %}
+                                        <option {% if po.country_id == country.id %}selected{% endif %} value="{{ country.id }}">{{ country.name }} </option>
+                                        {% endfor %}
+                                    </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-sm-6 p-1">
-                    <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Delivery Name</label>
-                        <div class="col-sm-9">
-                          <input type="text" value="{{ po.delivery_name|hide_none }}" id="delivery_name" name="delivery_name" class="form-control w-50" placeholder=""/>
-                        </div>
-                    </div>
+                <div class="card-section ">
+                        <div class="section-title">Shipping Details</div>
+                        <div class="row">
+                            <div class="col-4">
+                                <div class="form-group row">
+                                    <label class="col-sm-5 text-right  col-form-label">Provider</label>
+                                    <div class="col-sm-6">
+                                    <input type="text" value="{{ shipping.provider }}" maxlength="80"  name="shipping_provider"
+                                            id="shipping_provider" class="form-control-sm  form-control" />
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Address Line 1</label>
-                        <div class="col-sm-9">
-                          <input type="text" value="{{ po.address_line1|hide_none }}"  id="address_line1" name="address_line1" class="form-control w-50" placeholder=""/>
-                        </div>
-                    </div>
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Address Line 2</label>
-                        <div class="col-sm-9">
-                          <input type="text"  value="{{ po.address_line2|hide_none }}"  name="address_line2" id="address_line2" class="w-50 form-control" />
-                        </div>
-                    </div>
-                    <div class="form-group row ">
-                        <label class="col-sm-3 col-form-label">Suburb</label>
-                        <div class="col-sm-9">
-                          <input type="text" name="suburb"  value="{{ po.suburb|hide_none }}" id="suburb" class="w-50 form-control" >
-                        </div>
-                    </div>
-                    <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">City</label>
-                        <div class="col-sm-9">
-                          <input type="text" name="city"  value="{{ po.city|hide_none }}"  id="city" class="w-50 form-control" >
-                        </div>
-                    </div>
-                     <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">State</label>
-                        <div class="col-sm-9">
-                          <input type="text" name="state"  value="{{ po.state|hide_none }}"   id="state" class="w-50 form-control" >
-                        </div>
-                    </div>
+                            <div class="col-4">
+                                <div class="form-group row">
+                                    <label class="col-sm-5 text-right col-form-label">Link</label>
+                                    <div class="col-sm-6">
+                                    <input type="text" value="{{ shipping.website }}" maxlength="180" name="shipping_website"
+                                            id="shipping_website" class="form-control-sm  form-control" />
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Post Code</label>
-                        <div class="col-sm-9">
-                          <input type="text" name="post_code" value="{{ po.post_code|hide_none }}"  id="post_code" class="w-50 form-control" />
-                        </div>
-                    </div>
+                            <div class="col-4">
+                                <div class="form-group row">
+                                    <label class="col-sm-5 text-right col-form-label">Tracking Ref#</label>
+                                    <div class="col-sm-6">
+                                    <input type="text" value="{{ shipping.tracking_number }}" maxlength="80"  name="shipping_tracking_no"
+                                            id="shipping_tracking_no" class="form-control-sm form-control" />
+                                    </div>
+                                </div>
+                            </div>
 
+                        </div>
+                </div>
+
+            </div>
+            <div class="col-md-4">
+                <div class="card-section ">
+                    <div class="section-title">PO Status</div>
+                    <div class="form-group">
+                        <select id="po_status" class="form-control">
+                            <option {% if po.status_id == 0 %}selected {% endif %} value="0">New</option>
+                            <option {% if po.status_id == 1 %}selected {% endif %} value="1">Approved</option>
+                            <option {% if po.status_id == 2 %}selected {% endif %}value="2">Cancelled</option>
+                            <option {% if po.status_id == 3 %}selected {% endif %} value="3">Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-section">
+                        <div class="section-title">Vendor PO (Internal Ref)</div>
+                        <div class="">
+                            <div class="form-group row">
+                                <label class="col-sm-5 col-form-label">PO#<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor's Own Reference number"></i></label>
+                                <div class="col-sm-6">
+                                <input type="text" name="vendor_po_number" placeholder="Vendor PO#"  value="{{ vendor_po.po_number|hide_none }}"  id="vendor_po_number" class="form-control form-control-sm" >
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-5 col-form-label">Order Date<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Date when PO is created"></i></label>
+                                
+                                <div class="col-sm-6">
+                                <input type="date" placeholder=" PO Date" title="Date when PO is created"  value="{{ vendor_po.order_date|date:'Y-m-d' }}" name="vendor_order_date" id="vendor_order_date" class="w-75 form-control form-control-sm " >
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-5 col-form-label">Invoice#<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor Invoice ref"></i></label>
+                                <div class="col-sm-6">
+                                <input type="text" name="vendor_po_invoice_ref" placeholder="Invoice Ref" title="Vendor Invoice ref"  value="{{ vendor_po.invoice_ref_number|hide_none }}"  id="vendor_po_invoice_ref" class="form-control form-control-sm" >
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-5 col-form-label">Delivery Ref#<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Internal warehouse Invoice ref"></i></label>
+                                <div class="col-sm-6">
+                                <input type="text" name="vendor_po_delivery_ref" placeholder="Delivery Ref"  value="{{ vendor_po.delivery_ref_number|hide_none }}"  id="vendor_po_delivery_ref" class="form-control form-control-sm" >
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-5 col-form-label">Invoice Date<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor Invoice Date"></i></label>
+                                <div class="col-sm-6">
+                                <input type="date" title="Vendor Invoice Date" value="{{ vendor_po.invoice_date|date:'Y-m-d' }}" name="vendor_po_invoice_date" id="vendor_po_invoice_date" class="w-75 form-control form-control-sm " >
+                                </div>
+                            </div>
+                            <div class="form-group row">
+                                <label class="col-sm-5 col-form-label">Invoice Due Date<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor Invoice Due Date"></i></label>
+                                <div class="col-sm-6">
+                                <input type="date" title="Vendor Invoice Due Date" value="{{ vendor_po.invoice_due_date|date:'Y-m-d' }}" name="vendor_po_invoice_due_date" id="vendor_po_invoice_due_date" class="w-75 form-control form-control-sm " >
+                                </div>
+                            </div>
+                        </div>
+                </div>   
+            </div> 
+        </div>
+        <div class="card-section">
+            <div class="section-title">Configuration</div>
+            <div class="row">
+
+         <div class="col-4">
                     <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Country</label>
-                        <div class="col-sm-9">
-                          <select id="country_id" name="country_id" class="select2 w-50 " title="Select">
-                            <option value="">Select </option>
-                            {% for country in country_list %}
-                              <option {% if po.country_id == country.id %}selected{% endif %} value="{{ country.id }}">{{ country.name }} </option>
-                            {% endfor %}
-                          </select>
+                        <label class="col-sm-5 text-right col-form-label">Tax %</label>
+                        <div class="col-sm-6">
+                          <input type="number"  value="{{ po.tax_percentage|hide_none|default:"10.0" }}" name="tax_percentage" data-min-value="0" data-max-value="100" id="tax_percentage" class="form-control-sm percentager w-50 form-control" />
                         </div>
                     </div>
-                    <div class="form-group row">
-                        <label class="col-sm-3 col-form-label">Tax %</label>
-                        <div class="col-sm-9">
-                          <input type="number" value="{{ po.tax_percentage|hide_none }}" name="tax_percentage" data-min-value="0" data-max-value="100" id="tax_percentage" class="percentager w-50 form-control" />
-                        </div>
-                    </div>
+                </div>
+         <div class="col-4">
+            <div class="form-group row">
+                <label class="col-sm-5 text-right col-form-label">Warehouse Location</label>
+                <div class="col-sm-6">
+                  <select required name="warehouse" class="select2 w-100" id="warehouse" title="Select type">
+                      <option value="">Select </option>
+                      {% for warehouse in warehouses %}
+                          <option {% if po.warehouse_id == warehouse.warehouse_id %}
+selected
+{% elif warehouse.is_default == 1 %}
+selected
+{% endif %} value="{{ warehouse.warehouse_id }}">{{ warehouse.warehouse_name }}</option>
+                      {% endfor %}
+                  </select>
                 </div>
             </div>
-    <div class="row mt-3">
-      <div class="col-12" >
+        </div>
+         <div class="col-4">
+             <div class="form-group row ">
+                <label class="col-sm-5 text-right col-form-label">Payment Terms</label>
+                <div class="col-sm-7">
+                  <select class="w-100 form-control select2" id="payment_term_id">
+                      {% for payment_term in payment_terms %}
+                        <option {% if po.payment_term_id == payment_term.id %}selected{% endif %} value="{{ payment_term.id }}">{{ payment_term.name }}</option>
+                      {% endfor %}
+                  </select>
+                </div>
+            </div>
+        </div>
+    </div></div>
+
+
+     <div class="card-section">
+            <div class="section-title">Add Product Item</div>
+
+    <div class=" mt-3">
+        <div class="row" >
+      <div class="col-sm-12" >
         <!-- BASIC INFO -->
-        <div class="text-left" >
-            <div class="mb-4 col-12 table-responsive" style="border-bottom: 1px solid #dee2e6;
-            padding-bottom: 0.4rem;"><h5>Products</h5></div>
-            <div class="row">
-                <div class="col-12">
-                    <div class="col-3 float-left">
+                <div class="col-sm-3 float-left">
                         <div class="form-group row">
                             <input type="hidden" id="row_item"  />
                             <label class="col-sm-3 col-form-label">Product</label>
                             <div class="col-sm-9">
                              <div class="position-relative" >
-                                <input type="text" id="productSearch" class="form-control" placeholder="Search product..." />
+                                <input type="text" id="productSearch" class="form-control form-control-sm" placeholder="Search product..." />
                                 <div id="suggestionsBox" class="list-group position-absolute w-100" style="z-index:1000;display:none;"></div>
                             </div>
                         </div>
                     </div>
                 </div>
-
-                <div class="col-2 float-left">
+                <div class="col-sm-2 float-left">
                     <div class="form-group row">
                         <label class="col-sm-5 col-form-label">Quantity</label>
                         <div class="col-sm-5">
-
-                          <input type="text" name="qty" id="row_qty" class="form-control-sm form-control product_details">
+                          <input type="text" placeholder="Qty" name="qty" id="row_qty" class="form-control-sm form-control product_details">
                         </div>
                     </div>
                 </div>
-                <div class="col-2 float-left">
+                <div class="col-sm-2 float-left">
                     <div class="form-group row">
                         <label class="col-sm-3 col-form-label">Price</label>
                         <div class="col-sm-6">
-                          <input type="text" value="" id="row_price" name="price" class="form-control form-control-sm product_details">
+                          <input type="text" value="" placeholder="Product Price" id="row_price" name="price" class="form-control form-control-sm product_details">
                         </div>
                     </div>
                 </div>
-                 <div class="col-2 float-left">
+                 <div class="col-sm-2 float-left">
                     <div class="form-group row">
                         <label class="col-sm-6 col-form-label">Discount %</label>
                         <div class="col-sm-4">
-                          <input type="text" id="row_discount_percentage" name="discount_percentage" class="form-control-sm form-control product_details">
+                          <input type="text" placeholder="Disc %" id="row_discount_percentage" name="discount_percentage" class="form-control-sm form-control product_details">
                         </div>
                     </div>
                 </div>
-                <div class="col-2 float-left">
+                <div class="col-sm-2 float-left">
                     <div class="form-group row">
                         <label id="row_sub_total_detail" class=" col-form-label sub_total_detail"></label>
                     </div>
                 </div>
-                <div class="col-1 float-left">
+                <div class="col-sm-1 float-left">
                     <button type="button" id="btn_add_line_item" class="btn-sm btn btn-primary btn_add_line_item" >
                         <i class="fa fa-plus pr-1"></i>
                         ADD</button>
                 </div>
-            <div>
+    </div>
+    </div>
 
-            </div>
-            <table class="table border table-striped w-100">
-                <th style="width:35%">DETAILS</th>
-                <th class="text-center" style="width:5%">QUANTITY</th>
-                <th class="text-center" style="width:5%">RATE</th>
-                <th class="text-center" style="width:5%">TAX</th>
-                <th class="text-center" style="width:8%">DISCOUNT</th>
-                <th class="text-center" style="width:12%">SUB TOTAL</th>
-                <th class="text-center" style="width:12%">TAX TOTAL</th>
-                <th class="text-right" style="width:10%">TOTAL</th>
-                <th class="text-center" style="width:4%"></th>
+        <div class="table-responsive">
+
+            <table class="table border tbl-line-item table-striped w-100">
+              <thead class="thead-dark">
+                <tr>
+                    <th style="width:30%" >ITEM DETAILS</th>
+                    <th style="width:10%" >WAREHOUSE DETAILS</th>
+                    <th class="text-center" style="width:12%;">
+                        BARCODE LABEL TYPE
+                        <i class="fa fa-info-circle text-secondary ml-1"
+                           data-toggle="tooltip"
+                           data-placement="top"
+                           title="Manufacture or Amazon"></i>
+                    </th>
+                    <th class="text-center" style="width:6%">QUANTITY</th>
+                    <th class="text-center" style="width:7%">RATE</th>
+                    <th class="text-center" style="width:8%">DISCOUNT</th>
+                     <th class="text-center" style="width:8%">SUB TOTAL</th>
+
+                    <th class="text-center" style="width:5%">TAX</th>
+                    <th class="text-center" style="width:8%">TAX TOTAL</th>
+
+
+
+                    <th class="text-right" style="width:10%">TOTAL</th>
+                    <th class="text-center" style="width:5%"></th>
+                </tr>
+                </thead>
                 <tbody id="product_line_item"></tbody>
             </table>
             </div>
-          </div>
         </div>
-        <div class="row mt-5 mb-5">
-            <div class="col-6">
+      
+    </div> 
 
+
+
+        <div class="row mt-3 mb-3">
+            <div class="col-md-6 pl-3">
               <p class="lead">Comments:</p>
-                <textarea id="comments" class="form-control " rows="4" style="width:75%" name="comments">{{ po.comments|hide_none }}</textarea>
+                <textarea id="comments" class="form-control " rows="6" style="width:95%" name="comments">{{ po.comments|hide_none }}</textarea>
             </div>
             <!-- /.col -->
-            <div class="col-2">
-                </div>
-            <div class="col-4">
-              <p class="lead">Summary</p>
-              <div class="table-responsive">
-                <table class="table">
-                  <tbody>
-                  <tr>
-                    <th style="width:50%">Subtotal:</th>
-                    <td class="text-center" id="po_sub_total">0.00</td>
-                  </tr>
-                  <tr>
-                    <th style="width:50%">Tax Total:</th>
-                    <td class="text-center" id="po_tax_total">0.00</td>
-                  </tr>
-
-                  <tr>
-                    <th>Total:</th>
-                    <td class="text-center" id="po_total">0.00</td>
-                  </tr>
-                </tbody></table>
-              </div>
+             <div class="col-md-1">
+             </div>
+         <div class="col-md-5">
+    <div class="card-sections mr-3 p-1 float-right" style="width:400px">
+       <div class="border-bottom p-2 d-flex justify-content-between align-items-center">
+            <div class="lead mb-0">Summary</div>
+            <div class="text-muted mb-0">
+                <span id="line_item_count"></span>
             </div>
+        </div>
+          
+        <div class="table-responsive">
+            <table class="table table-borderless " > 
+                <tbody>
+                    <tr>
+                        <th style="width:50%" class="text-right pb-0 text-bold align-middle">Subtotal</th>
+                        <td class="text-right  pb-0" id="po_sub_total" >0.00</td>
+                    </tr>
+                    <tr>
+                        <th class="text-right pb-0 align-middle">
+                            Shipping
+                            <i class="fa fa-info-circle help-text text-secondary ml-1"
+                            data-toggle="tooltip"
+                            title="Shipping charge."></i>
+                        </th>
+
+                        <td class="text-right pb-0">
+
+                            <!-- Visible formatted label -->
+                            <span class="editable-display"
+                                id="shipping_label"
+                                data-input="shipping_edit"
+                                onclick="showEditableInput(this)"
+                                style="cursor:pointer; border-bottom:1px dashed #888;">
+                                {{ po.shipping_charge|default:'$0.00' }}
+                            </span>
+
+                            <!-- Edit input box -->
+                            <input type="number"
+                                min="0"
+                                id="shipping_edit"
+                                class="form-control form-control-sm editable-input"
+                                style="width:80px; display:none;"
+                                onblur="hideEditableInput(this)" />
+
+                            <!-- REAL RAW VALUE (no formatting) -->
+                            <input type="hidden"
+                                id="shipping_value"
+                                value="{{ po.shipping_charge|default:'0' }}" />
+                        </td>
+                    </tr>
+
+
+                    <tr>
+                        <th class="text-right pb-0 align-middle">
+                            Surcharges
+                            <i class="fa fa-info-circle help-text text-secondary ml-1"
+                            title="Additional charge (+) or deduction (-)."></i>
+                        </th>
+
+                        <td class="text-right">
+
+                            <!-- Visible formatted label -->
+                            <span class="editable-display"
+                                id="surcharge_label"
+                                data-input="surcharge_edit"
+                                onclick="showEditableInput(this)"
+                                style="cursor:pointer; border-bottom:1px dashed #888;">
+                                {{ po.surcharge_total|default:'$0.00' }}
+                            </span>
+
+                            <!-- Edit input box -->
+                            <input type="number"
+                                id="surcharge_edit"
+                                class="form-control form-control-sm editable-input"
+                                style="width:80px; display:none;"
+                                onblur="hideEditableInput(this)" />
+
+                            <!-- REAL RAW VALUE (no formatting) -->
+                            <input type="hidden"
+                                id="surcharge_value"
+                                value="{{ po.surcharge_total|default:'0' }}" />
+                        </td>
+                    </tr>
+
+                    </tr>
+                    <tr>
+                        <th class="text-right  pb-0">Tax Total<i class="fa fa-info-circle text-secondary ml-1"
+                            id="total_smmary_tooltip"></i></th>
+                        <td class="text-right  pb-0" id="po_tax_total">0.00</td>
+                    </tr>
+                    <!-- Total -->
+                    <tr>
+                        <th class=" text-right pt-3">Grand Total <br/> (Incl. GST)</th>
+                        <td class="text-right text-bold pt-3 align-middle" id="po_total">0.00</td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
         </div>
         <div class="row mb-5">
             <div class="col-12">
@@ -283,19 +491,156 @@
                 <i class="fas fa-download"></i> Generate PDF
               </button>
 
-              <a href="{% url 'all_products' %}" class="btn btn-secondary ml-2" ><i class="fas fa-history"></i>
+              <button onclick="window.history.back()" class="btn btn-secondary ml-2" ><i class="fas fa-history"></i>
                 Cancel</a>
             </div>
         </div>
       </div>
-    </div>
-  </section>
-</div>
+ </div>
+ <style>
+  .po-tiny-label {
+        text-align:left;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 0 0 2px 0;
+        padding: 0;
+        display: block;     /* keeps neat alignment */
+        line-height: 1;
+    }
+
+
+    .po-tiny-field {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0;
+        padding: 0;
+    }
+
+
+    .po-tiny-select {
+        float:left;
+        height: 28px !important;
+        font-size: 13px !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        border: 1px solid #c7c7c7 !important;
+        width: 100%;
+    }
+
+
+    .po-tiny-input {
+        height: 28px !important;
+        font-size: 13px;
+        padding: 2px 6px !important;
+        border-radius: 4px;
+        border: 1px solid #c7c7c7;
+        width: 130px;
+    }
+
+
+    .po-tiny-select:focus,
+    .po-tiny-input:focus {
+        border-color: #007bff !important;
+        outline: none !important;
+        box-shadow: 0 0 0 1px rgba(0,123,255,0.15);
+    }
+
+
+    .po-row .form-group {
+        margin-bottom: 4px !important;
+    }
+    .po-select-form{
+        padding-bottom:12px;
+    }
+</style>
+
+<script>
+   function showEditableInput(spanEl) {
+        let inputId = spanEl.getAttribute("data-input");
+        let input = document.getElementById(inputId);
+
+        // Get raw value from hidden input
+        let rawId = inputId.replace("_edit", "_value");
+        input.value = document.getElementById(rawId).value;
+
+        spanEl.style.display = "none";
+        input.style.display = "inline-block";
+        input.focus();
+    }
+
+    function hideEditableInput(inputEl) {
+        let val = inputEl.value.trim();
+        let id = inputEl.id;
+
+        // Determine related label + hidden value inputs
+        let label = document.querySelector('[data-input="' + id + '"]');
+        let raw = document.getElementById(id.replace("_edit", "_value"));
+
+        // Validation rules
+        if (id === "shipping_edit" && val < 0) {
+            toastr.error("Shipping charge cannot be negative.");
+            inputEl.value = raw.value; // revert to old value
+            val = raw.value;
+        }
+
+        // Save raw numeric value
+        raw.value = val === "" ? 0 : parseFloat(val);
+
+        // Render formatted label
+        label.innerText = formatAUD(raw.value);
+
+        inputEl.style.display = "none";
+        label.style.display = "inline-block";
+
+        updatePOTotals();
+    }
+</script>
+
 {{ line_items|json_script:"initial_line_items" }}
+<script>
+const display = document.getElementById("po_number_display");
+const hiddenInput = document.getElementById("po_number");
+
+display.addEventListener("click", function () {
+    const currentValue = display.innerText.trim();
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = currentValue;
+    input.classList.add("form-control", "form-control-sm");
+    input.style.display = "inline-block";
+    input.style.width = "120px";
+
+    // Replace span with input
+    display.replaceWith(input);
+    input.focus();
+
+    // Restore on blur
+    input.addEventListener("blur", function () {
+        const newValue = input.value.trim();
+        hiddenInput.value = newValue;
+
+        // Restore full span HTML including icon
+        display.innerHTML = `
+            ${newValue}
+            <i class="fa fa-pen"
+                style="position:absolute; right:0; top:6px; font-size:14px; opacity:0.6;">
+            </i>
+        `;
+
+        // Put span back
+        input.replaceWith(display);
+    });
+
+    // Save on Enter
+    input.addEventListener("keydown", function(e){
+        if (e.key === "Enter") input.blur();
+    });
+});
+</script>
 <script>
 $(document).ready(function () {
     renderLineItems();
-
     // Vendor change event
     $("#vendor_id").change(function (e) {
         const vendorUrlTemplate = "{% url 'get_single_vendor' 0 %}";
@@ -304,7 +649,7 @@ $(document).ready(function () {
             .then(data => {
                 if (data.status) {
                     const vend_details = data.data;
-                    $("#vendor_name").val(vend_details.name);
+                    $("#vendor_name").val(vend_details.company_name);
                     $("#currency_code").val(vend_details.currency);
                 }
             });
@@ -340,7 +685,7 @@ $(document).ready(function () {
                                class="list-group-item list-group-item-action d-flex product-option"
                                data-title="${item.title}">
                                 <div class="ml-3" style="font-size:14px;">
-                                    <h6>${item.title}</h6>
+                                    <div style="font-size: 13px;line-height:14px;font-weight: 600">${item.title}</div>
                                     <img src="${item.image}" class="rounded" width="30" height="30">
                                     <div><strong>Stock QTY: </strong> ${item.stock_qty || "--"}</div>
                                     <div><strong>SKU: </strong> ${item.sku}</div>
@@ -457,7 +802,7 @@ $(document).on("click", "#btn_add_line_item", function () {
 function renderLineItems() {
     const tbody = $("#product_line_item");
     if (!lineItems.length) {
-        tbody.html(`<tr><td colspan="9" class="text-center">No records found</td></tr>`);
+        tbody.html(`<tr><td colspan="10" class="text-center">No records found</td></tr>`);
         return;
     }
 
@@ -467,19 +812,39 @@ function renderLineItems() {
         <tr data-index="${index}" class="po-line-row">
             <td class="align-middle">
                 <div class="d-flex align-items-center">
-                    <img src="${item.row_item.image}" width="48" height="48" class="rounded border mr-2">
+                    <img src="${item.row_item.image}" width="28" height="28" class="rounded border mr-2">
                     <div>
-                        <div class="font-weight-bold">${item.row_item.title}</div>
-                        <div class="text-muted" style="font-size:12px;">SKU: ${item.row_item.sku}</div>
+                        <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.row_item.sku}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>ASIN:</strong> ${item.row_item.asin}, <strong>FNSKU:</strong> ${item.row_item.fnsku}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>EAN:</strong> ${item.row_item.ean}, <strong>Prep Type:</strong> ${item.row_item.prep_type}</div>
                     </div>
                 </div>
             </td>
-            <td class="editable qty align-middle text-decoration-underline  text-right">${item.qty}</td>
-            <td class="editable price align-middle text-decoration-underline  text-right">${item.price}</td>
-            <td class=" tax align-middle text-decoration-underline  text-right">${item.tax}</td>
-            <td class="editable discount align-middle text-right">${item.discount}</td>
+            <td class="align-middle text-center pl-0">
+            <div class="clearfix  po-row">
+    <label class="po-tiny-label">Product Order Type</label>
+    <select id="product_order_type_${index}"  class="po-tiny-select po-tiny-field">
+        <option>--</option>
+        <option value="FBM">FBM</option>
+        <option value="FBA">FBA</option>
+        <option value="Both">Both</option>
+    </select>
+</div>
+<div class="clearfix po-select-form  po-row mt-2">
+    <label class="po-tiny-label">Product Order Ref</label>
+    <input id="product_order_ref_${index}" maxlength="80" class="po-tiny-input po-tiny-field" title="Customer order for FBM order" placeholder="" value="${item.row_item.product_order_ref}" />
+</div>
+            </td>
+            <td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>
+            <td class="editable qty align-middle text-decoration-dotted text-right">${item.qty}</td>
+            <td class="editable price align-middle text-decoration-dotted text-right">${item.price}</td>
+              <td class="editable discount align-middle text-decoration-dotted text-right"  title="Discount Percentage">${item.discount}</td>
+
             <td id="sub_total_${index}" class=" discount align-middle text-right">${item.sub_total.toFixed(2)}</td>
-            <td id="tax_amount_${index}" class=" discount align-middle text-right">${item.tax_amount.toFixed(2)}</td>
+
+            <td class=" tax align-middle editable text-decoration-dotted text-right" title="Tax Percentage">${item.row_item.is_taxable?0:item.tax}</td>
+             <td id="tax_amount_${index}" class=" discount align-middle text-right">${item.tax_amount.toFixed(2)}</td>
             <td id="line_total_${index}" class="align-middle text-right">${item.line_total.toFixed(2)}</td>
             <td class="align-middle ">
                 <button class="btn btn-danger btn-sm delete-item" data-index="${index}">
@@ -490,6 +855,10 @@ function renderLineItems() {
     });
 
     tbody.html(html);
+    lineItems.forEach((item, index) => {
+        $(`#product_order_type_${index}`).val(item.row_item.product_order_type || "");
+        $(`#product_order_ref_${index}`).val(item.row_item.product_order_ref || "");
+    });
     updatePOTotals();
 }
 
@@ -497,8 +866,28 @@ function renderLineItems() {
 $(document).on("click", "tr.po-line-row td.editable", function () {
     const td = $(this);
     if (td.find("input").length) return;
-    td.html(`<input type="number" class="form-control text-decoration-none form-control-sm edit-field" value="${td.text().trim()}">`)
+
+
+    let tooltipTxt = "Input"
+    if (td.hasClass('qty')) {
+        tooltipTxt = "Qty Input "
+    }else if(td.hasClass('price')){
+        tooltipTxt = "Product Unit Cost"
+    }else if(td.hasClass('tax')){
+        tooltipTxt = "Tax % On SUB TOTAL"
+    }else if(td.hasClass('discount')){
+        tooltipTxt = "Discount % On SUB TOTAL"
+    }
+    td.html(`<input  data-toggle="tooltip"
+                           data-placement="top" title="${tooltipTxt}" type="number" class=" form-control help-text form-control-sm edit-field" value="${td.text().trim()}">`)
+    const $input = td.find("input");
     td.find("input").focus();
+
+    new bootstrap.Tooltip($input[0], {
+        placement: 'top',
+        title: tooltipTxt, // You can also get this from the data-attribute
+        container: 'body' // Important for dynamically added elements
+    });
 });
 
 
@@ -587,27 +976,67 @@ $(document).on("click", ".delete-item", function () {
 // -----------------------------------------------
 function updatePOTotals() {
 
-    if (lineItems.length === 0) {
-        $("#po_sub_total").text("0.00");
-        $("#po_tax_total").text("0.00");
-        $("#po_total").text("0.00");
+    if (!lineItems || lineItems.length === 0) {
+        $("#po_sub_total").text("$0.00");
+        $("#po_tax_total").text("$0.00");
+        $("#po_total").text("$0.00");
         return;
     }
 
+    const surcharge_total = parseFloat($("#surcharge_value").val()) || 0;
+    const shipping_total = parseFloat($("#shipping_value").val()) || 0;
+    const tax_percentage = parseFloat($("#tax_percentage").val()) || 0;
+
+    let subtotal = 0;
+    let total_qty = 0;
+
     let total_sub = 0;
-    let total_tax = 0;
+    let total_tax_amnt = 0;
     let total_line = 0;
-    console.log(lineItems)
+
+
     lineItems.forEach(item => {
-        total_sub += item.sub_total || 0;
-        total_tax += item.tax_amount || 0;
+        subtotal += item.sub_total || 0;
+        total_qty += item.qty || 0;
+        total_tax_amnt += item.tax_amount || 0;
         total_line += item.line_total || 0;
     });
+    $("#line_item_count").text(`Total Products: ${total_qty}`);
+    //  Subtotal
+    $("#po_sub_total").text(formatAUD(subtotal));
+    // Add shipping + surcharge
+    const ship_surch_total = shipping_total + surcharge_total;
+    //  Calculate tax
+    const ship_surcharge_tax = ship_surch_total * (tax_percentage / 100);
+    let tax_total = total_tax_amnt+ship_surcharge_tax;
 
-    $("#po_sub_total").text(total_sub.toFixed(2));
-    $("#po_tax_total").text(total_tax.toFixed(2));
-    $("#po_total").text(total_line.toFixed(2));
+    //  Grand Total
+    const grand_total = ship_surcharge_tax + total_line+ship_surch_total;
+    // Update labels
+    $("#shipping_label").text(formatAUD(shipping_total));
+    $("#surcharge_label").text(formatAUD(surcharge_total));
+    $("#po_tax_total").text(formatAUD(tax_total));
+    $("#po_total").text(formatAUD(grand_total));
+    
+    const summaryHTML = `<div style='line-height:1.4;'>
+    <strong>Tax Summary</strong><br>----------------------------------<br>
+    <strong style='text-align:left;'>Products: </strong>&nbsp;&nbsp;${formatAUD(total_tax_amnt)} <br>
+    <strong  style='text-align:left;'> [Shipping+Surcharge] (${tax_percentage}%):</strong>&nbsp;&nbsp; ${formatAUD(ship_surcharge_tax)}<br>
+    <strong  style='text-align:left;'>Total Tax:</strong> ${formatAUD(tax_total)}
+    </div>`;
+    $("#total_smmary_tooltip")
+        .tooltip("dispose")
+        .tooltip({
+            html: true,
+            title: summaryHTML,
+            placement: "bottom",
+            trigger: "hover"
+    });
 }
+
+$("#surchase_total, #shipping_total").on("change", function(){
+   updatePOTotals();
+});
 
 // -----------------------------------------------
 // RESET FORM
@@ -637,9 +1066,18 @@ let productSearch     = $("#productSearch");
 
 function buildPOFormData(){
     // Validation rules (field → message)
+    console.log(lineItems)
+    lineItems.map((row,$index)=>{ 
+        lineItems[$index] = {
+            ...lineItems[$index],  // keep existing keys
+            order_type: $(`#product_order_type_${$index}`).val(),
+            order_ref:  $(`#product_order_ref_${$index}`).val()
+        };
+    });
     return {
         "po_id": "{{ po_id }}",
         "vendor_id": $("#vendor_id").val(),
+        "po_number": $("#po_number").val(),
         "vendor_name": $("#vendor_name").val(),
         "currency_code": $("#currency_code").val(),
         "vendor_reference": $("#vendor_reference").val(),
@@ -658,8 +1096,23 @@ function buildPOFormData(){
         "country": $("#country_id").val(),
         "tax_percentage": $("#tax_percentage").val(),
         "comments": $("#comments").val(),
-        "lineItems": lineItems
+        "lineItems": lineItems,
+        "shipping_tracking_number": $("#shipping_tracking_no").val(),
+        "shipping_website": $("#shipping_website").val(),
+        "shipping_provider": $("#shipping_provider").val(),
+        "surcharge_total": $("#surcharge_value").val(),
+        "shipping_charge": $("#shipping_value").val(),
+        "po_status": $("#po_status").val(),
+        //Buil PO Form Details
+        "vendor_po_number": $("#vendor_po_number").val(),
+        "vendor_order_date": $("#vendor_order_date").val() || null,
+        "vendor_invoice_ref_number": $("#vendor_po_invoice_ref").val() || null,
+        "vendor_delivery_ref": $("#vendor_po_delivery_ref").val() || null,
+        "vendor_invoice_date": $("#vendor_po_invoice_date").val() || null,
+        "vendor_invoice_due_date": $("#vendor_po_invoice_due_date").val() || null
+
     };
+    const valOrNull = (v) => v && v.trim() !== "" ? v : null;
 }
 
 function validatePOForm(){
@@ -671,15 +1124,15 @@ function validatePOForm(){
         { el: vendor_name,      msg: "Vendor Name is required" },
         { el: currency_code,    msg: "Currency Code is required" },
         { el: vendor_reference, msg: "Vendor Reference is required" },
-        { el: invoice_date,     msg: "Invoice Date is required" },
+        //{ el: invoice_date,     msg: "Invoice Date is required" },
         { el: warehouse,        msg: "Warehouse is required" },
         { el: order_date,       msg: "Order Date is required" },
-        { el: delivery_date,    msg: "Delivery Date is required" },
+        { el: delivery_date,    msg: "Expected Delivery Date is required" },
         { el: payment_term_id,  msg: "Payment Term is required" },
         { el: delivery_name,    msg: "Delivery Name is required" },
         { el: address_line1,    msg: "Address Line 1 is required" },
-        { el: address_line2,    msg: "Address Line 2 is required" },
-        { el: suburb,           msg: "Suburb is required" },
+        //{ el: address_line2,    msg: "Address Line 2 is required" },
+        //{ el: suburb,           msg: "Suburb is required" },
         { el: state,            msg: "State is required" },
         { el: post_code,        msg: "Postcode is required" },
         { el: country,          msg: "Country is required" },
@@ -688,7 +1141,7 @@ function validatePOForm(){
 
     // Loop and validate
     for (let rule of rules) {
-        if (!rule.el.val().trim()) {
+        if (!rule.el?.val()?.trim()) {
             toastr.error(rule.msg);
             // Focus field
             rule.el.focus();
@@ -762,10 +1215,9 @@ document.addEventListener("DOMContentLoaded", function () {
     po_create.addEventListener("click", function(e){
         e.preventDefault();
         e.stopPropagation();
-        console.log("In prev")
         if(validatePOForm()){
             let jsonData = buildPOFormData();
-            console.log(jsonData);
+           // console.log(jsonData);
             fetch("{% url 'save_po_order' %}", {
                 method: "POST",
                 headers: {
@@ -775,19 +1227,23 @@ document.addEventListener("DOMContentLoaded", function () {
                 body: JSON.stringify(jsonData)
             })
             .then(response => {
-                if (!response.ok) {
-                    throw new Error("Network response was not ok");
-                }
-                return response.json();
+                return response.json().then(data => ({ status: response.status, body: data }));
             })
-            .then(data => {
-                if(data.status)
-                    toastr.success(data?.message || "PO Created Successfully!");
-                else
-                    toastr.success(data?.message || "Error creating Purchase Order");
+            .then(resp => {
+                const data = resp.body;
+
+
+                if(data.status){
+                    po_create.setAttribute("disabled","true")
+                    toastr.success(data?.message || "PO saved successfully!");
+                        setTimeout(function(){
+                           window.location.reload()
+                        },800);
+                }else
+                    toastr.error(data?.message || "Error saving PO");
             })
             .catch(error => {
-                toastr.error("Error saving PO.");
+                toastr.error("A critical network error occurred.");
                 console.error("Fetch error:", error);
             });
             //po_create.setAttribute("disabled", true)
@@ -798,40 +1254,79 @@ document.addEventListener("DOMContentLoaded", function () {
 function getCSRFToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
+
 </script>
 <style>
+    .tbl-line-item thead th{ vertical-align: top;padding:0.5rem;font-size:13px;}
     input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
 
-input[type=number] {
-    -moz-appearance: textfield; /* Firefox */
-    text-align: right;          /* Nice right alignment for numbers */
-}
+    input[type=number] {
+        -moz-appearance: textfield; /* Firefox */
+        text-align: right;          /* Nice right alignment for numbers */
+    }
 
-#suggestionsBox {
-    max-height: 350px;
-    overflow-y: auto;
-    border-radius: 6px;
-}
+    #suggestionsBox {
+        max-height: 350px;
+        overflow-y: auto;
+        border-radius: 6px;
+    }
 
-#suggestionsBox a {
-    padding: 10px;
-}
+    #suggestionsBox a {
+        padding: 10px;
+    }
 
-#suggestionsBox img {
-    object-fit: cover;
-}
-.product-title-line-item{
-     max-width: 255px;       /* adjust width to fit your table */
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-weight: 600;
-    font-size:13px;
-}
-.text-decoration-underline { text-decoration: underline; cursor:pointer;}
+    #suggestionsBox img {
+        object-fit: cover;
+    }
+    .product-title-line-item{
+        max-width: 255px;       /* adjust width to fit your table */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+        font-size:13px;
+    }
+    .text-decoration-underline { text-decoration: underline; cursor:pointer;}
+    .text-decoration-dotted { text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-thickness: 2px; /* Optional: Sets the line thickness */
+    padding-bottom: 4px;}
+    #po_number_display {
+        border-bottom: 1px dashed #666;
+        opacity: 0.8;
+        font-style: italic;
+        cursor: pointer;
+        padding-right: 20px;
+        position: relative;
+    }
+
+    .card-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px 16px;
+        margin-bottom: 25px;
+        border: 1px solid #e5e5e5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 8px;
+    }
+    .editable{
+        cursor: pointer;
+    }
+    .editable:hover{
+        text-decoration: underline;
+    }
+    .table-responsive{
+        border-radius: 6px;
+    }
 </style>
+
 {% endblock %}

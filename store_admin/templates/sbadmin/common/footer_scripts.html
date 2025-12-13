@@ -138,4 +138,38 @@ $(document).ready(function () {
         });
     };
 }(jQuery));
+function formatAUD(value) {
+    if (value === null || value === undefined || value === "") return "$0.00";
+
+    value = value.toString().replace(/,/g, "");
+
+    // detect negative
+    let isNegative = false;
+    if (value < 0) {
+        isNegative = true;
+        value = Math.abs(value);
+    }
+
+    if (isNaN(value)) return value;
+
+    let num = parseFloat(value).toFixed(2);
+    let parts = num.split(".");
+    let int = parts[0];
+    let dec = parts[1];
+
+    int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ","); 
+
+    // prepend minus sign BEFORE dollar symbol
+    return (isNegative ? "-$" : "$") + int + "." + dec;
+}
+
+$(document).on("input", ".aud-input", function () {
+    this.value = formatAUD(this.value);
+});
+
+</script>
+ <script>
+    document.querySelectorAll('.help-text').forEach(function (el) {
+    new bootstrap.Tooltip(el);
+});
 </script>

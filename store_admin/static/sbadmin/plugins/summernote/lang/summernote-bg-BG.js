@@ -1,5 +1,28 @@
-(function($) {
-  $.extend($.summernote.lang, {
+/*!
+ * 
+ * Super simple WYSIWYG editor v0.9.1
+ * https://summernote.org
+ *
+ * Copyright 2013~ Hackerwins and contributors
+ * Summernote may be freely distributed under the MIT license.
+ *
+ * Date: 2024-10-09T10:22Z
+ *
+ */
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory();
+	else if(typeof define === 'function' && define.amd)
+		define([], factory);
+	else {
+		var a = factory();
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(self, () => {
+return /******/ (() => { // webpackBootstrap
+var __webpack_exports__ = {};
+(function ($) {
+  $.extend(true, $.summernote.lang, {
     'bg-BG': {
       font: {
         bold: 'Удебелен',
@@ -11,7 +34,7 @@
         strikethrough: 'Задраскано',
         subscript: 'Долен индекс',
         superscript: 'Горен индекс',
-        size: 'Размер на шрифта',
+        size: 'Размер на шрифта'
       },
       image: {
         image: 'Изображение',
@@ -22,25 +45,25 @@
         floatLeft: 'Подравни в ляво',
         floatRight: 'Подравни в дясно',
         floatNone: 'Без подравняване',
-        shapeRounded: 'Shape: Rounded',
-        shapeCircle: 'Shape: Circle',
-        shapeThumbnail: 'Shape: Thumbnail',
-        shapeNone: 'Shape: None',
+        shapeRounded: 'Форма: Заоблено',
+        shapeCircle: 'Форма: Кръг',
+        shapeThumbnail: 'Форма: Миниатюра',
+        shapeNone: 'Форма: Без',
         dragImageHere: 'Пуснете изображението тук',
-        dropImage: 'Drop image or Text',
+        dropImage: 'Пуснете Изображение или Текст',
         selectFromFiles: 'Изберете файл',
-        maximumFileSize: 'Maximum file size',
-        maximumFileSizeError: 'Maximum file size exceeded.',
+        maximumFileSize: 'Максимален размер на файла',
+        maximumFileSizeError: 'Достигнат Максимален размер на файла.',
         url: 'URL адрес на изображение',
         remove: 'Премахни изображение',
-        original: 'Original',
+        original: 'Оригинал'
       },
       video: {
-        video: 'Video',
-        videoLink: 'Video Link',
-        insert: 'Insert Video',
-        url: 'Video URL?',
-        providers: '(YouTube, Vimeo, Vine, Instagram, DailyMotion or Youku)',
+        video: 'Видео',
+        videoLink: 'Видео линк',
+        insert: 'Добави Видео',
+        url: 'Видео URL?',
+        providers: '(YouTube, Vimeo, Vine, Instagram, DailyMotion or Youku)'
       },
       link: {
         link: 'Връзка',
@@ -49,20 +72,20 @@
         edit: 'Промени',
         textToDisplay: 'Текст за показване',
         url: 'URL адрес',
-        openInNewWindow: 'Отвори в нов прозорец',
+        openInNewWindow: 'Отвори в нов прозорец'
       },
       table: {
         table: 'Таблица',
-        addRowAbove: 'Add row above',
-        addRowBelow: 'Add row below',
-        addColLeft: 'Add column left',
-        addColRight: 'Add column right',
-        delRow: 'Delete row',
-        delCol: 'Delete column',
-        delTable: 'Delete table',
+        addRowAbove: 'Добави ред отгоре',
+        addRowBelow: 'Добави ред отдолу',
+        addColLeft: 'Добави колона отляво',
+        addColRight: 'Добави колона отдясно',
+        delRow: 'Изтрии ред',
+        delCol: 'Изтрии колона',
+        delTable: 'Изтрии таблица'
       },
       hr: {
-        insert: 'Добави хоризонтална линия',
+        insert: 'Добави хоризонтална линия'
       },
       style: {
         style: 'Стил',
@@ -74,16 +97,16 @@
         h3: 'Заглавие 3',
         h4: 'Заглавие 4',
         h5: 'Заглавие 5',
-        h6: 'Заглавие 6',
+        h6: 'Заглавие 6'
       },
       lists: {
         unordered: 'Символен списък',
-        ordered: 'Цифров списък',
+        ordered: 'Цифров списък'
       },
       options: {
         help: 'Помощ',
         fullscreen: 'На цял екран',
-        codeview: 'Преглед на код',
+        codeview: 'Преглед на код'
       },
       paragraph: {
         paragraph: 'Параграф',
@@ -92,7 +115,7 @@
         left: 'Подравняване в ляво',
         center: 'Център',
         right: 'Подравняване в дясно',
-        justify: 'Разтягане по ширина',
+        justify: 'Разтягане по ширина'
       },
       color: {
         recent: 'Последния избран цвят',
@@ -103,7 +126,7 @@
         setTransparent: 'Направете прозрачен',
         reset: 'Възстанови',
         resetToDefault: 'Възстанови оригиналните',
-        cpSelect: 'Изберете',
+        cpSelect: 'Изберете'
       },
       shortcut: {
         shortcuts: 'Клавишни комбинации',
@@ -112,23 +135,23 @@
         action: 'Действие',
         paragraphFormatting: 'Форматиране на параграф',
         documentStyle: 'Стил на документа',
-        extraKeys: 'Extra keys',
+        extraKeys: 'Екстра бутони'
       },
       help: {
-        'insertParagraph': 'Insert Paragraph',
-        'undo': 'Undoes the last command',
-        'redo': 'Redoes the last command',
+        'insertParagraph': 'Добави Параграф',
+        'undo': 'Отмени последната промяна',
+        'redo': 'Върни последната промяна',
         'tab': 'Tab',
         'untab': 'Untab',
-        'bold': 'Set a bold style',
-        'italic': 'Set a italic style',
-        'underline': 'Set a underline style',
-        'strikethrough': 'Set a strikethrough style',
-        'removeFormat': 'Clean a style',
-        'justifyLeft': 'Set left align',
-        'justifyCenter': 'Set center align',
-        'justifyRight': 'Set right align',
-        'justifyFull': 'Set full align',
+        'bold': 'Удебели',
+        'italic': 'Приложи наклонен стил',
+        'underline': 'Приложи подчераване',
+        'strikethrough': 'Приложи зачеркнат стил',
+        'removeFormat': 'Изчисти стилове',
+        'justifyLeft': 'Подравняване в ляво',
+        'justifyCenter': 'Подравняване в центъра',
+        'justifyRight': 'Подравняване в дясно',
+        'justifyFull': 'Двустранно подравняване',
         'insertUnorderedList': 'Toggle unordered list',
         'insertOrderedList': 'Toggle ordered list',
         'outdent': 'Outdent on current paragraph',
@@ -140,17 +163,22 @@
         'formatH4': 'Change current block\'s format as H4',
         'formatH5': 'Change current block\'s format as H5',
         'formatH6': 'Change current block\'s format as H6',
-        'insertHorizontalRule': 'Insert horizontal rule',
-        'linkDialog.show': 'Show Link Dialog',
+        'insertHorizontalRule': 'Вмъкни хоризонтално правило',
+        'linkDialog.show': 'Show Link Dialog'
       },
       history: {
         undo: 'Назад',
-        redo: 'Напред',
+        redo: 'Напред'
       },
       specialChar: {
         specialChar: 'SPECIAL CHARACTERS',
-        select: 'Select Special characters',
-      },
-    },
+        select: 'Избери Специални символи'
+      }
+    }
   });
 })(jQuery);
+/******/ 	return __webpack_exports__;
+/******/ })()
+;
+});
+//# sourceMappingURL=summernote-bg-BG.js.map
