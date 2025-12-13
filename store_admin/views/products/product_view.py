@@ -751,7 +751,7 @@ def api_product_search(request):
                 "asin": p.asin,
                 "fnsku": p.fnsku,
                 "ean":p.ean, "prep_type":p.prep_type_name,
-                "is_taxable":p.is_taxable,
+                "is_taxfree":True if p.is_taxable else False,  # send as number for JS
                 "barcode_label_type":p.barcode_label_type_name,
                 "price": p.sale_price,
             })

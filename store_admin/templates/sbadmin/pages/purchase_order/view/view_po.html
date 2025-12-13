@@ -2,7 +2,157 @@
 {% block title %}Add PO{% endblock %}
 {% block content %}
 <style>
-    .back-btn {
+    #trackingLink{
+        max-width:120px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:inline-block;
+    }
+    .status-pill {
+    background: #d4f5e9;
+    color: #0b8e5f;
+    font-size: 11px;
+    padding: 4px 10px;
+}
+
+.card i {
+    font-size: 18px;
+}
+
+.badge-light {
+    background: #f1f1f1;
+    color: #6c757d;
+}
+
+.user-block .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #f1f1f1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 24px;
+    color: #444;
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+
+    float: left;                 /* IMPORTANT → aligns same as image */
+    margin-right: 10px;          /* spacing like image */
+}
+
+                                    .avatar-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #f1f1f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 20px;
+    color: #4a4a4a;
+    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
+}
+.copy-btn {
+    border: 1px solid #dcdfe3;
+    background: #fff;
+    padding: 1px 2px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: 0.2s ease;
+}
+
+.copy-btn i {
+    font-size: 12px;
+    color: #6c757d;
+}
+
+.copy-btn:hover {
+    background: #f3f4f6;
+    border-color: #c9ccd1;
+}
+
+.page-wrapper {
+}
+.card-custom {
+    border: 1px solid #dfdfdf;
+    background: #fff;
+    border-radius: 12px;
+    padding: 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    margin-bottom: 20px;
+}
+
+.product-img {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.vertical-divider {
+    width: 1px;
+    height: 24px;
+    vertical-align:middle;
+    background-color: #e2e6ea;
+}
+
+.more-btn {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #e5e8ec;
+    background: #fff;
+    border-radius: 10px;
+    font-size: 18px;
+    cursor: pointer;
+    vertical-align:middle;
+}
+
+.more-btn:hover {
+    background: #f9fafb;
+    border-color: #dce1e6;
+}
+
+.btn-soft-wrap .btn-soft {
+    display: inline-block;
+    border: 1px solid #e4e7eb;
+    background: #fff;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    color: #374151;
+    margin-right: 12px;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.btn-soft-wrap .btn-soft i {
+    margin-right: 6px;
+    font-size: 15px;
+    color: #374151;
+}
+
+.btn-soft-wrap .btn-soft:hover {
+    background: #f9fafb;
+    border-color: #d5d9dd;
+}
+
+.icon-circle {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.icon-circle i {
+    color: #6b7280;
+    font-size: 18px;
+}
+.back-btn {
     width: 38px;
     height: 38px;
     border-radius: 50%;
@@ -18,11 +168,31 @@
     transition: 0.2s ease;
     padding: 0;
 }
+.badge-info{
+     display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    border-radius: 999px;
+
+    /* shadow */
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+.badge-info{
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+.badge-info:hover{
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+}
 
 .back-btn:hover {
     background: #f9fafb;
     border-color: #d6d9dd;
-}</style>
+}
+</style>
 <div class="content-wrapper">
     <div class="content-header">
         <div class="container-fluid">
@@ -36,8 +206,10 @@
                                 </button>
                                 <h4 class="mb-0 font-weight-bold">Order #{{ po.po_number }}</h4>
                                 <span class="status-active ml-2">
-                                    <i class="fa fa-bolt fa-small text-small"></i> 
-                                    <span class="badge badge-pill badge-info">{% if po.status_id == 0 %}
+                                    
+                                    <span class="badge badge-pill badge-info">
+                                        <i class="fa fa-bolt fa-small"></i> 
+                                        {% if po.status_id == 0 %}
                                         New
                                         {% elif po.status_id == 1 %}
                                         Approved
@@ -310,17 +482,18 @@
                                 <thead>
                                     <tr class="text-muted small">
                                         <th style="width:40%;">ITEM DETAILS</th>
-                                        <th style="width:10%;">ORDER TYPE</th>
-                                        <th style="width:100px;">ORDER REF</th>
-                                        <th style="width:10%;"class="text-center">BARCODE LABEL TYPE</th>
-                                        <th style="width:10%;"class="text-center">QUANTITY</th>
-                                        <th style="width:10%;"class="text-right">RATE</th>
-                                        <th style="width:10%;"class="text-right">TOTAL PRICE</th>
-                                        <th style="width:10%;"class="text-right">DISCOUNT</th>
-                                        <th style="width:10%;"class="text-right">SUB TOTAL</th>
-                                        <th style="width:10%;"class="text-right">TAX</th>
-                                        <th style="width:10%;"class="text-right">TAX TOTAL</th>
-                                        <th style="width:10%;"class="text-right"> TOTAL</th>
+                                        <th style="width:10%;" class="text-center">ORDER TYPE</th>
+                                        <th style="width:100px;" class="text-center">ORDER REF</th>
+                                        <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>
+                                        <th style="width:10%;" class="text-center">QUANTITY</th>
+                                        <th style="width:10%;" class="text-center">RATE</th>
+                                        <th style="width:10%;" class="text-center">TOTAL PRICE</th>
+                                        <th style="width:10%;" class="text-center">DISCOUNT</th>
+                                        <th style="width:10%;" class="text-center">SUB TOTAL</th>
+                                        <th style="width:10%;" class="text-center">TAX</th>
+                                        <th style="width:10%;" class="text-center">TAX TOTAL</th>
+                                        <th style="width:10%;" class="text-center">LANDED<br/> COST</th>
+                                        <th style="width:10%;" class="text-center"> TOTAL</th>
                                     </tr>
                                 </thead>
                                 <tbody id="product_line_item" class="border-bottom"></tbody>
@@ -343,26 +516,7 @@
     </div>
 </div>
  {% csrf_token %}
- <style>
-    #trackingLink{
-        max-width:120px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:inline-block;
-    }
-    .status-pill {
-    background: #d4f5e9;
-    color: #0b8e5f;
-    font-size: 11px;
-    padding: 4px 10px;
-}
-
-.card i {
-    font-size: 18px;
-}
-
-.badge-light {
-    background: #f1f1f1;
-    color: #6c757d;
-}
-</style>
+ 
   <script>
 function copyTrackingRef(ref) {
     var text = document.getElementById(ref=="ref"?"trackingRef":"trackingLink").innerText;
@@ -385,59 +539,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("avatarBox").innerText = first;
 });
 </script>
-                                <style>
-                                    .user-block .user-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #f1f1f1;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 24px;
-    color: #444;
-    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
 
-    float: left;                 /* IMPORTANT → aligns same as image */
-    margin-right: 10px;          /* spacing like image */
-}
-
-                                    .avatar-circle {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #f1f1f1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 20px;
-    color: #4a4a4a;
-    box-shadow: 0px 4px 10px rgba(0,0,0,0.15);
-}
-.copy-btn {
-    border: 1px solid #dcdfe3;
-    background: #fff;
-    padding: 1px 2px;
-    border-radius: 6px;
-    font-size: 12px;
-    cursor: pointer;
-    margin-left: 6px;
-    transition: 0.2s ease;
-}
-
-.copy-btn i {
-    font-size: 12px;
-    color: #6c757d;
-}
-
-.copy-btn:hover {
-    background: #f3f4f6;
-    border-color: #c9ccd1;
-}
-
-                                </style>
 
 <script>
 
@@ -492,88 +594,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 </script>
-<style>
-.page-wrapper {
-}
-.card-custom {
-    border: 1px solid #dfdfdf;
-    background: #fff;
-    border-radius: 12px;
-    padding: 14px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    margin-bottom: 20px;
-}
-
-.product-img {
-    width: 52px;
-    height: 52px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-}
-
-.vertical-divider {
-    width: 1px;
-    height: 24px;
-    vertical-align:middle;
-    background-color: #e2e6ea;
-}
-
-.more-btn {
-    width: 36px;
-    height: 36px;
-    border: 1px solid #e5e8ec;
-    background: #fff;
-    border-radius: 10px;
-    font-size: 18px;
-    cursor: pointer;
-    vertical-align:middle;
-}
-
-.more-btn:hover {
-    background: #f9fafb;
-    border-color: #dce1e6;
-}
-
-.btn-soft-wrap .btn-soft {
-    display: inline-block;
-    border: 1px solid #e4e7eb;
-    background: #fff;
-    padding: 8px 16px;
-    border-radius: 12px;
-    font-size: 14px;
-    color: #374151;
-    margin-right: 12px;
-    cursor: pointer;
-    transition: 0.2s ease;
-}
-
-.btn-soft-wrap .btn-soft i {
-    margin-right: 6px;
-    font-size: 15px;
-    color: #374151;
-}
-
-.btn-soft-wrap .btn-soft:hover {
-    background: #f9fafb;
-    border-color: #d5d9dd;
-}
-
-.icon-circle {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: #f3f4f6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.icon-circle i {
-    color: #6b7280;
-    font-size: 18px;
-}
-</style>
 
 <script>
     document.querySelectorAll('.help-text').forEach(function (el) {
@@ -607,7 +627,6 @@ renderLineItems()
 function renderLineItems() {
     const tbody = $("#product_line_item");
     if (!lineItems.length) {
-        tbody.html(`<tr><td colspan="10" class="text-center">No records found</td></tr>`);
         return;
     }
     let html = "";
@@ -615,10 +634,10 @@ function renderLineItems() {
         html += `
         <tr data-index="${index}" class="po-line-row">
             <td class="align-middle">
+            <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title} ${item.row_item.is_taxfree?'<span class="right badge badge-success ml-1">Tax-free</span>':""}</div>
                 <div class="d-flex align-items-center">
                     <img src="${item.row_item.image}" width="28" height="28" class="rounded border mr-2">
                     <div>
-                        <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.row_item.sku}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>ASIN:</strong> ${item.row_item.asin}, <strong>FNSKU:</strong> ${item.row_item.fnsku}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>EAN:</strong> ${item.row_item.ean}, <strong>Prep Type:</strong> ${item.row_item.prep_type}</div>
@@ -633,125 +652,19 @@ function renderLineItems() {
             <td class="price align-middle text-decoration-dotted text-right">${formatAUD(item.price*item.qty)}</td>
               <td class=" discount align-middle text-decoration-dotted text-right"  title="Discount Percentage">${item.discount}%</td>
             <td id="sub_total_${index}" class=" discount align-middle text-right">${formatAUD(item.sub_total.toFixed(2))}</td>
-            <td class=" tax align-middle  text-decoration-dotted text-right" title="Tax Percentage">${item.row_item.is_taxable?0:item.tax}%</td>
+            <td class=" tax align-middle  text-decoration-dotted text-right" title="Tax Percentage">${item.row_item.is_taxfree?0:item.tax}%</td>
              <td id="tax_amount_${index}" class=" discount align-middle text-right">${formatAUD(item.tax_amount.toFixed(2))}</td>
+             <td id="line_cost_${index}" class=" discount align-middle text-right">${formatAUD(item.cost_per_item.toFixed(2))}</td>
             <td id="line_total_${index}" class="align-middle text-right">${formatAUD(item.line_total.toFixed(2))}</td>
         </tr>`;
     });
     html += `<tr><td class="align-middle text-center border-none" colspan="4"></td><td id="qty_total_td" class="align-middle text-right">0</td><td class="align-middle text-right"></td>
     <td class="align-middle text-right"  id="price_total_td"></td><td class="align-middle text-right"></td><td class="align-middle text-right" id="sub_total_td"></td>
-    <td class="align-middle text-right"></td><td class="align-middle text-right"  id="tax_total_td"></td><td class="align-middle text-right"  id="final_total_td">38</td>
+    <td class="align-middle text-right"></td><td class="align-middle text-right"  id="tax_total_td"></td><td class="align-middle text-right" colspan="2"></td>
     </tr>`
     tbody.html(html);
     updatePOTotals();
 }
-
-// CLICK → INLINE EDITOR
-$(document).on("click", "tr.po-line-row td.editable", function () {
-    const td = $(this);
-    if (td.find("input").length) return;
-    let tooltipTxt = "Input"
-    if (td.hasClass('qty')) {
-        tooltipTxt = "Qty Input "
-    }else if(td.hasClass('price')){
-        tooltipTxt = "Product Unit Cost"
-    }else if(td.hasClass('tax')){
-        tooltipTxt = "Tax % On SUB TOTAL"
-    }else if(td.hasClass('discount')){
-        tooltipTxt = "Discount % On SUB TOTAL"
-    }
-    td.html(`<input  data-toggle="tooltip"
-                           data-placement="top" title="${tooltipTxt}" type="number" class=" form-control help-text form-control-sm edit-field" value="${td.text().trim()}">`)
-    const $input = td.find("input");
-    td.find("input").focus();
-
-    new bootstrap.Tooltip($input[0], {
-        placement: 'top',
-        title: tooltipTxt, // You can also get this from the data-attribute
-        container: 'body' // Important for dynamically added elements
-    });
-});
-
-
-$(document).on("blur", ".edit-field", function () {
-    const input = $(this);
-    const td = input.closest("td");
-    const index = td.closest("tr").data("index");
-    const item = lineItems[index];
-
-    let newVal = parseFloat(input.val());
-    if (isNaN(newVal)) newVal = 0;
-
-    // Validation rules
-    const rules = {
-        qty: {
-            validate: v => v > 0 && Number.isInteger(v),
-            error: "Quantity must be a whole number greater than zero.",
-            assign: v => item.qty = v
-        },
-        price: {
-            validate: v => v >= 1 && Math.floor(Math.abs(v)).toString().length <= 5,
-            error: "Invalid Price. Must be ≥ 1 and max 5 digits.",
-            assign: v => item.price = v
-        },
-        discount: {
-            validate: v => v >= 0 && v <= 100,
-            error: "Discount must be between 0 and 100.",
-            assign: v => item.discount = v
-        },
-        tax: {
-            validate: v => v >= 0 && v <= 100,
-            error: "Tax must be between 0 and 100.",
-            assign: v => item.tax = v
-        }
-    };
-
-    // Detect which column was edited
-    let col = Object.keys(rules).find(key => td.hasClass(key));
-    if (!col) return;
-
-    const rule = rules[col];
-
-    // Validation check
-    if (!rule.validate(newVal)) {
-        input.val(item[col]);
-        input.focus();
-        toastr.error(rule.error);
-        return;
-    }
-
-    // Update the item
-    rule.assign(newVal);
-
-    // -----------------------------------
-    // RE-CALCULATE TOTALS
-    // -----------------------------------
-    let sub_total = item.qty * item.price;
-    sub_total -= sub_total * (item.discount / 100);
-
-    let tax_total = sub_total * (item.tax / 100);
-    let line_total = sub_total + tax_total;
-
-    // Update array values
-    item.sub_total = sub_total;   // before tax
-    item.tax_total = tax_total;   // only tax amount
-    item.line_total = line_total; // final row total
-    // Update UI
-    $(`#sub_total_${index}`).text(sub_total.toFixed(2));
-    $(`#tax_amount_${index}`).text(tax_total.toFixed(2));
-    $(`#line_total_${index}`).text(line_total.toFixed(2));
-    td.text(newVal);
-
-    updatePOTotals();
-});
-
-// DELETE LINE ITEM
-$(document).on("click", ".delete-item", function () {
-    lineItems.splice($(this).data("index"), 1);
-    renderLineItems();
-    updatePOTotals();
-});
-
 
 // -----------------------------------------------
 // TOTALS
@@ -771,11 +684,12 @@ function updatePOTotals() {
     let total_line = 0;
     let total_qty = 0;
     let qty_rate = 0;
-
+    //const is_taxfree = item.row_item.is_taxfree;
     lineItems.forEach(item => {
-        console.log(item)
-        total_qty += item.qty || 0;
+        
+        total_qty += item.qty || 0; 
         total_sub += item.sub_total || 0;
+       
         total_tax += item.tax_amount || 0;
         total_line += item.line_total || 0;
 
@@ -786,7 +700,7 @@ function updatePOTotals() {
     $("#price_total_td").text(formatAUD(qty_rate));
     $("#sub_total_td").text(formatAUD(total_sub));
     $("#tax_total_td").text(formatAUD(total_tax));
-    $("#final_total_td").text(formatAUD(total_line));
+    //$("#final_total_td").text(formatAUD(total_line));
     
 
     $("#surcharge_total_excl_tax").text(formatAUD(surcharge_total.toFixed(2)));
@@ -806,8 +720,8 @@ function updatePOTotals() {
     $("#gst_total").text(formatAUD((tax_total).toFixed(2)));
     
     $("#grand_total_incl_tax").text(formatAUD(grant_total.toFixed(2)));
-     $("#po_out_standing").text(formatAUD(grant_total.toFixed(2)));
-     $("#po_out_standing_invoice").text(formatAUD(grant_total.toFixed(2)));
+    $("#po_out_standing").text(formatAUD(grant_total.toFixed(2)));
+    $("#po_out_standing_invoice").text(formatAUD(grant_total.toFixed(2)));
     
 
 }

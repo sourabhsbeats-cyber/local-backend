@@ -83,12 +83,11 @@ from decimal import Decimal, ROUND_HALF_UP
 from store_admin.views.libs.common import clean_percent
 from store_admin.views.serializers.product_serializers import ProductImageSerializer
 
-
 def validate_purchase_order_model(po, line_items):
     rules = [
         ("vendor_id",       "Vendor is required"),
         ("vendor_name",     "Vendor Name is required"),
-        ("po_number",     "PO Number is required."),
+        ("po_number",       "PO Number is required."),
         ("currency_code",   "Currency Code is required"),
         ("vendor_reference","Vendor Reference is required"),
         ("warehouse_id",    "Warehouse is required"),
@@ -155,11 +154,14 @@ def validate_purchase_order_model(po, line_items):
         return False, "Invalid Vendor Reference# format."
 
         # Delivery date >= today
+    #validate date now its not needed temporarily
+    '''
     try:
         date_validator(po.delivery_date, 10)
         date_validator(po.order_date, 10)
     except ValueError as e:
         return False, str(e)
+    '''
 
     return True, ""
 
@@ -190,10 +192,22 @@ def view_po_order(request, po_id):
 
     NO_IMAGE = static("no_product_image.png")
     # Build Response
+    tot_qty = 0
+    for po_order_item in po_order_items:
+        tot_qty += int(po_order_item.qty)
+    
+    addntl_totl = float(po.shipping_charge+po.surcharge_total)
+    addntl_per_totl = float(addntl_totl/tot_qty)
 
     for po_order_item in po_order_items:
         po_product = Product.objects.filter(product_id=po_order_item.product_id).first()
         po_images = ProductImages.objects.filter(product_id=po_order_item.product_id).order_by("product_image_id").first()
+        
+        unit_total = addntl_per_totl*int(po_order_item.qty)
+        rate_totl = (float(po_order_item.price)*int(po_order_item.qty))+unit_total
+        rate_totl = rate_totl/int(po_order_item.qty)
+        #cost_per_item = cost_per_item+float(float(po_order_item.price)*int(po_order_item.qty))
+        
         line_items.append({
             "row_item": {
                 "id": po_product.product_id,
@@ -203,9 +217,11 @@ def view_po_order(request, po_id):
                 "sku": po_product.sku,
                 "asin":po_product.asin, "fnsku":po_product.fnsku, "ean":po_product.ean,
                 "prep_type":get_prep_label(po_product.prep_type),
-                "price": float(po_order_item.price),  # send as number for JS
+                "price": float(po_order_item.price),     # send as number for JS
                 "order_type": po_order_item.order_type,  # send as number for JS
-                "order_ref": po_order_item.order_ref,  # send as number for JS
+                "order_ref": po_order_item.order_ref,    # send as number for JS
+                "is_taxfree":True if po_product.is_taxable else False,
+               
             },
             "barcode_label_type":po_product.barcode_label_type,
             "qty": int(po_order_item.qty),
@@ -215,6 +231,7 @@ def view_po_order(request, po_id):
             "tax_amount": float(po_order_item.tax_amount),
             "sub_total": float(po_order_item.subtotal),
             "line_total": float(po_order_item.line_total),
+            "cost_per_item": float(rate_totl),  # send as number for JS
         })
 
     can_pdf_generate, err_msg = validate_purchase_order_model(po, line_items)
@@ -237,7 +254,6 @@ def view_po_order(request, po_id):
         'currency_list': currency_list,
         'vendor':vendor_detail
     }
-
     return render(request, 'sbadmin/pages/purchase_order/view/view_po.html', context)
 
 #Product Add New Form - Only GET
@@ -299,6 +315,7 @@ def create_order(request, po_id=None):
                 "prep_type":get_prep_label(po_product.prep_type),
                 "product_order_type": po_order_item.order_type,  # send as number for JS
                 "product_order_ref": po_order_item.order_ref,  # send as number for JS
+                "is_taxfree":True if po_product.is_taxable else False,
             },
             "barcode_label_type":po_product.barcode_label_type,
             "qty": int(po_order_item.qty),
@@ -335,13 +352,23 @@ def create_order(request, po_id=None):
 
     return render(request, 'sbadmin/pages/purchase_order/add/addnew_form.html', context)
 
-
 @api_view(["GET"])
 def list_product_images(request, product_id):
     q = ProductImages.objects.filter(product_id=request.GET.get("product_id")) if request.GET.get("product_id") else ProductImages.objects.all()
     return JsonResponse(ProductImageSerializer(q, many=True).data)
 
-@api_view(["POST"])
+
+from decimal import Decimal, ROUND_HALF_UP
+
+def format_tax_percentage(value):
+    if value in (None, "", 0, "0", "0.0", "0.00"):
+        return ""
+    val = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if val == val.to_integral():
+        return f"{int(val)}%"
+    return f"{val}%"
+
+@api_view(["POST"]) 
 def generate_po_pdf(request):
     po_id = request.data.get("po_id")
     po_details = PurchaseOrder.objects.filter(po_id=po_id).first()
@@ -375,13 +402,19 @@ def generate_po_pdf(request):
     po_items = []
     for line_item in line_items:
         line_product = Product.objects.filter(product_id=line_item.product_id).first()
+        tx_percntge = line_item.tax_percentage
+        tx_percntge = format_tax_percentage(tx_percntge)
+
+        disc_percntge = line_item.discount_percentage
+        disc_percntge = format_tax_percentage(disc_percntge)
 
         po_items.append({"name": line_product.title,
                          "qty": line_item.qty,
                          "sku": line_product.sku,
                          "rate": line_item.price,
                          "line_total": line_item.line_total,
-                         "tax_percentage": line_item.tax_percentage,
+                         "tax_percentage": tx_percntge,
+                         "disc_percentage": disc_percntge,
                          "amount":line_item.line_total
                          })
 
@@ -414,9 +447,21 @@ def generate_po_pdf(request):
     #Decimal("0.01"), rounding=ROUND_HALF_UP
 
     gst_amount = (po_details.tax_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    glbl_tax_percentage = po_details.tax_percentage
+
     total = (po_details.summary_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     shipping_details = PurchaseOrderShipping.objects.filter(po_id=po_details.po_id).first()
 
+    shipping = (po_details.shipping_charge).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    surcharge = (po_details.surcharge_total).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    surcharge_total = shipping+surcharge
+    
+
+    surcharge_tax_amnt = surcharge_total * (glbl_tax_percentage / 100)
+    gst_amount = gst_amount+surcharge_tax_amnt
+    total =  gst_amount+surcharge_total+subtotal 
     # ---------- CONTEXT ----------
     context = {
         "po": po,
@@ -436,6 +481,8 @@ def generate_po_pdf(request):
         "company_website": "https://www.shopperbeats.au",
         "logo_url": "https://www.shopperbeats.com/cdn/shop/files/logo_260x_2x_600c8b6c-c0e8-4f59-82df-6a2d9bed69da_260x@2x.jpg",  # swap with your logo
         "subtotal": subtotal,
+        "shipping": shipping,
+        "surcharge": surcharge,
         "gst_percent": gst_percent,
         "gst_amount": gst_amount,
         "total": total,
@@ -451,9 +498,10 @@ def generate_po_pdf(request):
 
     # Return response
     response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = "inline; filename=purchase_order.pdf" #attachment
-    return response
-
+    response["Content-Disposition"] = "inline;  filename=purchase_order.pdf" 
+    #inline - inline browser view 
+    #attachment - download attachement
+    return response  
 
 from decimal import Decimal, InvalidOperation
 @api_view(["POST"])
@@ -563,12 +611,18 @@ def save_po(request):
         PurchaseOrderItem.objects.filter(po_id=po.po_id).delete()
 
         for item in line_items:
+            product_id = item["row_item"]["id"]
+            tax_percentage = item["tax"]
+            product = Product.objects.get(product_id=product_id)
+            if product.is_taxable is True:
+                tax_percentage = 0.0
+
             PurchaseOrderItem.objects.create(
                 po_id=po.po_id,
-                product_id=item["row_item"]["id"],  # correct mapping
+                product_id=product_id,  # correct mapping
                 qty=item["qty"],
                 price=item["price"],
-                tax_percentage=item["tax"],  # percentage tax
+                tax_percentage=tax_percentage,  # percentage tax
                 discount_percentage=item["discount"],
                 order_ref=item["order_ref"],
                 order_type=item["order_type"],
@@ -632,7 +686,6 @@ def listing(request):
         "user": request.user.id,
     }
     return render(request, 'sbadmin/pages/purchase_order/all_listing.html', context)
-
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])

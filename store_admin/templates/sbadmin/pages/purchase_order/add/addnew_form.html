@@ -507,16 +507,12 @@ selected
         display: block;     /* keeps neat alignment */
         line-height: 1;
     }
-
-
     .po-tiny-field {
         display: inline-block;
         vertical-align: middle;
         margin: 0;
         padding: 0;
     }
-
-
     .po-tiny-select {
         float:left;
         height: 28px !important;
@@ -526,8 +522,6 @@ selected
         border: 1px solid #c7c7c7 !important;
         width: 100%;
     }
-
-
     .po-tiny-input {
         height: 28px !important;
         font-size: 13px;
@@ -536,24 +530,17 @@ selected
         border: 1px solid #c7c7c7;
         width: 130px;
     }
-
-
     .po-tiny-select:focus,
     .po-tiny-input:focus {
         border-color: #007bff !important;
         outline: none !important;
         box-shadow: 0 0 0 1px rgba(0,123,255,0.15);
     }
-
-
     .po-row .form-group {
         margin-bottom: 4px !important;
     }
-    .po-select-form{
-        padding-bottom:12px;
-    }
+  
 </style>
-
 <script>
    function showEditableInput(spanEl) {
         let inputId = spanEl.getAttribute("data-input");
@@ -595,7 +582,6 @@ selected
         updatePOTotals();
     }
 </script>
-
 {{ line_items|json_script:"initial_line_items" }}
 <script>
 const display = document.getElementById("po_number_display");
@@ -685,7 +671,7 @@ $(document).ready(function () {
                                class="list-group-item list-group-item-action d-flex product-option"
                                data-title="${item.title}">
                                 <div class="ml-3" style="font-size:14px;">
-                                    <div style="font-size: 13px;line-height:14px;font-weight: 600">${item.title}</div>
+                                    <div class="" style="font-size: 13px;line-height:14px;font-weight: 600">${item.title}</div>
                                     <img src="${item.image}" class="rounded" width="30" height="30">
                                     <div><strong>Stock QTY: </strong> ${item.stock_qty || "--"}</div>
                                     <div><strong>SKU: </strong> ${item.sku}</div>
@@ -763,7 +749,7 @@ $(document).on("click", "#btn_add_line_item", function () {
     const tax = clampPercentage($("#row_tax_percentage").val()) || global_tax_value;
 
     const row_item = JSON.parse($("#row_item").val());
-
+    
     // Prevent duplicates
     if (lineItems.some(detail => detail.row_item.id === row_item.id)) {
         toastr.error("Product already added");
@@ -777,6 +763,11 @@ $(document).on("click", "#btn_add_line_item", function () {
     sub_total -= sub_total * (discount / 100); // discount applied
 
     let tax_amount = sub_total * (tax / 100);  // tax value in rupees
+    //Apply tax excempt
+    if(row_item.is_taxfree){
+        tax_amount = 0.0
+    }
+
     let line_total = sub_total + tax_amount;   // final
 
     // ------------------------------
@@ -800,21 +791,23 @@ $(document).on("click", "#btn_add_line_item", function () {
 
 // RENDER TABLE
 function renderLineItems() {
+   // alert(item.row_item.is_taxable?0:item.tax)
+
     const tbody = $("#product_line_item");
     if (!lineItems.length) {
-        tbody.html(`<tr><td colspan="10" class="text-center">No records found</td></tr>`);
+        tbody.html(`<tr><td colspan="11" class="text-center">No records found</td></tr>`);
         return;
     }
 
     let html = "";
-    lineItems.forEach((item, index) => {
+    lineItems.forEach((item, index) => { 
         html += `
         <tr data-index="${index}" class="po-line-row">
             <td class="align-middle">
                 <div class="d-flex align-items-center">
                     <img src="${item.row_item.image}" width="28" height="28" class="rounded border mr-2">
                     <div>
-                        <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title}</div>
+                        <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title} ${item.row_item.is_taxfree?'<span class="right badge badge-success ml-1">Tax-free</span>':""}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.row_item.sku}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>ASIN:</strong> ${item.row_item.asin}, <strong>FNSKU:</strong> ${item.row_item.fnsku}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>EAN:</strong> ${item.row_item.ean}, <strong>Prep Type:</strong> ${item.row_item.prep_type}</div>
@@ -823,27 +816,27 @@ function renderLineItems() {
             </td>
             <td class="align-middle text-center pl-0">
             <div class="clearfix  po-row">
-    <label class="po-tiny-label">Product Order Type</label>
-    <select id="product_order_type_${index}"  class="po-tiny-select po-tiny-field">
-        <option>--</option>
-        <option value="FBM">FBM</option>
-        <option value="FBA">FBA</option>
-        <option value="Both">Both</option>
-    </select>
-</div>
-<div class="clearfix po-select-form  po-row mt-2">
-    <label class="po-tiny-label">Product Order Ref</label>
-    <input id="product_order_ref_${index}" maxlength="80" class="po-tiny-input po-tiny-field" title="Customer order for FBM order" placeholder="" value="${item.row_item.product_order_ref}" />
-</div>
+                <label class="po-tiny-label">Product Order Type</label>
+                <select id="product_order_type_${index}"  class="po-tiny-select po-tiny-field">
+                    <option>--</option>
+                    <option value="FBM">FBM</option>
+                    <option value="FBA">FBA</option>
+                    <option value="Both">Both</option>
+                </select>
+            </div>
+            <div class="clearfix po-select-form  po-row mt-2">
+                <label class="po-tiny-label">Product Order Ref</label>
+                <input id="product_order_ref_${index}" maxlength="80" class="po-tiny-input po-tiny-field" title="Customer order for FBM order" placeholder="" value="${item.row_item.product_order_ref}" />
+            </div>
             </td>
             <td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>
             <td class="editable qty align-middle text-decoration-dotted text-right">${item.qty}</td>
             <td class="editable price align-middle text-decoration-dotted text-right">${item.price}</td>
-              <td class="editable discount align-middle text-decoration-dotted text-right"  title="Discount Percentage">${item.discount}</td>
+              <td class="editable discount align-middle text-decoration-dotted text-right" title="Discount Percentage">${item.discount}</td>
 
             <td id="sub_total_${index}" class=" discount align-middle text-right">${item.sub_total.toFixed(2)}</td>
 
-            <td class=" tax align-middle editable text-decoration-dotted text-right" title="Tax Percentage">${item.row_item.is_taxable?0:item.tax}</td>
+            <td data-is_taxfree="${item.row_item.is_taxfree}" class=" tax align-middle ${item.row_item.is_taxfree?"":"editable text-decoration-dotted"} text-right" title="Tax Percentage -${item.row_item.is_taxfree?0:item.tax}">${item.row_item.is_taxfree?0:item.tax}</td>
              <td id="tax_amount_${index}" class=" discount align-middle text-right">${item.tax_amount.toFixed(2)}</td>
             <td id="line_total_${index}" class="align-middle text-right">${item.line_total.toFixed(2)}</td>
             <td class="align-middle ">
@@ -863,22 +856,27 @@ function renderLineItems() {
 }
 
 // CLICK → INLINE EDITOR
-$(document).on("click", "tr.po-line-row td.editable", function () {
+$(document).on("click", "tr.po-line-row td.editable", function (e) {
     const td = $(this);
+    let is_taxfree = false;
     if (td.find("input").length) return;
-
-
     let tooltipTxt = "Input"
     if (td.hasClass('qty')) {
         tooltipTxt = "Qty Input "
     }else if(td.hasClass('price')){
         tooltipTxt = "Product Unit Cost"
     }else if(td.hasClass('tax')){
+        is_taxfree = e.target.getAttribute('data-is_taxfree');
+        console.log(is_taxfree)
+        if(is_taxfree==="true"){
+            toastr.info("Tax Free product")
+            return;
+        }
         tooltipTxt = "Tax % On SUB TOTAL"
     }else if(td.hasClass('discount')){
         tooltipTxt = "Discount % On SUB TOTAL"
     }
-    td.html(`<input  data-toggle="tooltip"
+    td.html(`<input data-toggle="tooltip"
                            data-placement="top" title="${tooltipTxt}" type="number" class=" form-control help-text form-control-sm edit-field" value="${td.text().trim()}">`)
     const $input = td.find("input");
     td.find("input").focus();
@@ -896,7 +894,8 @@ $(document).on("blur", ".edit-field", function () {
     const td = input.closest("td");
     const index = td.closest("tr").data("index");
     const item = lineItems[index];
-
+    console.log(item.row_item)
+    console.log(item.row_item.is_taxfree)
     let newVal = parseFloat(input.val());
     if (isNaN(newVal)) newVal = 0;
 
@@ -948,6 +947,9 @@ $(document).on("blur", ".edit-field", function () {
     sub_total -= sub_total * (item.discount / 100);
 
     let tax_total = sub_total * (item.tax / 100);
+    if(item.row_item.is_taxfree)
+        tax_total = 0.0
+
     let line_total = sub_total + tax_total;
 
     // Update array values
@@ -975,17 +977,15 @@ $(document).on("click", ".delete-item", function () {
 // TOTALS
 // -----------------------------------------------
 function updatePOTotals() {
-
     if (!lineItems || lineItems.length === 0) {
         $("#po_sub_total").text("$0.00");
         $("#po_tax_total").text("$0.00");
         $("#po_total").text("$0.00");
         return;
     }
-
-    const surcharge_total = parseFloat($("#surcharge_value").val()) || 0;
-    const shipping_total = parseFloat($("#shipping_value").val()) || 0;
-    const tax_percentage = parseFloat($("#tax_percentage").val()) || 0;
+    const surcharge_total = parseFloat($("#surcharge_value").val()) || 0; //fething from global config
+    const shipping_total = parseFloat($("#shipping_value").val()) || 0;//fething from global config
+    const tax_percentage = parseFloat($("#tax_percentage").val()) || 0;//fething from global config
 
     let subtotal = 0;
     let total_qty = 0;
@@ -993,7 +993,6 @@ function updatePOTotals() {
     let total_sub = 0;
     let total_tax_amnt = 0;
     let total_line = 0;
-
 
     lineItems.forEach(item => {
         subtotal += item.sub_total || 0;
@@ -1217,7 +1216,8 @@ document.addEventListener("DOMContentLoaded", function () {
         e.stopPropagation();
         if(validatePOForm()){
             let jsonData = buildPOFormData();
-           // console.log(jsonData);
+            console.log(jsonData);
+         
             fetch("{% url 'save_po_order' %}", {
                 method: "POST",
                 headers: {
@@ -1231,8 +1231,6 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(resp => {
                 const data = resp.body;
-
-
                 if(data.status){
                     po_create.setAttribute("disabled","true")
                     toastr.success(data?.message || "PO saved successfully!");
