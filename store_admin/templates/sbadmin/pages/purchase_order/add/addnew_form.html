@@ -741,14 +741,17 @@ let lineItems = JSON.parse(document.getElementById("initial_line_items").textCon
 // ADD LINE ITEM
 $(document).on("click", "#btn_add_line_item", function () {
 
+    const row_det = $("#row_item").val();
+    if(row_det===""){
+        toastr.error("Invalid option");
+        return;
+    }
     let global_tax_value = parseFloat($("#tax_percentage").val()) || 0;
-
     const qty = parseFloat($("#row_qty").val()) || 0;
     const price = parseFloat($("#row_price").val()) || 0;
     const discount = clampPercentage($("#row_discount_percentage").val());
     const tax = clampPercentage($("#row_tax_percentage").val()) || global_tax_value;
-
-    const row_item = JSON.parse($("#row_item").val());
+    const row_item = JSON.parse(row_det);
     
     // Prevent duplicates
     if (lineItems.some(detail => detail.row_item.id === row_item.id)) {

@@ -112,3 +112,35 @@ class AttributeDefinition(models.Model):
 
     def __str__(self):
         return self.attribute_name
+
+
+from django.db import models
+from django.utils import timezone
+
+
+class ShippingProviders(models.Model):
+    carrier_id = models.AutoField(primary_key=True)
+    carrier_name = models.CharField(max_length=255)
+    carrier_code = models.CharField(max_length=50, db_index=True)
+    class_code = models.CharField(max_length=50, blank=True, null=True)
+    tracking_url = models.URLField(max_length=500, blank=True, null=True)
+
+    # Status field (typically an Integer or Char with choices)
+    STATUS_CHOICES = [
+        (1, 'Active'),
+        (0, 'Inactive'),
+    ]
+    status = models.IntegerField(choices=STATUS_CHOICES, default=1)
+    is_archived = models.IntegerField(choices=STATUS_CHOICES, default=0)
+
+    # Audit fields
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.IntegerField()  # Or ForeignKey(User) if you have an auth system
+
+    class Meta:
+        db_table = 'store_admin_shipping_providers'
+        verbose_name = 'Shipping Providers'
+
+    def __str__(self):
+        return f"{self.carrier_name} ({self.carrier_code})"

@@ -1,7 +1,7 @@
 {% load static %}
 {% url 'all_products' as all_products_url %}
 {% url 'vendor_listing' as all_vendors_url %}
-
+{% url 'po_listing' as all_po_url %}
 <aside class="main-sidebar sidebar-light-primary elevation-2">
     <!-- Brand Logo -->
     <a href="" class="brand-link navbar-light" style="padding: 0.789rem 0.5rem;">
@@ -127,14 +127,54 @@
             </a>
           </li>
 
-          <li class="nav-item">
-            <a href="{% url 'po_listing' %}" class="nav-link">
-              <i class="nav-icon fas fa-tag"></i>
-              <p>Purchase Order</p>
+
+
+
+
+           <li class="nav-item has-treeview">
+            <a href="#" class="nav-link {% if request.path == all_products_url %}active{% endif %}">
+              <i class="nav-icon fas fa-shopping-bag"></i>
+              <p>
+                Purchases
+                <i class="fas fa-angle-left right"></i>
+              </p>
             </a>
+            <ul class="nav nav-treeview">
+                <li class="nav-item ">
+                  <a href="{% url 'po_listing' %}" class="nav-link">
+                     <i class="far fa-circle nav-icon"></i>
+                    <p>Purchase Order</p>
+                  </a>
+                </li>
+                <li class="nav-item ">
+                  <a href="{% url 'po_order_receives' %}" class="nav-link">
+                     <i class="far fa-circle nav-icon"></i>
+                    <p>Purchase Receives</p>
+                  </a>
+                </li>
+                <li class="nav-item ">
+                  <a href="{% url 'po_bills_listing' %}" class="nav-link">
+                     <i class="far fa-circle nav-icon"></i>
+                    <p> Bills</p>
+                  </a>
+                </li>
+                <li class="nav-item">
+                  <a href="{% url 'payments_listing' %}" class="nav-link">
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Payments Made</p>
+                  </a>
+                </li>
+                <li class="nav-item d-none">
+                  <a href="#" class="nav-link">
+                    <i class="far fa-circle nav-icon"></i>
+                    <p>Vendor Credits</p>
+                  </a>
+                </li>
+                  <li class="nav-header"><hr/></li>
+              </ul>
           </li>
 
-            <li class="nav-item has-treeview">
+          <li class="nav-item has-treeview">
             <a href="#" class="nav-link {% if request.path == all_products_url %}active{% endif %}">
               <i class="nav-icon fas fa-shopping-bag"></i>
               <p>
@@ -239,6 +279,12 @@
                 <a href="{% url 'manage_warehouse_listings' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>Warehouse</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'manage_shipping_providers_listing' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>Shipping Providers</p>
                 </a>
               </li><!---->
             </ul>

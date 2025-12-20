@@ -243,8 +243,8 @@
 
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit </a>
-                                        <!--<a class="dropdown-item" href="#">Another action</a>
-                                        <a class="dropdown-item" href="#">Something else</a>
+                                        <a class="dropdown-item" onclick="deletePO('{{  po.po_id }}')" href="#">Delete</a>
+                                        <!--<a class="dropdown-item" href="#">Something else</a>
                                         <div class="dropdown-divider"></div>
                                         <a class="dropdown-item" href="#">Separated link</a>-->
                                     </div>
@@ -345,9 +345,9 @@
                                          <div class="">
                                             <strong><i class="fas fa-map-marker-alt mr-1"></i> Warehouse Location</strong>
                                             <p class="text-muted">
-                                                {% for payment_term in payment_terms %}
-                                                    {% if po.payment_term_id == payment_term.id %}
-                                                        {{ payment_term.name }}
+                                                {% for warehouse in warehouses %}
+                                                    {% if po.warehouse_id == warehouse.warehouse_id %}
+                                                        {{ warehouse.warehouse_name }}
                                                     {% endif %}
                                                 {% endfor %}
                                             </p>
@@ -356,12 +356,14 @@
                                         <div class="">
                                             <strong><i class="far fa-file-alt mr-1"></i> Payment Terms</strong>
                                             <p class="text-muted">
-                                                {% for warehouse in warehouses %}
-                                                    {% if po.warehouse_id == warehouse.warehouse_id %}
-                                                        {{ warehouse.warehouse_name }}
+                                                {% for payment_term in payment_terms %}
+                                                    {% if po.payment_term_id == payment_term.id %}
+                                                        {{ payment_term.name }}
                                                     {% endif %}
                                                 {% endfor %}
                                             </p>
+
+
                                         </div>
                                     </div>
                                 </div>
@@ -485,7 +487,7 @@
                                         <th style="width:10%;" class="text-center">ORDER TYPE</th>
                                         <th style="width:100px;" class="text-center">ORDER REF</th>
                                         <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>
-                                        <th style="width:10%;" class="text-center">QUANTITY</th>
+                                        <th style="width:9%;" class="text-center">QUANTITY</th>
                                         <th style="width:10%;" class="text-center">RATE</th>
                                         <th style="width:10%;" class="text-center">TOTAL PRICE</th>
                                         <th style="width:10%;" class="text-center">DISCOUNT</th>
@@ -498,7 +500,9 @@
                                 </thead>
                                 <tbody id="product_line_item" class="border-bottom"></tbody>
                             </table>
-                            <table class="summary-box float-right" style="width: 300px;">
+                            
+                        </div>
+                        <table class="summary-box float-right" style="width: 300px;">
                                 <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
                                 <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
                                 <tr><td>Surcharges</td><td class="text-right" id="surcharge_total_excl_tax">$0.00</td></tr>
@@ -507,8 +511,7 @@
                                 <tr><td class="text-success" >Grand Total (Incl. GST)</td><td class="text-right" id="grand_total_incl_tax">$0.00</td></tr>
                                 <input type="hidden" id="surchase_total" value="{{ po.surcharge_total }}"/>
                                 <input type="hidden" id="shipping_total" value="{{ po.shipping_charge }}"/>
-                            </table>
-                        </div>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -517,7 +520,48 @@
 </div>
  {% csrf_token %}
  
-  <script>
+<script>
+function deletePO(poId){
+     event.stopPropagation();
+          event.preventDefault();
+          Swal.fire({
+            title: "Delete PO?",
+            text: "This action cannot be undone.",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            confirmButtonText: "Delete"
+        }).then(result => {
+            if (!result.value) return;
+            if (result.value) {
+                // Note: Ensure this URL matches your urls.py pattern perfectly
+                fetch("{% url 'delete_po_single' 0 %}".replace("0",poId), {
+                    method: "DELETE",
+                    headers: {
+                        "X-CSRFToken": "{{ csrf_token }}",
+                        "Accept": "application/json"
+                    }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if(data.status){
+                        Swal.fire({
+                            title: "Deleted",
+                            text: "PO removed successfully",
+                            icon: "success",
+                            confirmButtonText: "OK"
+                        }).then(() => {
+                            window.location.href = "{% url 'po_listing' %}";
+                        });
+                    } else {
+                        Swal.fire("Error", data.message || "Something went wrong", "error");
+                    }
+                })
+                .catch(() => Swal.fire("Error", "Server error", "error"));
+            }
+        });
+}
+
 function copyTrackingRef(ref) {
     var text = document.getElementById(ref=="ref"?"trackingRef":"trackingLink").innerText;
     navigator.clipboard.writeText(text).then(() => {
@@ -633,12 +677,12 @@ function renderLineItems() {
     lineItems.forEach((item, index) => {
         html += `
         <tr data-index="${index}" class="po-line-row">
-            <td class="align-middle">
-            <div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.row_item.title} ${item.row_item.is_taxfree?'<span class="right badge badge-success ml-1">Tax-free</span>':""}</div>
+            <td class="align-middle pl-0 pr-0">
+            <div class="font-weight-bold mb-1" style="font-size:13px;line-height:14px;">${item.row_item.title} </div>
                 <div class="d-flex align-items-center">
                     <img src="${item.row_item.image}" width="28" height="28" class="rounded border mr-2">
                     <div>
-                        <div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.row_item.sku}</div>
+                        <div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.row_item.sku}${item.row_item.is_taxfree?'<span class="right badge badge-success ml-1">Tax-free</span>':""}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>ASIN:</strong> ${item.row_item.asin}, <strong>FNSKU:</strong> ${item.row_item.fnsku}</div>
                         <div class="text-muted" style="font-size:12px;"><strong>EAN:</strong> ${item.row_item.ean}, <strong>Prep Type:</strong> ${item.row_item.prep_type}</div>
                     </div>
@@ -658,10 +702,15 @@ function renderLineItems() {
             <td id="line_total_${index}" class="align-middle text-right">${formatAUD(item.line_total.toFixed(2))}</td>
         </tr>`;
     });
-    html += `<tr><td class="align-middle text-center border-none" colspan="4"></td><td id="qty_total_td" class="align-middle text-right">0</td><td class="align-middle text-right"></td>
-    <td class="align-middle text-right"  id="price_total_td"></td><td class="align-middle text-right"></td><td class="align-middle text-right" id="sub_total_td"></td>
-    <td class="align-middle text-right"></td><td class="align-middle text-right"  id="tax_total_td"></td><td class="align-middle text-right" colspan="2"></td>
-    </tr>`
+    html += `<tr><td colspan="4" class="align-middle text-center border-0"></td>
+    <td id="qty_total_td" class="align-middle text-right">0</td>
+    <td class="align-middle text-right"></td>
+    <td id="price_total_td" class="align-middle text-right">0.00</td>
+    <td class="align-middle text-right"></td>
+    <td id="sub_total_td" class="align-middle text-right">0.00</td>
+    <td class="align-middle text-right"></td>
+    <td id="tax_total_td" class="align-middle text-right">0.00</td>
+    <td colspan="2" class="align-middle text-right"></td></tr>`
     tbody.html(html);
     updatePOTotals();
 }

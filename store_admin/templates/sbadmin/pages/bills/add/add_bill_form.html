@@ -1,0 +1,1150 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Add BILL{% endblock %}
+
+{% block content %}
+<div id="pageOverlay"></div>
+<style>
+	#pageOverlay {
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 9999;
+}
+
+#pageOverlay.active {
+  opacity: 0.6;
+  pointer-events: all;
+}
+.set-opacity { opacity:0.3;  pointer-events: none;   user-select: none;     }
+</style>
+<div class="content-wrapper">
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <div style="font-size: 19px;" class="m-0">New Bill <span class="help-text" >
+
+            </span></div>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="{% url 'po_bills_listing' %}">All Bills</a></li>
+            <li class="breadcrumb-item active">Add</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+	<section class="">
+        {% csrf_token %}
+			<div class="row">
+				<div class="col-md-8">
+					<div class="card-section">
+						<div class="section-title">Bill Information</div>
+						<div class="row">
+							<div class=" col-sm-12 col-md-12">
+								<div class="col-sm-10 float-left p-2">
+									<div class="form-group row">
+										<label class="col-sm-4 col-form-label">Vendor</label>
+										<div class="col-sm-8">
+										<select  name="vendor_id" id="vendor_id" class="w-75 select2" title="Select">
+											<option value="">Select</option>
+											{% for vendor in vendors %}
+												<option value="{{ vendor.id }}">{{ vendor.display_name }} ({{ vendor.vendor_code }}))</option>
+											{% endfor %}
+										</select>
+										</div>
+									</div>
+									<div class="form-group row ">
+										<label class="col-sm-4 col-form-label">Vendor Company Name</label>
+										<div class="col-sm-8">
+										<input type="text" disabled id="vendor_name" name="vendor_name" class="w-75  form-control form-control-sm " placeholder="Name"/>
+										</div>
+									</div>
+									<div class="form-group row ">
+										<label class="col-sm-4 col-form-label">ABN</label>
+										<div class="col-sm-8">
+										<input type="text" placeholder="Vendor ABN" value="" name="vendor_abn" id="vendor_abn" class="w-75 form-control-sm form-control" >
+										</div>
+									</div>
+
+									<div class="form-group row">
+										<label class="col-sm-4  col-form-label">Warehouse Location</label>
+										<div class="col-sm-8">
+										  <select  name="warehouse" class="select2 w-75" id="warehouse" title="Select type">
+											  <option value="19">Select </option>
+											  <option value="21">SBAU</option>
+											  <option value="23">Local 3PL</option>
+											  <option value="24">China</option>
+											  <option value="26">USA</option>
+										  </select>
+										</div>
+									</div>
+									<div class="form-group row ">
+										<label class="col-sm-4 col-form-label">Currency</label>
+										<div class="col-sm-8">
+											<input type="text" disabled value="" name="currency_code" id="currency_code" class="form-control form-control-sm w-75 " />
+										</div>
+									</div>
+									<div class="form-group row ">
+										<label class="col-sm-4 col-form-label">Bill#</label>
+										<div class="col-sm-8">
+											<input type="text" placeholder="Bill Number" value="{{ po_bill_number }}" name="bill_no" id="bill_no" class="form-control form-control-sm w-75 " />
+										</div>
+									</div>
+									<div class="form-group row ">
+										<label class="col-sm-4 col-form-label"> Order Number</label>
+										<div class="col-sm-8">
+											<input type="text" placeholder="Order Number"  value="" name="bill_order_number"  id="bill_order_number" class="form-control form-control-sm w-75 " />
+										</div>
+									</div>
+
+
+									<div class="form-group row">
+										<label class="col-sm-4 col-form-label">Bill Date</label>
+										<div class="col-sm-8">
+										<input type="date" value="" name="bill_date" id="bill_date" class="w-75 form-control form-control-sm " >
+										</div>
+									</div>
+									<div class="form-group row ">
+										<label class="col-sm-4 col-form-label">Due Date</label>
+										<div class="col-sm-8">
+										<input type="date" value="" name="due_date" id="due_date" class="w-75 form-control-sm form-control" >
+										</div>
+									</div>
+
+									<div class="form-group row ">
+										<label class="col-sm-4  col-form-label">Payment Terms</label>
+										<div class="col-sm-6">
+										  <select class="w-75 form-control select2" id="payment_term_id">
+											  <option  value="">select</option>
+											  {% for payment_term in payment_terms %}
+												<option  value="{{ payment_term.id }}">{{ payment_term.name }}</option>
+											  {% endfor %}
+										  </select>
+										</div>
+									</div>
+
+									<div class="form-group row">
+										 <label class="col-sm-4 col-form-label">Subject:</label>
+										 <div class="col-sm-6">
+											<textarea placeholder="Subject for the bill (max 250 chars.)" maxlength="245" id="subject" class="form-control " rows="2"  name="subject">{{ po.comments|hide_none }}</textarea>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="col-md-4">
+					<div class="card-section hide-opacity set-opacity">
+							<div class="section-title">Billing Address</div>
+								<div class="form-group">
+									<label>Attention : <span id="billing_attention_name">--</span></label>
+
+								</div>
+
+								<div class="form-group">
+									<label>Country / Region: <span id="billing_country">--</span></label>
+								</div>
+
+								<div class="form-group">
+									<label>Building / Street: <span id="billing_street1">--</span></label>
+									<span id="billing_street2"></span>
+								</div>
+
+								<div class="form-row">
+									<div class="form-group col-md-6">
+										<label>State: <span id="billing_state">--</span></label>
+									</div>
+									<div class="form-group col-md-6">
+										<label>City: <span id="billing_city">--</span></label>
+									</div>
+								</div>
+
+								<div class="form-row">
+									<div class="form-group col-md-6">
+										<label>ZIP Code: <span id="billing_zip">--</span></label>
+									</div>
+
+									<div class="form-group col-md-6">
+										<label>Phone: <span id="billing_phone">--</span></label>
+									</div>
+								</div>
+
+								<div class="form-group">
+									<label>Fax Number: <span id="billing_fax">--</span></label>
+								</div>
+					</div>
+
+					<div class="card-section">
+							<div class="section-title">Status</div>
+							<div class="form-group row ">
+								<div class="col-sm-12 col-offset-sm-3">
+								<select id="bill_status" class="form-control form-control-sm w-75">
+									<option value="0">Draft</option>
+									<option value="1">Pending Approval</option>
+									<option value="2">Open</option>
+									<option value="3">Overdue</option>
+									<option value="4">Unpaid</option>
+									<option value="5">Partially Paid</option>
+									<option value="6">Paid</option>
+									<option value="7">Void</option>
+									<option value="8">Yet To Be Received </option>
+									<option value="9">Received </option>
+
+								</select>
+							</div></div></div>
+
+				</div>
+			</div>
+				<div class="card-section">
+						<div class="section-title">Select PO Receive</div>
+							<div class=" mt-3">
+								<div class="row" >
+								  <div class="col-sm-12" >
+									<div class="col-sm-3 float-left">
+											<div class="form-group row">
+												<input type="hidden" id="row_item"  />
+												<label class="col-sm-3 col-form-label">Purchases</label>
+												<div class="col-sm-9">
+												<select name="po_receive_id" id="po_receive_id" class="form-control select2 form-control-sm">
+													<option value="">select</option>
+													{% for purchase in purchases %}
+														<option value="{{ purchase.id }}">{{ purchase.name }}</option>
+													{% endfor %}
+												</select>
+											</div>
+										</div>
+									</div>
+									<div class="col-sm-1 float-left">
+										<button type="button" id="btn_add_line_item" class="btn-sm btn btn-primary btn_add_line_item" >
+											<i class="fa fa-plus pr-1"></i>
+											Add</button>
+									</div>
+								  </div>
+								</div>
+								<div class="table-responsive">
+									<table class="table border tbl-line-item table-striped w-100">
+									  <thead class="thead-dark">
+										<tr>
+											<th class="align-middle" style="width:25%" >ITEM DETAILS</th>
+											<th class="align-middle" style="width:10%" >WAREHOUSE DETAILS</th>
+											<th class="align-middle text-center" style="width:12%;">
+												BARCODE LABEL TYPE
+												<i class="fa fa-info-circle text-secondary ml-1"
+												   data-toggle="tooltip"
+												   data-placement="top"
+												   title="Manufacture or Amazon"></i>
+											</th>
+											<th class="align-middle text-center" style="width:6%">QUANTITY</th>
+											<th class="align-middle text-center" style="width:7%">RATE</th>
+											<th class="align-middle text-center" style="width:8%">DISCOUNT</th>
+											<th class="align-middle text-center" style="width:8%">SUB TOTAL</th>
+											<th class="align-middle text-center" style="width:5%">TAX</th>
+											<th class="align-middle text-center" style="width:8%">TAX TOTAL</th>
+											<th class="align-middle text-center" style="width:20%">TOTAL AMOUNT</th>
+										</tr>
+										</thead>
+										<tbody id="product_line_item"><tr><td class="text-center" colspan="10">No records found</td></tr></tbody>
+									</table>
+								</div>
+						</div>
+				</div>
+				<div class="row mt-3 mb-3">
+					<div class="col-md-4 pl-3">
+					  <p class="lead">Notes (internal ref):</p>
+						<textarea id="billing_notes" class="form-control " rows="6" style="width:95%" name="comments"></textarea>
+					</div>
+					 <div class="col-md-4">
+						 <p class="lead">Attach Files</p>
+							<div class="form-group">
+								<div class="upload-box">
+								  <label class="upload-btn">
+									<i class="fas fa-upload mr-2"></i>
+									Upload File
+									<input type="file"
+										   name="receive_files[]"
+										   multiple
+										   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+										   hidden>
+								  </label>
+								</div>
+
+								<small class="text-muted d-block mt-2">
+								  You can upload a maximum of 5 files, 10MB each
+								</small>
+							</div>
+							<div id="fileCountText" class="mt-2 text-muted small">
+								0 / 5 files selected
+							</div>
+							<div id="selectedFilesList" class="mt-2"></div>
+					 </div>
+						<div class="col-md-4">
+							<div class="card-sections " >
+								<div class="table-responsive">
+									<table class="table table-borderless w-100" >
+										<tbody>
+											<tr>
+												<th style="width:50%" class="text-right border-bottom text-bold align-middle">Subtotal
+												</th>
+
+												<td class="text-right border-bottom " id="po_sub_total" >0.00</td>
+											</tr>
+											<tr>
+												<th class="text-right pb-0 align-middle">
+													Surcharges
+													<i class="fa fa-info-circle help-text text-secondary ml-1"
+													title="Additional charge."></i>
+												</th>
+
+												<td class="text-right">
+
+													<!-- Visible formatted label -->
+													<span class="editable-display"
+														id="surcharge_label"
+														data-input="surcharge_edit"
+														onclick="showEditableInput(this)"
+														style="cursor:pointer; border-bottom:1px dashed #888;">
+														$0.00
+													</span>
+
+													<!-- Edit input box -->
+													<input type="number"
+														id="surcharge_edit"
+														class="form-control form-control-sm editable-input"
+														style="width:80px; display:none;"
+														onblur="hideEditableInput(this)" />
+
+													<!-- REAL RAW VALUE (no formatting) -->
+													<input type="hidden"
+														id="surcharge_value"
+														value="" />
+												</td>
+											</tr>
+											<tr>
+												<th class="text-right border-bottom">GST [10%]</th>
+												<td class="text-right border-bottom" id="po_tax_total">0.00</td>
+											</tr>
+
+											<tr>
+												<th class="text-right  align-middle">
+													Discount %
+													<i class="fa fa-info-circle help-text text-secondary ml-1"
+													data-toggle="tooltip"
+													title="Discount %. "></i>
+												</th>
+
+												<td class="text-right ">
+
+													<!-- Visible formatted label -->
+													<span class="editable-display"
+														id="shipping_label"
+														data-input="shipping_edit"
+														onclick="showEditableInput(this)"
+														style="cursor:pointer; border-bottom:1px dashed #888;">
+														{{ po.shipping_charge|default:'$0.00' }}
+													</span>
+
+													<input type="number"
+														min="0"
+														id="shipping_edit"
+														class="form-control form-control-sm editable-input"
+														style="width:80px; display:none;"
+														onblur="hideEditableInput(this)" />
+
+													<!-- REAL RAW VALUE (no formatting) -->
+													<input type="hidden"
+														id="shipping_value"
+														value="" />
+												</td>
+											</tr>
+											<tr>
+												<th class=" text-right pt-3">Grand Total <br/> (Incl. GST)</th>
+												<td class="text-right text-bold pt-3 align-middle" id="po_total">0.00</td>
+											</tr>
+										</tbody>
+									</table>
+								</div>
+							</div>
+						</div>
+				</div>
+				<div class="row mb-5">
+					<div class="col-12">
+					  <button title="Create Purchase Order" id="btn_po_create" type="button"
+							  class="btn btn-success float-right mr-2"><i class="far fa-credit-card"></i> Save
+					  </button>
+					  <button onclick="window.history.back()" class="btn btn-secondary ml-2" ><i class="fas fa-history"></i>
+						Cancel</button>
+					</div>
+				</div>
+
+	</section>
+</div>
+<script>
+$(".po-item-total").on("blur",function(e){
+	updatePOTotals();
+});
+</script>
+<script>var lineItems = [];</script>
+<script>
+
+const MAX_FILES = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_EXTENSIONS = [
+    "pdf",
+    "jpg", "jpeg", "png",
+    "doc", "docx",
+    "xls", "xlsx"
+];
+const ALLOWED_MIME_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+];
+
+let receiveFiles = [];
+$('input[type="file"][name="receive_files[]"]').on("change", function () {
+
+    const newFiles = Array.from(this.files);
+
+    for (const file of newFiles) {
+
+        if (receiveFiles.length >= MAX_FILES) {
+            toastr.error("Maximum 5 files allowed");
+            break;
+        }
+
+        const ext = file.name.split(".").pop().toLowerCase();
+
+        if (
+            !ALLOWED_EXTENSIONS.includes(ext) ||
+            !ALLOWED_MIME_TYPES.includes(file.type)
+        ) {
+            alert(`${file.name} is not an allowed file type`);
+            continue;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            alert(`${file.name} exceeds 5 MB`);
+            continue;
+        }
+
+        receiveFiles.push(file);
+    }
+
+    this.value = ""; // allow re-select
+    renderSelectedFiles();
+    updateFileCount();
+});
+function renderSelectedFiles() {
+    const list = $("#selectedFilesList");
+    list.empty();
+
+    receiveFiles.forEach((file, index) => {
+        const sizeKB = (file.size / 1024).toFixed(1);
+
+        list.append(`
+            <div class="d-flex align-items-center justify-content-between border rounded px-2 py-2 mb-2">
+                <div class="text-truncate" style="max-width: 260px;">
+                    <i class="far fa-file mr-1"></i>
+                    ${file.name}
+                    <small class="text-muted">(${sizeKB} KB)</small>
+                </div>
+                <button type="button"
+                        class="btn btn-link text-danger p-0"
+                        onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `);
+    });
+}
+function removeFile(index) {
+    receiveFiles.splice(index, 1);
+    renderSelectedFiles();
+    updateFileCount();
+}
+function updateFileCount() {
+    $("#fileCountText").text(`${receiveFiles.length} / ${MAX_FILES} files selected`);
+}
+
+</script>
+
+<script>
+
+   function showEditableInput(spanEl) {
+        let inputId = spanEl.getAttribute("data-input");
+        let input = document.getElementById(inputId);
+
+        // Get raw value from hidden input
+        let rawId = inputId.replace("_edit", "_value");
+        input.value = document.getElementById(rawId).value;
+
+        spanEl.style.display = "none";
+        input.style.display = "inline-block";
+        input.focus();
+    }
+
+    function hideEditableInput(inputEl) {
+        let val = inputEl.value.trim();
+        let id = inputEl.id;
+
+        // Determine related label + hidden value inputs
+        let label = document.querySelector('[data-input="' + id + '"]');
+        let raw = document.getElementById(id.replace("_edit", "_value"));
+
+        // Validation rules
+        if (id === "shipping_edit" && val < 0) {
+            toastr.error("Discount charge cannot be negative.");
+            inputEl.value = raw.value; // revert to old value
+            val = raw.value;
+        }
+
+        // Save raw numeric value
+        raw.value = val === "" ? 0 : parseFloat(val);
+
+        // Render formatted label
+        label.innerText = formatAUD(raw.value);
+
+        inputEl.style.display = "none";
+        label.style.display = "inline-block";
+
+        updatePOTotals();
+    }
+function resetBillingSec(){
+	$("#vendor_name, #currency_code, #vendor_abn").val("--");
+	$("#billing_country, #billing_city, #billing_state, #billing_zip, #billing_phone, #billing_fax").text("--");
+	$("#billing_attention_name, #billing_street1, #billing_street2").text("--");
+}
+$(document).ready(function () {
+    // Vendor change event
+    $("#vendor_id").change(function (e) {
+		if(e.target.value == ""){
+			$(".hide-opacity").removeClass("set-opacity");
+			resetBillingSec();
+			return;
+		}
+		$("#pageOverlay").addClass("active");
+        const vendorUrlTemplate = "{% url 'get_single_vendor' 0 %}";
+        fetch(vendorUrlTemplate.replace("0", e.target.value))
+            .then(res => res.json())
+            .then(data => {
+				  $(".hide-opacity").removeClass("set-opacity");
+				  resetBillingSec();
+                if (data.status) {
+                    const vend_details = data.data;
+                    $("#vendor_name").val(vend_details.company_name);
+                    $("#currency_code").val(vend_details.currency);
+                    $("#vendor_abn").val(vend_details?.company_abn);
+                    const billing_address = data.billing_address;
+
+                    $("#billing_attention_name").text(billing_address?.attention_name);
+                    $("#billing_country").text(billing_address?.country);
+                    $("#billing_city").text(billing_address?.city);
+                    $("#billing_street1").text(billing_address?.street1);
+                    $("#billing_street2").text(billing_address?.street2);
+                    $("#billing_state").text(billing_address?.state);
+                    $("#billing_zip").text(billing_address?.zip);
+                    $("#billing_phone").text(billing_address?.phone);
+                    $("#billing_fax").text(billing_address?.fax);
+
+                    get_vendors_purchase_receives(e.target.value);
+                }
+            }).finally(() => {
+
+			  $("#pageOverlay").removeClass("active"); // FADE OUT overlay
+			});
+    });
+
+    // Product search debounce
+    $(document).on("click", "#suggestionsBox a", function (e) {
+        e.preventDefault();
+        $("#productSearch").val($(this).data("title"));
+        $("#suggestionsBox").hide();
+    });
+});
+
+
+// Clamp %
+function clampPercentage(v) {
+    if (!v) return 0;
+    v = parseFloat(v);
+    return Math.max(0, Math.min(100, v));
+}
+
+// Subtotal calculation (add area)
+$(document).on("input", "#row_qty, #row_price, #row_discount_percentage", calculateSubtotal);
+
+function calculateSubtotal() {
+    const qty = parseFloat($("#row_qty").val()) || 0;
+    const price = parseFloat($("#row_price").val()) || 0;
+    let discount = clampPercentage($("#row_discount_percentage").val());
+
+    let subtotal = qty * price;
+    subtotal -= subtotal * (discount / 100);
+
+    $("#row_sub_total_detail").text("Subtotal: " + subtotal.toFixed(2));
+}
+
+// ADD LINE ITEM
+$(document).on("click", "#btn_add_line_item", function () {
+    getLineItemDetail();
+});
+$("#po_receive_id").on("change",function(){
+	$("#product_line_item").html("<tr><td class='text-center' colspan='10'>No records found</td></tr>")
+})
+function getLineItemDetail(){
+    const receive_id = $("#po_receive_id").val();
+	if (!receive_id) {
+        toastr.error("Please select a Purchase Receive");
+        return;
+    }
+    const vendorUrl = "{% url 'list_ps_receive_line_items' 0 %}";
+    fetch(vendorUrl.replace("0", receive_id))
+    .then(res => res.json())
+    .then(data => {
+		if (!data.status) return;
+		lineItems = data.line_items || [];
+		renderTable();
+		updatePOTotals();
+    });
+}
+
+function renderTable(){
+	const tbody = $("#product_line_item");
+	if (!lineItems.length) {
+		tbody.html(`<tr><td colspan="10" class="text-center">No records found</td></tr>`);
+		return;
+	}
+	let html = "";
+	lineItems.forEach((item, index) => {
+		html += `<tr data-index="${index}" class="po-line-row">
+			<td class="align-middle">
+				<div class="d-flex align-items-center">
+					<div>
+						<div class="font-weight-bold" style="font-size:13px;line-height:14px;">${item.item_name} </div>
+						<div class="text-muted" style="font-size:12px;"><strong>SKU:</strong> ${item.item_sku}</div>
+						<div class="text-muted" style="font-size:12px;"><strong>ASIN:</strong> ${item.item_asin}, <strong>FNSKU:</strong> ${item.item_fnsku}</div>
+						<div class="text-muted" style="font-size:12px;"><strong>FNSKU:</strong> ${item.item_fnsku},</div>
+					</div>
+				</div>
+			</td>
+			<td class="align-middle text-center pl-0">
+			<div class="clearfix  po-row">
+				<label class="po-tiny-label">Product Order Type</label>
+				 ${item.po_item_order_type || "--"}
+			</div>
+			<div class="clearfix po-select-form  po-row mt-2">
+				<label class="po-tiny-label">Product Order Ref</label>
+				${item.po_item_order_ref || "--"}
+			</div>
+			</td>
+			<td class="align-middle text-center">${item.barcode_label_type || "--"}</td>
+			<td class=" qty align-middle text-right">${item.received_qty}</td>
+			<td class=" price align-middle  text-right">${item.po_item_item_po_rate}</td>
+			  <td class=" discount align-middle text-right">${item.po_item_disc_percentage}</td>
+			<td class=" tax align-middle  text-right" title="Tax Percentage -">${item.po_item_subtotal}</td>
+			 <td class=" discount align-middle text-right">${item.po_item_tax_percentage}%</td>
+			 <td class=" discount align-middle text-right">${item.po_item_tax_amount}</td>
+			<td class="align-middle text-right">
+				<input type="number" data-index="${index}" value="${item.po_item_line_total}" class="po-item-total form-control w-100" id="line_item_total_${index}" /> </td>
+		</tr>`;
+	});
+	tbody.html(html);
+}
+// CLICK → INLINE EDITOR
+$(document).on("click", "tr.po-line-row td.editable", function (e) {
+    const td = $(this);
+    let is_taxfree = false;
+    if (td.find("input").length) return;
+    let tooltipTxt = "Input"
+    if (td.hasClass('qty')) {
+        tooltipTxt = "Qty Input "
+    }else if(td.hasClass('price')){
+        tooltipTxt = "Product Unit Cost"
+    }else if(td.hasClass('tax')){
+        is_taxfree = e.target.getAttribute('data-is_taxfree');
+        console.log(is_taxfree)
+        if(is_taxfree==="true"){
+            toastr.info("Tax Free product")
+            return;
+        }
+        tooltipTxt = "Tax % On SUB TOTAL"
+    }else if(td.hasClass('discount')){
+        tooltipTxt = "Discount % On SUB TOTAL"
+    }
+    td.html(`<input data-toggle="tooltip"
+                           data-placement="top" title="${tooltipTxt}" type="number" class=" form-control help-text form-control-sm edit-field" value="${td.text().trim()}">`)
+    td.find("input").focus();
+});
+
+$(document).on("blur", ".edit-field", function () {
+    const input = $(this);
+    const td = input.closest("td");
+    const index = td.closest("tr").data("index");
+    const item = lineItems[index];
+    console.log(item.row_item)
+    console.log(item.row_item.is_taxfree)
+    let newVal = parseFloat(input.val());
+    if (isNaN(newVal)) newVal = 0;
+
+    // Validation rules
+    const rules = {
+        qty: {
+            validate: v => v > 0 && Number.isInteger(v),
+            error: "Quantity must be a whole number greater than zero.",
+            assign: v => item.qty = v
+        },
+        price: {
+            validate: v => v >= 1 && Math.floor(Math.abs(v)).toString().length <= 5,
+            error: "Invalid Price. Must be ≥ 1 and max 5 digits.",
+            assign: v => item.price = v
+        },
+        discount: {
+            validate: v => v >= 0 && v <= 100,
+            error: "Discount must be between 0 and 100.",
+            assign: v => item.discount = v
+        },
+        tax: {
+            validate: v => v >= 0 && v <= 100,
+            error: "Tax must be between 0 and 100.",
+            assign: v => item.tax = v
+        }
+    };
+
+    // Detect which column was edited
+    let col = Object.keys(rules).find(key => td.hasClass(key));
+    if (!col) return;
+
+    const rule = rules[col];
+
+    // Validation check
+    if (!rule.validate(newVal)) {
+        input.val(item[col]);
+        input.focus();
+        toastr.error(rule.error);
+        return;
+    }
+
+    // Update the item
+    rule.assign(newVal);
+
+    // -----------------------------------
+    // RE-CALCULATE TOTALS
+    // -----------------------------------
+    let sub_total = item.qty * item.price;
+    sub_total -= sub_total * (item.discount / 100);
+
+    let tax_total = sub_total * (item.tax / 100);
+    if(item.row_item.is_taxfree)
+        tax_total = 0.0
+
+    let line_total = sub_total + tax_total;
+
+    // Update array values
+    item.sub_total = sub_total;   // before tax
+    item.tax_total = tax_total;   // only tax amount
+    item.line_total = line_total; // final row total
+    // Update UI
+    $(`#sub_total_${index}`).text(sub_total.toFixed(2));
+    $(`#tax_amount_${index}`).text(tax_total.toFixed(2));
+    $(`#line_total_${index}`).text(line_total.toFixed(2));
+    td.text(newVal);
+
+    updatePOTotals();
+});
+
+$(document).on("blur", ".po-item-total", function(){
+	if (typeof lineItems === "undefined") {
+        console.error("lineItems is undefined");
+        return;
+    }
+	const index = $(this).data("index");
+    let newTotal = parseFloat($(this).val());
+    if (isNaN(newTotal) || newTotal < 0) {
+        toastr.error("Invalid total");
+        $(this).val(lineItems[index].po_item_line_total);
+        return;
+    }
+    lineItems[index].po_item_line_total = newTotal;
+    $(this).val(newTotal.toFixed(2));
+    updatePOTotals();
+});
+function updatePOTotals() {
+    if (!Array.isArray(lineItems) || lineItems.length === 0) {
+        $("#po_sub_total").text(formatAUD(0));
+        $("#po_tax_total").text(formatAUD(0));
+        $("#po_total").text(formatAUD(0));
+        return;
+    }
+
+    const surcharge_total = parseFloat($("#surcharge_value").val()) || 0;
+    const discount_total  = parseFloat($("#shipping_value").val()) || 0; // discount
+    const tax_percentage  = 10.00 // parseFloat($("#tax_percentage").val()) || 0;
+
+    //  1 Subtotal = sum of line totals
+    let subtotal = 0;
+    $(".po-item-total").each(function () {
+        subtotal += parseFloat($(this).val()) || 0;
+    });
+
+    // 2 Tax ONLY on surcharge
+    const surcharge_tax = surcharge_total * (tax_percentage / 100);
+
+    // 3 Grand total calculation
+    const grand_total =
+        subtotal +
+        surcharge_total -
+        discount_total +
+        surcharge_tax;
+
+    //  4 Update UI
+    $("#po_sub_total").text(formatAUD(subtotal));
+    $("#surcharge_label").text(formatAUD(surcharge_total));
+    $("#po_tax_total").text(formatAUD(surcharge_tax));
+    $("#po_total").text(formatAUD(grand_total));
+}
+
+
+$("#surchase_total, #shipping_total").on("change", function(){
+   updatePOTotals();
+});
+
+let vendor_id          = $("#vendor_id");
+let vendor_name        = $("#vendor_name");
+let vendor_abn      	= $("#vendor_abn");
+let warehouse   		= $("#warehouse");
+let currency_code       = $("#currency_code");
+let bill_no          = $("#bill_no");
+let bill_order_number         = $("#bill_order_number");
+let bill_date      = $("#bill_date");
+let due_date    = $("#due_date");
+let payment_term_id      = $("#payment_term_id");
+let tax_percentage      = $("#tax_percentage");
+let subject      = $("#subject");
+let bill_status             = $("#bill_status");
+let po_receive_id              = $("#po_receive_id");
+let billing_notes          = $("#billing_notes");
+
+function buildPOFormData(){
+    // Validation rules (field → message)
+    console.log(lineItems)
+    lineItems.map((row,$index)=>{
+        lineItems[$index] = {
+            ...lineItems[$index],  // keep existing keys
+            order_type: $(`#product_order_type_${$index}`).val(),
+            order_ref:  $(`#product_order_ref_${$index}`).val()
+        };
+    });
+    return {
+        "po_id": "{{ po_id }}",
+        "vendor_id": $("#vendor_id").val(),
+        "po_number": $("#po_number").val(),
+        "vendor_name": $("#vendor_name").val(),
+        "currency_code": $("#currency_code").val(),
+        "vendor_reference": $("#vendor_reference").val(),
+        "invoice_date": $("#invoice_date").val(),
+        "warehouse": $("#warehouse").val(),
+        "order_date": $("#order_date").val(),
+        "delivery_date": $("#delivery_date").val(),
+        "payment_term_id": $("#payment_term_id").val(),
+        "delivery_name": $("#delivery_name").val(),
+        "address_line1": $("#address_line1").val(),
+        "address_line2": $("#address_line2").val(),
+        "suburb": $("#suburb").val(),
+        "city": $("#city").val(),
+        "state": $("#state").val(),
+        "post_code": $("#post_code").val(),
+        "country": $("#country_id").val(),
+        "tax_percentage": $("#tax_percentage").val(),
+        "comments": $("#comments").val(),
+        "lineItems": lineItems,
+        "shipping_tracking_number": $("#shipping_tracking_no").val(),
+        "shipping_website": $("#shipping_website").val(),
+        "shipping_provider": $("#shipping_provider").val(),
+        "surcharge_total": $("#surcharge_value").val(),
+        "shipping_charge": $("#shipping_value").val(),
+        "po_status": $("#po_status").val(),
+        //Buil PO Form Details
+        "vendor_po_number": $("#vendor_po_number").val(),
+        "vendor_order_date": $("#vendor_order_date").val() || null,
+        "vendor_invoice_ref_number": $("#vendor_po_invoice_ref").val() || null,
+        "vendor_delivery_ref": $("#vendor_po_delivery_ref").val() || null,
+        "vendor_invoice_date": $("#vendor_po_invoice_date").val() || null,
+        "vendor_invoice_due_date": $("#vendor_po_invoice_due_date").val() || null
+
+    };
+    const valOrNull = (v) => v && v.trim() !== "" ? v : null;
+}
+
+function validatePOForm(){
+    const rules = [
+        { el: vendor_id,      msg: "Vendor is required" },
+        { el: vendor_name,      msg: "Vendor Name is required" },
+        { el: vendor_abn,    msg: "Vendor ABN Code is required" },
+        { el: warehouse,        msg: "Warehouse is required" },
+        { el: bill_no,       msg: "Bill# required" },
+        { el: bill_order_number,    msg: "Bill Order# required" },
+        { el: bill_date,  msg: "Bill Date is required" },
+        { el: due_date,    msg: "Due date is required" },
+        //{ el: tax_percentage,    msg: "Tax Percentage is required" },
+        //{ el: subject,            msg: "Subject is required" },
+        { el: bill_status,        msg: "Bill Status is required" },
+    ];
+
+    // Loop and validate
+    for (let rule of rules) {
+        if (!rule.el?.val()?.trim()) {
+            toastr.error(rule.msg);
+            // Focus field
+            rule.el.focus();
+            // Scroll to field (optional but helpful)
+            rule.el[0].scrollIntoView({ behavior: "smooth", block: "center" });
+            return false;
+        }
+    }
+    if (!lineItems || lineItems.length === 0) {
+        toastr.error("Please add at least one product line item");
+        productSearch.focus();
+        return false;
+    }
+    return true; // Passed validation
+}
+
+
+$("#btn_po_create").on("click", function () {
+
+    if ($(".po-item-qty.is-invalid").length > 0) {
+        toastr.error("Please fix invalid quantities");
+        return;
+    }
+	if (!validatePOForm()) return;
+
+    const formData = new FormData();
+
+    // ---- BASIC FIELDS ----
+    formData.append("vendor_id", $("#vendor_id").val());
+    formData.append("vendor_abn", $("#vendor_abn").val());
+    formData.append("warehouse", $("#warehouse").val());
+    formData.append("bill_no", $("#bill_no").val());
+    formData.append("bill_order_number", $("#bill_order_number").val());
+    formData.append("bill_date", $("#bill_date").val());
+    formData.append("due_date", $("#due_date").val());
+    formData.append("payment_term_id", $("#payment_term_id").val());
+    formData.append("tax_percentage", $("#tax_percentage").val());
+    formData.append("bill_status", $("#bill_status").val());
+    formData.append("billing_notes", $("#billing_notes").val());
+
+    // ---- TOTALS (IMPORTANT) ----
+    formData.append("sub_total", $("#po_sub_total").text().replace(/[^0-9.-]/g, ""));
+    formData.append("tax_total", $("#po_tax_total").text().replace(/[^0-9.-]/g, ""));
+    formData.append("grand_total", $("#po_total").text().replace(/[^0-9.-]/g, ""));
+
+    formData.append("shipping_charge", $("#shipping_value").val() || 0);
+    formData.append("surcharge_total", $("#surcharge_value").val() || 0);
+
+    // ---- LINE ITEMS ----
+	$(".po-item-total").each(function (index) {
+        const qty = parseInt($(this).val(), 10);
+        if (!qty || qty <= 0) return;
+
+        const item = lineItems[index];
+        formData.append(`items[${index}][product_id]`, item.product_id);
+        formData.append(`items[${index}][po_item_id]`, item.item_id);
+        formData.append(`items[${index}][po_receive_id]`, item.po_receive_id);
+        formData.append(`items[${index}][received_item_id]`, item.received_item_id);
+        formData.append(`items[${index}][received_qty]`, qty);
+        formData.append(`items[${index}][line_total]`, item.po_item_subtotal);
+        formData.append(`items[${index}][line_total_updated]`, item.po_item_line_total);
+    });
+
+    // ---- FILES ----
+    receiveFiles.forEach(file => {
+        formData.append("files[]", file);
+    });
+
+
+	console.log(lineItems)
+    receiveFiles.forEach((file, index) => {
+        formData.append(`files[]`, file);
+    });
+
+    // ---- AJAX ----
+    	fetch("{% url 'save_po_bill' %}", {
+		  method: "POST",
+		  headers: {
+			"X-CSRFToken": getCSRFToken()
+		  },
+		  body: formData
+		})
+		.then(response => {
+		  if (!response.ok) {
+			throw response;
+		  }
+		  return response.json();
+		})
+		.then(res => {
+			if(res.status){
+				$(this).prop("disabled", true);
+				toastr.success("Purchase Receive created successfully");
+				setTimeout(function(){
+					window.location.href = "{% url 'po_bills_listing' %}"
+				}, 600);
+			}
+
+		})
+		.catch(err => {
+		  toastr.error("Error while saving");
+		});
+});
+
+
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+</script>
+<script>
+function get_vendors_purchase_receives(vendor_id){
+    const vendorUrl = "{% url 'api_get_vendors_ps_receives' 0 %}";
+    fetch(vendorUrl.replace("0", vendor_id))
+    .then(res => res.json())
+    .then(data => {
+        if (data.status) {
+            const poData = data.data;
+			if(poData.length == 0){
+				toastr.error(`No Purchase Receive records available for this vendor.`)
+				return;
+			}else{
+				toastr.info(`There are ${poData.length} Purchase Receives available for this vendor`)
+			}
+            const $select = $("#po_receive_id");
+            $select.find("option:not(:first)").remove();
+            poData.forEach(item => {
+                $select.append(
+                    new Option(item.po_receive_number, item.po_receive_id)
+                );
+            });
+            $select.trigger("change");
+        }
+    });
+}
+</script>
+<style>
+    .po-tiny-label {
+        text-align:left;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 0 0 2px 0;
+        padding: 0;
+        display: block;     /* keeps neat alignment */
+        line-height: 1;
+    }
+    .po-row .form-group {
+        margin-bottom: 4px !important;
+    }
+
+    .tbl-line-item thead th{ vertical-align: top;padding:0.5rem;font-size:13px;}
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield; /* Firefox */
+        text-align: right;          /* Nice right alignment for numbers */
+    }
+
+    #suggestionsBox {
+        max-height: 350px;
+        overflow-y: auto;
+        border-radius: 6px;
+    }
+
+    #suggestionsBox a {
+        padding: 10px;
+    }
+
+    #suggestionsBox img {
+        object-fit: cover;
+    }
+    .product-title-line-item{
+        max-width: 255px;       /* adjust width to fit your table */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+        font-size:13px;
+    }
+    .text-decoration-underline { text-decoration: underline; cursor:pointer;}
+    .text-decoration-dotted { text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-thickness: 2px; /* Optional: Sets the line thickness */
+    padding-bottom: 4px;}
+    #po_number_display {
+        border-bottom: 1px dashed #666;
+        opacity: 0.8;
+        font-style: italic;
+        cursor: pointer;
+        padding-right: 20px;
+        position: relative;
+    }
+
+    .card-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px 16px;
+        margin-bottom: 25px;
+        border: 1px solid #e5e5e5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 8px;
+    }
+    .editable{
+        cursor: pointer;
+    }
+    .editable:hover{
+        text-decoration: underline;
+    }
+    .table-responsive{
+        border-radius: 6px;
+    }
+</style>
+
+<style>
+    .upload-box {
+    display: inline-block;
+    }
+
+    .upload-btn {
+        border: 1.5px dashed #cfd4dc;
+        border-radius: 8px;
+        padding: 10px 16px;
+        cursor: pointer;
+        color: #3f4d67;
+        font-weight: 500;
+        background: #fff;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .upload-btn:hover {
+        border-color: #6c757d;
+        background: #f8f9fa;
+    }
+
+</style>
+{% endblock %}

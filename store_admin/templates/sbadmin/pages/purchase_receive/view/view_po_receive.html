@@ -1,0 +1,215 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Add PO{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <div class="m-0" style="font-size:19px;">View Purchase Receive</div>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item">
+              <a href="{% url 'po_order_receives' %}">All PO's</a>
+            </li>
+            <li class="breadcrumb-item active">Add</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="">
+    {% csrf_token %}
+
+    <!-- TOP ROW -->
+    <div class="row">
+
+      <!-- LEFT -->
+      <div class="col-md-8">
+        <div class="card-section">
+          <div class="section-title">Order Information</div>
+
+          <div class="form-group row">
+            <label class="col-sm-4 col-form-label">Vendor</label>
+            <div class="col-sm-8">
+              <input type="hidden" id="row_item">
+              <input type="hidden" id="vendor_id">
+
+              <div class="position-relative w-75">
+                      <div class="ml-2" style="font-size:14px;">
+                        <div class="" style="font-size: 13px;line-height:14px;font-weight: 600">{{ vendors_detail.company_name }} </div>
+                        <div><span class="text-muted">Display Name:{{ vendors_detail.display_name }} </div>
+                        <div><span class="text-muted">Email:</span> {{ vendors_detail.email_address }}  | {{ vendors_detail.vendor_code }} </div>
+                        <div><span class="text-muted">Mobile#:</span>{{ vendors_detail.mobile_number }}  | <span class="text-muted">Work#:</span> {{ vendors_detail.work_phone }}  </div>
+                      </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group row clearfix">
+            <label class="col-sm-4 col-form-label">Purchase Order#</label>
+            <div class="col-sm-8">
+                {{ po.po_receive_number }} - {{ po.received_date|date:'Y-m-d' }}
+            </div>
+          </div>
+
+          <div class="form-group row hide-opacity">
+            <label class="col-sm-4 col-form-label">Purchase Receive#</label>
+            <div class="col-sm-3">
+              {{ po.po_receive_number }}
+            </div>
+          </div>
+
+          <div class="form-group row ">
+            <label class="col-sm-4 col-form-label">Received Date</label>
+            <div class="col-sm-3">
+              {{ po.received_date|date:'Y-m-d' }}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="col-md-4">
+        <div class="card-section ">
+          <div class="section-title">
+            <label class="font-weight-normal">
+              Attached File(s)
+            </label>
+          </div>
+
+          <div id="fileCountText" class="mt-2 text-muted small">
+            {{ received_files|length }} / 5 files selected
+           </div>
+           <div id="selectedFilesList" class="mt-2">
+               <ul>
+                {% if received_files %}
+                {% for received_file in received_files %}
+                  <li>
+                    <a href="{{ received_file.image_path.url }}" target="_blank">
+                      {{ received_file.image_path.name|cut:"purchase_order/" }}
+                    </a>
+                  </li>
+                {% endfor %}
+              {% else %}
+                <li class="text-muted">No records found</li>
+              {% endif %}
+                   </ul>
+           </div>
+        </div>
+      </div>
+
+    </div> <!-- /.row -->
+
+    <!-- PRODUCTS -->
+    <div class="row">
+      <div class="col-md-8">
+        <div class="card-section ">
+
+          <div class="section-title">Products</div>
+
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped w-100 tbl-line-item">
+              <thead class="thead-dark">
+                <tr>
+                  <th  class="text-left align-middle" style="width:30%">ITEM DETAILS</th>
+                  <th class="text-center align-middle" style="width:10%">SKU</th>
+                  <th class="text-center align-middle"  style="width:10%">PO ORDERED QUANTITY</th>
+                 <!-- <th style="width:12%" class="text-center">RECEIVED</th>
+                   <th style="width:10%" class="text-center">IN TRANSIT</th>-->
+                  <th class="text-center" style="width:10%" class="text-center">PO RECEIVED QUANTITY</th>
+                </tr>
+              </thead>
+              <tbody id="product_line_item">
+                {% for line_item in line_items %}
+                <tr>
+                    <td class="text-left" style="width:40%">{{ line_item.item_name }} </td>
+                    <td class="text-right" style="width:15%">{{ line_item.sku }}</td>
+                    <td class="text-right" style="width:15%">{{ line_item.ordered }}</td>
+                    <td class="text-right" style="width:15%">{{ line_item.received }}</td>
+                    <!-- <td class="text-right" style="width:15%">{{ line_item.in_transit }}</td>
+                    <td class="text-right" style="width:15%">
+                        {{ line_item.received_quantity }}
+                    </td>-->
+                </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row mt-3 mb-3">
+            <div class="col-md-6 pl-3">
+              <label>Notes (Internal Ref):</label>
+              {{ po.internal_ref_notes|hide_none }}
+            </div>
+          </div>
+
+          <div class="row mb-5 mt-5">
+            <div class="col-12">
+
+              <button onclick="window.history.back()"
+                      class="btn btn-secondary ml-2">
+                <i class="fas fa-history"></i> Cancel
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </section>
+</div>
+
+ <style>
+    .po-row .form-group {
+        margin-bottom: 4px !important;
+    }
+
+    .tbl-line-item thead th{ vertical-align: top;padding:0.5rem;font-size:13px;}
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield; /* Firefox */
+        text-align: right;          /* Nice right alignment for numbers */
+    }
+
+    #suggestionsBox a {
+        padding: 10px;
+    }
+
+    #suggestionsBox img {
+        object-fit: cover;
+    }
+
+    .card-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px 16px;
+        margin-bottom: 15px;
+        border: 1px solid #e5e5e5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 8px; font-size:1rem;
+    }
+
+
+    .table-responsive{
+        border-radius: 6px;
+    }
+</style>
+
+{% endblock %}

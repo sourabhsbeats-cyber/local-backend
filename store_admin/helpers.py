@@ -6,6 +6,8 @@ from datetime import datetime, date, timedelta
 #from store_admin.models.product_model import PREP_TYPE_CHOICES
 from django.core.exceptions import ValidationError
 
+from store_admin.models.po_models.po_models import PurchaseOrder
+
 
 # -------------------------------------------------
 # Basic sanitizers
@@ -250,3 +252,98 @@ def validate_title_like_name(value: str):
 def get_prep_label(code):
     from store_admin.models.product_model import PREP_TYPE_CHOICES
     return dict(PREP_TYPE_CHOICES).get(code, "")
+
+
+from decimal import ROUND_HALF_UP
+def format_tax_percentage(value):
+    if value in (None, "", 0, "0", "0.0", "0.00"):
+        return ""
+    val = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    if val == val.to_integral():
+        return f"{int(val)}%"
+    return f"{val}%"
+
+
+''' Purchase Helper Function '''
+
+def validate_purchase_order_model(po, line_items):
+    rules = [
+        ("vendor_id",       "Vendor is required"),
+        ("vendor_name",     "Vendor Name is required"),
+        ("po_number",       "PO Number is required."),
+        ("currency_code",   "Currency Code is required"),
+        ("vendor_reference","Vendor Reference is required"),
+        ("warehouse_id",    "Warehouse is required"),
+        ("order_date",      "Order Date is required"),
+        ("delivery_date",   "Delivery Date is required"),
+        ("payment_term_id", "Payment Term is required"),
+        ("delivery_name",   "Delivery Name is required"),
+        ("address_line1",   "Address Line 1 is required"),
+        ("state",           "State is required"),
+        ("post_code",       "Postcode is required"),
+        ("country_id",      "Country is required"),
+        ("tax_percentage",  "Tax Percentage is required"),
+    ]
+
+    # Loop the model fields
+    for field, err_msg in rules:
+        value = getattr(po, field, None)
+        if value is None or str(value).strip() == "":
+            return False, err_msg
+
+    # Line items check
+    if not line_items or len(line_items) == 0:
+        return False, "Please add at least one product line item"
+
+    if PurchaseOrder.objects.filter(vendor_reference=po.vendor_reference).exclude(po_id=po.po_id).exists():
+        return False, "Can not duplicate Vendor Reference#."
+
+    if PurchaseOrder.objects.filter(po_number=po.po_number).exclude(po_id=po.po_id).exists():
+        return False, "Can not duplicate Purchase Order Number."
+
+
+    if len(po.vendor_reference) < 4:
+        return False, "Invalid Vendor Reference."
+    try:
+        name_validator_none(po.vendor_name)
+    except ValidationError as e:
+        return False, "Invalid vendor name."
+
+    try:
+        name_validator_none(po.delivery_name)
+    except ValidationError as e:
+        return False, "Invalid delivery name."
+
+    try:
+        name_validator_none(po.address_line1)
+        #name_validator_none(po.address_line2)
+    except ValidationError as e:
+        return False, "Invalid address line."
+
+    try:
+        name_validator_none(po.state)
+    except ValueError:
+        return False, "Invalid state name."
+
+    try:
+        zip_validator(po.post_code)
+    except ValueError:
+        return False, "Postcode must be numeric."
+
+        # Reference format
+    try:
+        reference_validator(po.vendor_reference)
+    except ValueError:
+        return False, "Invalid Vendor Reference# format."
+
+        # Delivery date >= today
+    #validate date now its not needed temporarily
+    '''
+    try:
+        date_validator(po.delivery_date, 10)
+        date_validator(po.order_date, 10)
+    except ValueError as e:
+        return False, str(e)
+    '''
+
+    return True, ""

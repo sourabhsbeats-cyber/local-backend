@@ -1,5 +1,6 @@
 from django.urls import path, include
 from .views import dashboard_views, auth_views
+from .views.settings.shipping_providers import manage_shipping_view
 from .views.vendors import vendor_views, bulk_import_view
 from .views.settings.countries import countries_view
 from .views.settings.payment_terms import payment_terms
@@ -52,4 +53,18 @@ urlpatterns = [
          name="manage_warehouse_listings"),
     path("warehouse/bulk_delete_warehouse", warehouse_settings.delete_locations,
          name="delete_warehouse_listings"),
+
+    #shipping provider
+    path("shippingproviders/listing", manage_shipping_view.listing,
+         name="manage_shipping_providers_listing"),
+    path("shippingproviders/create", manage_shipping_view.create,
+         name="create_shipping_provider_form"),
+    path("shippingproviders/edit/<int:carrier_id>/", manage_shipping_view.edit_form,
+        name="edit_shipping_provider_form"),
+    path("shippingproviders/manage/<int:carrier_id>", manage_shipping_view.manage_shipping_details,
+        name="manage_shipping_provider"),
+    path("shippingproviders/save_new", manage_shipping_view.save_shipping_details,
+         name="save_shipping_details"),
+    path("shippingproviders/bulk_deleteshipping_providers", warehouse_settings.delete_locations,
+         name="delete_shipping_providers"),
 ]

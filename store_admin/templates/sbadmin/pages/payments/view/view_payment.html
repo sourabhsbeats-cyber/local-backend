@@ -1,0 +1,162 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Payment | View{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+
+  <!-- HEADER -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <h5 class="m-0">View Payment</h5>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item">
+              <a href="{% url 'payments_listing' %}">Payments</a>
+            </li>
+            <li class="breadcrumb-item active">View</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CONTENT -->
+  <section class="content">
+
+    <!-- PAYMENT INFO -->
+    <div class="card-section">
+      <div class="section-title">Payment Information</div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Vendor ID</strong></div>
+        <div class="col-md-8">{{ payment.vendor_id }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Payment #</strong></div>
+        <div class="col-md-8">{{ payment.payment_no }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Payment Date</strong></div>
+        <div class="col-md-8">{{ payment.payment_date }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Mode of Payment</strong></div>
+        <div class="col-md-8">{{ payment.mode_of_payment }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Paid Through</strong></div>
+        <div class="col-md-8">{{ payment.paid_through }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Reference #</strong></div>
+        <div class="col-md-8">{{ payment.reference_number|default:"-" }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-4"><strong>Notes</strong></div>
+        <div class="col-md-8">{{ payment.notes|default:"-" }}</div>
+      </div>
+    </div>
+
+    <!-- BILL ITEMS -->
+    <div class="card-section">
+      <div class="section-title">Bill Payments</div>
+
+      <div class="table-responsive">
+        <table class="table table-bordered table-striped">
+          <thead>
+            <tr>
+              <th>Bill ID</th>
+              <th class="text-right">Payment</th>
+              <th class="text-right">Withheld</th>
+              <th class="text-center">Payment Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in items %}
+            <tr>
+              <td>{{ item.purchase_bill_id }}</td>
+              <td class="text-right">{{ item.payment_amount }}</td>
+              <td class="text-right">{{ item.amount_withheld }}</td>
+              <td class="text-center">
+                {{ item.payment_created_date|default:"-" }}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="4" class="text-center">No bill payments found</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="card-section" style="background:#fff7ed">
+      <div class="section-title">Payment Summary</div>
+
+      <div class="row mb-2">
+        <div class="col-md-6">Amount Paid:</div>
+        <div class="col-md-6 text-right">{{ summary.amount_paid }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-6">Amount used for Payments:</div>
+        <div class="col-md-6 text-right">{{ summary.amount_used }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-6">Amount Refunded:</div>
+        <div class="col-md-6 text-right">{{ summary.amount_refunded }}</div>
+      </div>
+
+      <div class="row mb-2">
+        <div class="col-md-6"><strong>Amount in Excess:</strong></div>
+        <div class="col-md-6 text-right
+            {% if summary.amount_excess < 0 %}text-danger{% endif %}">
+          {{ summary.amount_excess }}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">Bank Charges:</div>
+        <div class="col-md-6 text-right">{{ summary.bank_charges }}</div>
+      </div>
+    </div>
+
+    <!-- FILES -->
+    <div class="card-section">
+      <div class="section-title">Attachments</div>
+
+      {% for f in files %}
+        <div>
+          <a href="{{ f.file.url }}" target="_blank">
+            <i class="far fa-file"></i>
+            {{ f.file.name|cut:"purchase_payments/" }}
+          </a>
+        </div>
+      {% empty %}
+        <span class="text-muted">No attachments</span>
+      {% endfor %}
+    </div>
+
+    <!-- FOOTER -->
+    <div class="mt-4">
+      <button onclick="window.history.back()"
+              class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> Back
+      </button>
+    </div>
+
+  </section>
+</div>
+{% endblock %}

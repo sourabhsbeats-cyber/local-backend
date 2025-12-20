@@ -169,6 +169,50 @@ def all_vendors(request):
 
     return render(request, 'sbadmin/pages/vendor/all_listing.html', context)
 
+
+def api_vendor_search(request):
+    try:
+        # Search filter
+        q = request.GET.get("q", "").strip()
+
+        qs = Vendor.objects.all()
+
+        if q:
+            if q.isdigit():
+                # Number search → phone fields only
+                qs = qs.filter(
+                    Q(mobile_number__icontains=q) |
+                    Q(work_phone__icontains=q)
+                )
+            else:
+                # Text search → name/code/company only
+                qs = qs.filter(
+                    Q(display_name__icontains=q) |
+                    Q(vendor_code__icontains=q) |
+                    Q(company_name__icontains=q)
+                )
+
+        qs = qs.order_by("display_name")[:20]
+
+        data = [
+            {
+                "id": v.id,
+                "display_name": v.display_name,
+                "vendor_code": v.vendor_code,
+                "company_name": v.company_name,
+                "email_address": v.email_address,
+                "mobile_number": v.mobile_number,
+                "work_phone": v.work_phone,
+            }
+            for v in qs
+        ]
+
+        return JsonResponse({"data": data})
+    except Exception as e:
+        print(e)
+        return JsonResponse({"status":False, "data":[]})
+
+
 from django.db.models import F
 def api_get_vendor_by_id(request, vendor_id):
     try:
@@ -183,6 +227,7 @@ def api_get_vendor_by_id(request, vendor_id):
             'company_name',
             'vendor_code',
             'currency',
+            'company_abn',
             'payment_method',
             'payment_term_id'
         ).get(id=vendor_id)
@@ -196,9 +241,35 @@ def api_get_vendor_by_id(request, vendor_id):
             except Exception as e:
                 vendor.setdefault("currency", "AUD")
 
+        vendor_address_detail = None
+
+        vendor_address = VendorAddress.objects.filter(
+            vendor_id=vendor_id,
+            address_type="billing"
+        ).first()
+
+        if vendor_address:
+            address = Addresses.objects.filter(id=vendor_address.address_id).first()
+
+            if address:
+                country = Country.objects.filter(id=address.country_id).first()
+                state = State.objects.filter(id=address.state_id).first()
+
+                vendor_address_detail = {
+                    "attention_name": address.attention_name,
+                    "city": address.city,
+                    "country": country.name if country else "",
+                    "fax": address.fax,
+                    "phone": address.phone,
+                    "state": state.name if state else "",
+                    "street1": address.street1,
+                    "street2": address.street2,
+                    "zip": address.zip,
+                }
         return JsonResponse({
             "status": True,
-            "data": vendor
+            "data": vendor,
+            "billing_address":vendor_address_detail
         })
 
     except Vendor.DoesNotExist:

@@ -5,14 +5,18 @@ register = template.Library()
 
 @register.filter
 def replace(value, arg):
-    old, new = arg.split(',')
-    return value.replace(old, new)
+    if ',' not in arg:
+        return value
+    bits = arg.split(',')
+    return value.replace(bits[0], bits[1])
 
 import math
 @register.filter(name='get_item')
 def get_item(row, key):
     """Allows dictionary key access using a variable key (e.g., {{ row|get_item:h }})."""
     #return dictionary.get(key)
+    if not row or not hasattr(row, 'get'):
+        return ""
     value = row.get(key)
 
     # Handle NaN
@@ -20,7 +24,7 @@ def get_item(row, key):
         return ""
 
     # Special handling for EAN / UPC
-    if key.upper() in ["EAN", "UPC"]:
+    if str(key).upper() in ["EAN", "UPC"]:
         if value is None:
             return ""
         value_str = str(value)

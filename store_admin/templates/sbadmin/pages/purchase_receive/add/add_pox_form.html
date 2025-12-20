@@ -1,0 +1,680 @@
+{% extends "sbadmin/base.html" %}
+{% block title %}Add PO{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2 align-items-center">
+        <div class="col-sm-6">
+          <div class="m-0" style="font-size:19px;">New Purchase Receive</div>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item">
+              <a href="{% url 'po_order_receives' %}">All PO's</a>
+            </li>
+            <li class="breadcrumb-item active">Add</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="">
+    {% csrf_token %}
+
+    <!-- TOP ROW -->
+    <div class="row">
+
+      <!-- LEFT -->
+      <div class="col-md-8">
+        <div class="card-section">
+          <div class="section-title">Order Information</div>
+
+          <div class="form-group row">
+            <label class="col-sm-4 col-form-label">Vendor</label>
+            <div class="col-sm-8">
+              <input type="hidden" id="row_item">
+              <input type="hidden" id="vendor_id">
+
+              <div class="position-relative w-75">
+                <input type="text"
+                       id="productSearch"
+                       class="form-control"
+                       placeholder="Search Vendor">
+
+                <div id="suggestionsBox"
+                     class="list-group position-absolute w-100"
+                     style="z-index:1000;display:none;">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group row clearfix">
+            <label class="col-sm-4 col-form-label">Purchase Order#</label>
+            <div class="col-sm-8">
+              <select class="select2 w-75 form-control"
+                      id="purchase_order_number">
+                <option value="">Select Purchase Order</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group row hide-opacity">
+            <label class="col-sm-4 col-form-label">Purchase Receive#</label>
+            <div class="col-sm-3">
+              <input type="text"
+                     id="po_recieve_number"
+                     name="po_recieve_number"
+                     class="form-control"
+                     placeholder="Receieved #"
+                     value="{{ po_receive_number }}">
+            </div>
+          </div>
+
+          <div class="form-group row hide-opacity">
+            <label class="col-sm-4 col-form-label">Received Date</label>
+            <div class="col-sm-3">
+              <input type="date"
+                     id="po_recieved_date"
+                     name="po_recieved_date"
+                     class="form-control"
+                     value="{{ po_received_date|date:'Y-m-d' }}">
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="col-md-4">
+        <div class="card-section hide-opacity">
+          <div class="section-title">
+            <label class="font-weight-normal">
+              Attach File(s) to Purchase Receive
+            </label>
+          </div>
+
+          <div class="form-group">
+            <div class="upload-box">
+              <label class="upload-btn">
+                <i class="fas fa-upload mr-2"></i>
+                Upload File
+                <input type="file"
+                       name="receive_files[]"
+                       multiple
+                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                       hidden>
+              </label>
+            </div>
+
+            <small class="text-muted d-block mt-2">
+              You can upload a maximum of 5 files, 10MB each
+            </small>
+          </div>
+          <div id="fileCountText" class="mt-2 text-muted small">
+            0 / 5 files selected
+           </div>
+           <div id="selectedFilesList" class="mt-2"></div>
+        </div>
+      </div>
+
+    </div> <!-- /.row -->
+
+    <!-- PRODUCTS -->
+    <div class="row">
+      <div class="col-md-8">
+        <div class="card-section hide-opacity">
+
+          <div class="section-title">Products</div>
+
+          <div class="table-responsive">
+            <table class="table table-bordered table-striped w-100 tbl-line-item">
+              <thead class="thead-dark">
+                <tr>
+                  <th class="align-middle" style="width:30%">ITEM DETAILS</th>
+                  <th class="align-middle"  style="width:10%">PO ORDERED QUANTITY</th>
+                  <th style="width:12%" class="text-center align-middle">PO PENDING QUANTITY</th>
+                  <th style="width:10%" class="text-center align-middle">RECEIVED</th>
+                  <th style="width:10%" class="text-center align-middle">RECEIVED QUANTITY</th>
+                </tr>
+              </thead>
+              <tbody id="product_line_item">
+                <tr>
+                  <td colspan="5" class="text-center">No records found</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="row mt-3 mb-3">
+            <div class="col-md-6 pl-3">
+              <label>Notes (Internal Ref):</label>
+              <textarea id="comments"
+                        class="form-control"
+                        rows="3"
+                        name="comments"
+                        style="width:95%">{{ po.comments|hide_none }}</textarea>
+            </div>
+          </div>
+
+          <div class="row mb-5 mt-5">
+            <div class="col-12">
+              <button id="btn_po_create"
+                      type="button"
+                      class="btn btn-success float-right mr-2">
+                <i class="far fa-credit-card"></i> Save
+              </button>
+
+              <button onclick="window.history.back()"
+                      class="btn btn-secondary ml-2">
+                <i class="fas fa-history"></i> Cancel
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </section>
+</div>
+
+<style>
+    .upload-box {
+    display: inline-block;
+    }
+
+    .upload-btn {
+        border: 1.5px dashed #cfd4dc;
+        border-radius: 8px;
+        padding: 10px 16px;
+        cursor: pointer;
+        color: #3f4d67;
+        font-weight: 500;
+        background: #fff;
+        transition: all 0.2s ease-in-out;
+    }
+
+    .upload-btn:hover {
+        border-color: #6c757d;
+        background: #f8f9fa;
+    }
+
+</style>
+<script>
+    document.querySelector('input[type="file"]').addEventListener('change', function () {
+        if (this.files.length) {
+            this.closest('.upload-btn').childNodes[2].textContent =
+                ` ${this.files.length} file(s) selected`;
+        }
+    });
+</script>
+
+ <style>
+  .po-tiny-label {
+        text-align:left;
+        font-size: 12px;
+        font-weight: 500;
+        margin: 0 0 2px 0;
+        padding: 0;
+        display: block;     /* keeps neat alignment */
+        line-height: 1;
+    }
+    .po-tiny-field {
+        display: inline-block;
+        vertical-align: middle;
+        margin: 0;
+        padding: 0;
+    }
+    .po-tiny-select {
+        float:left;
+        height: 28px !important;
+        font-size: 13px !important;
+        padding: 2px 6px !important;
+        border-radius: 4px !important;
+        border: 1px solid #c7c7c7 !important;
+        width: 100%;
+    }
+    .po-tiny-input {
+        height: 28px !important;
+        font-size: 13px;
+        padding: 2px 6px !important;
+        border-radius: 4px;
+        border: 1px solid #c7c7c7;
+        width: 130px;
+    }
+    .po-tiny-select:focus,
+    .po-tiny-input:focus {
+        border-color: #007bff !important;
+        outline: none !important;
+        box-shadow: 0 0 0 1px rgba(0,123,255,0.15);
+    }
+    .po-row .form-group {
+        margin-bottom: 4px !important;
+    }
+  
+</style>
+<style>
+    .set-opacity { opacity:0.3;  pointer-events: none;   user-select: none;     }
+</style>
+<script>
+$(document).ready(function () {
+    $(".hide-opacity").toggleClass("set-opacity");
+    // Product search debounce
+    let timer;
+    $("#productSearch").on("input", function () {
+        clearTimeout(timer);
+        const query = $(this).val();
+        const box = $("#suggestionsBox");
+
+        if (query.length < 2) {
+            box.hide();
+            return;
+        }
+
+        timer = setTimeout(() => {
+            $.ajax({
+                url: "{% url 'api_vendor_search' %}",
+                method: "GET",
+                data: { q: query },
+                success: function (response) {
+                    const product_data = response.data;
+                    console.log(product_data)
+                    box.empty();
+
+                    if (!product_data.length) return box.hide();
+
+                    product_data.forEach(item => {
+                        const html = `
+                            <a href="#"
+                               data-item='${JSON.stringify(item)}'
+                               class="list-group-item list-group-item-action d-flex product-option"
+                               data-title="${item.display_name}" data-vendor_id="${item.id}" data-display_name="${item.display_name}">
+                                <div class="ml-2" style="font-size:14px;">
+                                    <div class="" style="font-size: 13px;line-height:14px;font-weight: 600">${item.company_name}</div>
+                                    <div><span class="text-muted">Display Name: ${item.display_name}</div>
+                                    <div><span class="text-muted">Email:</span> ${item.email_address || "--"} | ${item.vendor_code}</div>
+                                    <div><span class="text-muted">Mobile#:</span> ${item.mobile_number} | <span class="text-muted">Work#:</span> ${item.work_phone}</div>
+                                </div>
+                            </a>`;
+                        box.append(html);
+                    });
+
+                    box.show();
+                }
+            });
+        }, 300);
+    });
+
+    // Select product
+    $(document).on("click", "#suggestionsBox a", function (e) {
+        e.preventDefault();
+        $("#productSearch").val($(this).data("display_name"));
+        $("#suggestionsBox").hide();
+    });
+});
+
+// Product click → autofill fields
+$(document).on("click", ".product-option", function (e) {
+    e.preventDefault();
+    const item = $(this).data("item");
+    $("#row_item").val(JSON.stringify(item));
+    $("#productSearch").val(item.title);
+    $("#vendor_id").val(item.id || 0);
+    get_po_list(item.id)
+});
+
+const $select = $("#purchase_order_number");
+
+let timer;
+function get_po_list(vendor_id){
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+            $.ajax({
+                url: "{% url 'api_get_vendors_po' %}",
+                method: "GET",
+                data: {  vendor_id },
+                success: function (response) {
+                   
+                     $select.empty().append(
+                        '<option value="">Select Purchase Order</option>'
+                    );
+                    const list = response?.data || [];
+                   
+                    if (!list.length)
+                        $select.empty().append(
+                            '<option value="">No Purchase Order</option>'
+                        );
+
+                    if (!list.length) return;
+
+                    list.forEach(item => {
+                        const option = `
+                            <option value="${item.po_number}">
+                               <span class="float-left text-strong"> ${item.po_number}</span><span class="text-small text-muted float-right"> (${item.order_date})
+                            </option>
+                        `;
+                        $select.append(option);
+                    });
+
+                    // refresh select2
+                    if ($select.hasClass("select2-hidden-accessible")) {
+                        $select.trigger("change.select2");
+                    } else {
+                        $select.select2({
+                            placeholder: "Select Purchase Order",
+                            width: "100%"
+                        });
+                    }
+                }
+            });
+        }, 300);
+       
+}
+
+const products_line_item = document.getElementById("product_line_item");
+$("#purchase_order_number").on("select2:select", function (e) {
+    const po_id = e.params.data.id; // correct Select2 value
+    $.ajax({
+        url: "{% url 'list_po_line_items' %}",
+        method: "GET",
+        data: { po_id },
+        success: function (response) {
+            const po_products = response?.data?.products || [];
+            if (!po_products.length) {
+                products_line_item.innerHTML = "";
+                return;
+            }
+            let html_tbl = "";
+            po_products.forEach(item => {
+                html_tbl += `
+                    <tr> 
+                        <td class="text-left" style="width:40%">${item.item_name} - (${item.item_sku})</td>
+                        <td class="text-right" style="width:15%">${item.ordered}</td>
+                        <td class="text-right" style="width:15%">${item.po_item_pending || 0}</td>
+                        <td class="text-right" style="width:15%">${item.received || 0}</td>
+                        <td class="text-right" style="width:15%">
+                            <input type="number"
+                                   class="form-control form-control-sm po-item-qty"
+                                   data-product-id="${item.product_id}"
+                                    data-po-item-id="${item.item_id}"
+                                    min="0"
+                                    value="${item.po_item_pending}"
+                                    max="${item.po_item_pending}">
+                        </td>
+                    </tr>
+                `;
+            });
+            products_line_item.innerHTML = html_tbl;
+            $(".hide-opacity").toggleClass("set-opacity");
+        }
+    });
+});
+
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+</script>
+
+<script>
+ $("#btn_po_create").on("click", function () {
+    if ($(".po-item-qty.is-invalid").length > 0) {
+        toastr.error("Please fix invalid quantities");
+        return;
+    }
+    const formData = new FormData();
+
+    // ---- BASIC FIELDS ----
+    formData.append("vendor_id", $("#vendor_id").val());
+    formData.append("po_number", $("#purchase_order_number").val());
+    formData.append("po_receive_number", $("#po_recieve_number").val());
+    formData.append("received_date", $("#po_recieved_date").val());
+    formData.append("comments", $("#comments").val());
+
+    // ---- LINE ITEMS ----
+    $(".po-item-qty").each(function (index) {
+        const qty = parseInt($(this).val(), 10);
+        if (!qty || qty <= 0) return;
+
+        formData.append(`items[${index}][product_id]`, $(this).data("product-id"));
+        formData.append(`items[${index}][po_item_id]`, $(this).data("po-item-id"));
+        formData.append(`items[${index}][received_qty]`, qty);
+    });
+
+    // ---- FILES ----
+    receiveFiles.forEach((file, index) => {
+        formData.append(`files[]`, file);
+    });
+    $(this).prop("disabled", true);
+    // ---- AJAX ----
+    fetch("{% url 'save_po_receive' %}", {
+        method: "POST",
+        headers: {
+            "X-CSRFToken": getCSRFToken()
+        },
+        body: formData
+    })
+    .then(async response => {
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw data;
+        }
+
+        return data;
+    })
+    .then(res => {
+      if(res.status){
+        console.log(res)
+        toastr.success(res?.message || "Purchase Receive created successfully");
+        setTimeout(() => {
+            window.location.href= "{% url 'po_order_receives' %}";
+        }, 600);
+      }else{ $(this).prop("disabled", false);
+          toastr.error(res?.message || "Error in PO Receive");
+      }
+    })
+    .catch(err => {
+        console.error(err);  $(this).prop("disabled", false);
+        toastr.error(
+            "Error while saving: " +
+            (err?.message || "Something went wrong")
+        );
+    });
+});
+
+const MAX_FILES = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+const ALLOWED_EXTENSIONS = [
+    "pdf",
+    "jpg", "jpeg", "png",
+    "doc", "docx",
+    "xls", "xlsx"
+];
+const ALLOWED_MIME_TYPES = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+];
+
+let receiveFiles = [];
+$('input[type="file"][name="receive_files[]"]').on("change", function () {
+
+    const newFiles = Array.from(this.files);
+
+    for (const file of newFiles) {
+
+        if (receiveFiles.length >= MAX_FILES) {
+            toastr.error("Maximum 5 files allowed");
+            break;
+        }
+
+        const ext = file.name.split(".").pop().toLowerCase();
+
+        if (
+            !ALLOWED_EXTENSIONS.includes(ext) ||
+            !ALLOWED_MIME_TYPES.includes(file.type)
+        ) {
+            alert(`${file.name} is not an allowed file type`);
+            continue;
+        }
+
+        if (file.size > MAX_FILE_SIZE) {
+            alert(`${file.name} exceeds 5 MB`);
+            continue;
+        }
+
+        receiveFiles.push(file);
+    }
+
+    this.value = ""; // allow re-select
+    renderSelectedFiles();
+    updateFileCount();
+});
+function renderSelectedFiles() {
+    const list = $("#selectedFilesList");
+    list.empty();
+
+    receiveFiles.forEach((file, index) => {
+        const sizeKB = (file.size / 1024).toFixed(1);
+
+        list.append(`
+            <div class="d-flex align-items-center justify-content-between border rounded px-2 py-2 mb-2">
+                <div class="text-truncate" style="max-width: 260px;">
+                    <i class="far fa-file mr-1"></i>
+                    ${file.name}
+                    <small class="text-muted">(${sizeKB} KB)</small>
+                </div>
+                <button type="button"
+                        class="btn btn-link text-danger p-0"
+                        onclick="removeFile(${index})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `);
+    });
+}
+function removeFile(index) {
+    receiveFiles.splice(index, 1);
+    renderSelectedFiles();
+    updateFileCount();
+}
+function updateFileCount() {
+    $("#fileCountText").text(`${receiveFiles.length} / ${MAX_FILES} files selected`);
+}
+
+$(document).on("input", ".po-item-qty", function () {
+
+    const $input = $(this);
+    const min = 0;
+    const max = parseInt($input.attr("max"), 10);
+    const val = parseInt($input.val(), 10);
+
+    // reset first
+    $input.removeClass("is-invalid");
+
+    // empty input allowed while typing
+    if ($input.val() === "") return;
+
+    // NaN check
+    if (isNaN(val)) {
+        $input.addClass("is-invalid");
+        return;
+    }
+
+    // LESS THAN 0 ❌
+    if (val < min) {
+        $input.addClass("is-invalid");
+        return;
+    }
+
+    // GREATER THAN MAX ❌
+    if (!isNaN(max) && val > max) {
+        $input.addClass("is-invalid");
+        return;
+    }
+});
+
+</script>
+<style>
+    .tbl-line-item thead th{ vertical-align: top;padding:0.5rem;font-size:13px;}
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+    input[type=number] {
+        -moz-appearance: textfield; /* Firefox */
+        text-align: right;          /* Nice right alignment for numbers */
+    }
+
+    #suggestionsBox {
+        max-height: 350px;
+        overflow-y: auto;
+        border-radius: 6px;
+    }
+
+    #suggestionsBox a {
+        padding: 10px;
+    }
+
+    #suggestionsBox img {
+        object-fit: cover;
+    }
+    .product-title-line-item{
+        max-width: 255px;       /* adjust width to fit your table */
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-weight: 600;
+        font-size:13px;
+    }
+    .text-decoration-underline { text-decoration: underline; cursor:pointer;}
+    .text-decoration-dotted { text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-thickness: 2px; /* Optional: Sets the line thickness */
+    padding-bottom: 4px;}
+    #po_number_display {
+        border-bottom: 1px dashed #666;
+        opacity: 0.8;
+        font-style: italic;
+        cursor: pointer;
+        padding-right: 20px;
+        position: relative;
+    }
+
+    .card-section {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px 16px;
+        margin-bottom: 15px;
+        border: 1px solid #e5e5e5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #f0f0f0;
+        padding-bottom: 8px; font-size:1rem;
+    }
+    .editable{
+        cursor: pointer;
+    }
+    .editable:hover{
+        text-decoration: underline;
+    }
+    .table-responsive{
+        border-radius: 6px;
+    }
+</style>
+
+{% endblock %}

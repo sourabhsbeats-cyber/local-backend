@@ -1,6 +1,6 @@
 {% extends "sbadmin/base.html" %}
 {% load custom_tags %}
-{% block title %}Vendors{% endblock %}
+{% block title %}All Purchases{% endblock %}
 
 {% block content %}
 <div class="content-wrapper">
@@ -24,7 +24,7 @@
                     <div class="dropdown-menu dropdown-menu-right">
                         <a class="dropdown-item" href="{% url 'create_order' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
                         <a class="dropdown-item" href="#"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
-                        <a class="dropdown-item" href="#" download="true"><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+                        <a class="dropdown-item" href="#" ><i class="fas fa-download fa-sm mr-1"></i> Export</a>
 
                     </div>
              </div>
@@ -128,7 +128,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
           {title:"Order Date", field:"order_date", minWidth:100},
           {title:"Delivery Date", field:"delivery_date" , hozAlign:"center", minWidth:120},
-          {title:"Vendor Name", field:"vendor_name",hozAlign:"center",minWidth:120,headerHozAlign:"center"},
+          {title:"Vendor Name", field:"vendor_name",hozAlign:"center",minWidth:220,headerHozAlign:"center"},
           {title:"Reference", field:"vendor_reference",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
           {
                 title: "Status",
@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     const status = cell.getValue();
 
                     const statusMap = {
-                        0: "New",
+                        0: "Draft",
                         1: "Placed",
                         2: "Delivered",
                         3: "Back Order",
