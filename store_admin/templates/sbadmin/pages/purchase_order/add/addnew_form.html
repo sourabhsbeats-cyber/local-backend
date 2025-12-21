@@ -140,27 +140,21 @@
                 <div class="card-section ">
                         <div class="section-title">Shipping Details</div>
                         <div class="row">
-                            <div class="col-4">
+                            <div class="col-6">
                                 <div class="form-group row">
                                     <label class="col-sm-5 text-right  col-form-label">Provider</label>
                                     <div class="col-sm-6">
-                                    <input type="text" value="{{ shipping.provider }}" maxlength="80"  name="shipping_provider"
-                                            id="shipping_provider" class="form-control-sm  form-control" />
+                                    <select class="form-control form-control-sm " name="shipping_provider" id="shipping_provider">
+                                    <option value="">select</option>
+                                    {% for provider in shipping_providers %}
+                                        <option {% if shipping.provider|slugify == provider.carrier_id|slugify %} selected {% endif %} value="{{ provider.carrier_id }}">{{ provider.carrier_name }}</option>
+                                    {% endfor %}
+                                    </select>
                                     </div>
                                 </div>
                             </div>
 
-                            <div class="col-4">
-                                <div class="form-group row">
-                                    <label class="col-sm-5 text-right col-form-label">Link</label>
-                                    <div class="col-sm-6">
-                                    <input type="text" value="{{ shipping.website }}" maxlength="180" name="shipping_website"
-                                            id="shipping_website" class="form-control-sm  form-control" />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="col-4">
+                            <div class="col-6">
                                 <div class="form-group row">
                                     <label class="col-sm-5 text-right col-form-label">Tracking Ref#</label>
                                     <div class="col-sm-6">
@@ -1100,7 +1094,6 @@ function buildPOFormData(){
         "comments": $("#comments").val(),
         "lineItems": lineItems,
         "shipping_tracking_number": $("#shipping_tracking_no").val(),
-        "shipping_website": $("#shipping_website").val(),
         "shipping_provider": $("#shipping_provider").val(),
         "surcharge_total": $("#surcharge_value").val(),
         "shipping_charge": $("#shipping_value").val(),

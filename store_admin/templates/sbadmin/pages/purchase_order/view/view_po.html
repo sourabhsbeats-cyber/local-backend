@@ -302,8 +302,6 @@
                             </div>
 
                             <div class="card-body">
-
-
                                 <div class="col-md-4 p-2 pl-0 float-left invoice-col">
                                   <b><span class="text-muted">Reference #</span> {{ po.vendor_reference }}</b><br>
                                   <b>Vendor Code:</b> {{ po.vendor_code }}<br>
@@ -317,23 +315,26 @@
                                 <div class="col-md-4 p-2 float-left">
                                     <div class=" invoice-col">
                                       <h6 class="text-muted"><b>Shipping Info</b></h6>
-                                      <span id="trackingRef"><b>Tracking Ref:</b> {% if shipping.tracking_number == "" %} 
-                                        {% else %} {{ shipping.tracking_number }}</span></b>
-                                        <button class="copy-btn" onclick="copyTrackingRef('ref')">
-                                            <i class="fa fa-copy"></i>
-                                        </button>{% endif %}<div class="clearfix"></div>
-                                        <span class="float-left"><b>Link:</b></span>
-                                            {% if shipping.website %}
-                                                <div class="float-left ml-2" 
-                                                    id="trackingLink">
-                                                    {{ shipping.website }}
-                                                </div>
-                                                <button class="copy-btn float-left ml-2" onclick="copyTrackingRef('link')">
-                                                    <i class="fa fa-copy"></i>
-                                                </button>
-                                            {% endif %}
+                                      <span id="trackingRef"><b>Tracking :</b> {% if shipping.tracking_number == "" %}
+                                        {% else %} {% for provider in shipping_providers %}
+                                                        {% if shipping.provider|slugify == provider.carrier_id|slugify %}
+                                                            <a class="link btn-link" href="{{ provider.tracking_url|cut:'{0}' }}{{ shipping.tracking_number }}" target="_blank">
+                                                                Track Shipping
+                                                            </a>
+                                                        {% endif %}
+                                                    {% endfor %}
+
+                                         </span></b>
+                                        {# <button class="copy-btn" onclick="copyTrackingRef('ref')"><i class="fa fa-copy"></i></button> #}
+                                        {% endif %}<div class="clearfix"></div>
                                             <div class="clearfix"></div>
-                                      <b>Provider:</b> {{ shipping.provider }}<div class="clearfix"></div>
+                                      <b>Provider: </b>
+                                        {% for provider in shipping_providers %}
+                                            {% if shipping.provider|slugify == provider.carrier_id|slugify %}
+                                                {{ provider.carrier_name }}
+                                            {% endif %}
+                                        {% endfor %}
+                                       <div class="clearfix"></div>
                                     </div>
                                 </div>
                                 <div class="col-md-4 p-2 pt-0 float-left">

@@ -6,33 +6,31 @@ from django.contrib import messages
 
 # Create your views here.
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('/dashboard/')
+
     if request.method == 'POST':
         username = request.POST.get("username")
         password = request.POST.get("password")
-        next_url = request.GET.get('next')
+        # Get 'next' from POST or GET to ensure it persists through the form submission
+        next_url = request.POST.get('next') or request.GET.get('next')
 
         user = authenticate(request, username=username, password=password)
 
         if user is not None:
             login(request, user)
-            if user.is_superuser:
+            messages.success(request, f"Welcome back, {user.name}!")
 
-                print(next_url)
-                if next_url:
-                    return redirect(next_url)
+            # 2. HANDLE REDIRECT LOGIC
+            if next_url:
+                return redirect(next_url)
+            return redirect('/dashboard/')
 
-                return redirect('/dashboard/')
-            else:
-                return redirect(request.GET.get('next', '/dashboard'))
-
-            messages.success(request, "You are now logged in")
-            return redirect('dashboard')
         else:
             messages.error(request, "Invalid username or password")
             return render(request, 'sbadmin/pages/login.html', {'error': 'Invalid username or password'})
 
     return render(request, 'sbadmin/pages/login.html')
-    # return HttpResponse("Hi Testing install")
 
 @login_required
 def logout_view(request):

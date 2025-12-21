@@ -494,32 +494,43 @@ function updateFileCount() {
         input.focus();
     }
 
-    function hideEditableInput(inputEl) {
-        let val = inputEl.value.trim();
-        let id = inputEl.id;
+	function hideEditableInput(inputEl) {
+		let val = parseFloat(inputEl.value);
+		let id = inputEl.id;
 
-        // Determine related label + hidden value inputs
-        let label = document.querySelector('[data-input="' + id + '"]');
-        let raw = document.getElementById(id.replace("_edit", "_value"));
+		let label = document.querySelector('[data-input="' + id + '"]');
+		let raw = document.getElementById(id.replace("_edit", "_value"));
 
-        // Validation rules
-        if (id === "shipping_edit" && val < 0) {
-            toastr.error("Discount charge cannot be negative.");
-            inputEl.value = raw.value; // revert to old value
-            val = raw.value;
-        }
+		if (id === "shipping_edit") {
+			// Clamp %
+			val = isNaN(val) ? 0 : Math.max(0, Math.min(100, val));
 
-        // Save raw numeric value
-        raw.value = val === "" ? 0 : parseFloat(val);
+			// Save % internally
+			raw.value = val;
 
-        // Render formatted label
-        label.innerText = formatAUD(raw.value);
+			// Calculate subtotal
+			let subtotal = 0;
+			$(".po-item-total").each(function () {
+				subtotal += parseFloat($(this).val()) || 0;
+			});
 
-        inputEl.style.display = "none";
-        label.style.display = "inline-block";
+			// Calculate discount amount
+			const discountAmount = subtotal * (val / 100);
 
-        updatePOTotals();
-    }
+			// ✅ Display: 50% ($242.00)
+			label.innerText = `${val}% (${formatAUD(discountAmount)})`;
+		} else {
+			// Surcharge or other values
+			val = isNaN(val) ? 0 : val;
+			raw.value = val;
+			label.innerText = formatAUD(val);
+		}
+
+		inputEl.style.display = "none";
+		label.style.display = "inline-block";
+
+		updatePOTotals();
+	}
 function resetBillingSec(){
 	$("#vendor_name, #currency_code, #vendor_abn").val("--");
 	$("#billing_country, #billing_city, #billing_state, #billing_zip, #billing_phone, #billing_fax").text("--");
@@ -787,33 +798,42 @@ function updatePOTotals() {
         return;
     }
 
-    const surcharge_total = parseFloat($("#surcharge_value").val()) || 0;
-    const discount_total  = parseFloat($("#shipping_value").val()) || 0; // discount
-    const tax_percentage  = 10.00 // parseFloat($("#tax_percentage").val()) || 0;
+    const surcharge = parseFloat($("#surcharge_value").val()) || 0;
+    const discount_percent = Math.max(
+        0,
+        Math.min(100, parseFloat($("#shipping_value").val()) || 0)
+    );
 
-    //  1 Subtotal = sum of line totals
+    const tax_percentage = 10.00; // GST
+
+    // 1️⃣ Subtotal = sum of line totals
     let subtotal = 0;
     $(".po-item-total").each(function () {
         subtotal += parseFloat($(this).val()) || 0;
     });
 
-    // 2 Tax ONLY on surcharge
-    const surcharge_tax = surcharge_total * (tax_percentage / 100);
+    // 2️⃣ GST only on surcharge
+    const surcharge_tax = surcharge * (tax_percentage / 100);
 
-    // 3 Grand total calculation
-    const grand_total =
-        subtotal +
-        surcharge_total -
-        discount_total +
-        surcharge_tax;
+    // 3️⃣ Base total BEFORE discount
+    const base_total = subtotal + surcharge + surcharge_tax;
 
-    //  4 Update UI
+    // 4️⃣ Discount applied on GRAND TOTAL
+    const discount_amount = base_total * (discount_percent / 100);
+
+    // 5️⃣ Final grand total
+    const grand_total = Math.max(0, base_total - discount_amount);
+
+    // 6️⃣ UI updates
     $("#po_sub_total").text(formatAUD(subtotal));
-    $("#surcharge_label").text(formatAUD(surcharge_total));
     $("#po_tax_total").text(formatAUD(surcharge_tax));
     $("#po_total").text(formatAUD(grand_total));
-}
 
+    // 🔹 Discount display: 50% ($242)
+    $("#shipping_label").text(
+        `${discount_percent}% (${formatAUD(discount_amount)})`
+    );
+}
 
 $("#surchase_total, #shipping_total").on("change", function(){
    updatePOTotals();

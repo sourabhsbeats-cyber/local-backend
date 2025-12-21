@@ -9,7 +9,7 @@ from store_admin.models.po_models.po_models import (PurchaseOrder, POApprovalSta
                                                     PurchaseOrderShipping, \
                                                     PurchaseOrderVendor, PurchaseReceives, PurchaseReceivedItems)
 from store_admin.models.product_model import Product, ProductImages
-from store_admin.models.setting_model import UnitOfMeasurements
+from store_admin.models.setting_model import UnitOfMeasurements, ShippingProviders
 from store_admin.models.vendor_models import Vendor, VendorAddress
 from django.db.models import Min, Sum
 from store_admin.models import Country
@@ -113,11 +113,12 @@ def create_order(request, po_id=None):
 
     shipping_details = PurchaseOrderShipping.objects.filter(po_id=po.po_id).first()
     vendor_po = PurchaseOrderVendor.objects.filter(po_id=po_id).first()
-
+    shipping_providers = ShippingProviders.objects.filter(is_archived=0, status=1).all()
     context = {
         'po_id': po_id,
         'po': po,
         "vendor_po": vendor_po,
+        "shipping_providers": shipping_providers,
         'shipping': shipping_details,
         'can_pdf_generate': can_pdf_generate,
         'po_order_items': po_order_items,
@@ -378,10 +379,11 @@ def view_po_order(request, po_id):
     payment_terms = PaymentTerm.objects.all()
 
     shipping_details = PurchaseOrderShipping.objects.filter(po_id=po.po_id).first()
-
+    shipping_providers = ShippingProviders.objects.filter(is_archived=0, status=1).all()
     context = {
         'po_id': po_id,
         'po': po,
+        "shipping_providers": shipping_providers,
         'shipping':shipping_details,
         'can_pdf_generate':can_pdf_generate,
         'po_order_items':po_order_items,

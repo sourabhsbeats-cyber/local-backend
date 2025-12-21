@@ -224,7 +224,7 @@ def view_po_receive(request, po_receive_id):
         line_items.append({
             "item_name":po_product.title,
             "sku":po_product.sku,
-            "ordered": po_line_item.qty,
+            "ordered": po_line_item.qty if po_line_item else 0,
             "received":po_order_item.received_qty,
             "in_transit":0,
             "received_quantity":0, #po_order_item.received_qty,
