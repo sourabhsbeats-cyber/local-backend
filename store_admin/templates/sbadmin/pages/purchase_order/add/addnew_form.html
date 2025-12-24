@@ -144,7 +144,7 @@
                                 <div class="form-group row">
                                     <label class="col-sm-5 text-right  col-form-label">Provider</label>
                                     <div class="col-sm-6">
-                                    <select class="form-control form-control-sm " name="shipping_provider" id="shipping_provider">
+                                    <select class="form-control form-control-sm select2" name="shipping_provider" id="shipping_provider">
                                     <option value="">select</option>
                                     {% for provider in shipping_providers %}
                                         <option {% if shipping.provider|slugify == provider.carrier_id|slugify %} selected {% endif %} value="{{ provider.carrier_id }}">{{ provider.carrier_name }}</option>
@@ -169,17 +169,6 @@
 
             </div>
             <div class="col-md-4">
-                <div class="card-section ">
-                    <div class="section-title">PO Status</div>
-                    <div class="form-group">
-                        <select id="po_status" class="form-control">
-                            <option {% if po.status_id == 0 %}selected {% endif %} value="0">New</option>
-                            <option {% if po.status_id == 1 %}selected {% endif %} value="1">Approved</option>
-                            <option {% if po.status_id == 2 %}selected {% endif %}value="2">Cancelled</option>
-                            <option {% if po.status_id == 3 %}selected {% endif %} value="3">Completed</option>
-                        </select>
-                    </div>
-                </div>
                 <div class="card-section">
                         <div class="section-title">Vendor PO (Internal Ref)</div>
                         <div class="">
@@ -220,6 +209,16 @@
                                 <input type="date" title="Vendor Invoice Due Date" value="{{ vendor_po.invoice_due_date|date:'Y-m-d' }}" name="vendor_po_invoice_due_date" id="vendor_po_invoice_due_date" class="w-75 form-control form-control-sm " >
                                 </div>
                             </div>
+                            <div class="form-group row ">
+                                <label class="col-sm-5 text-left col-form-label">Payment Terms</label>
+                                <div class="col-sm-6">
+                                  <select class="w-100 form-control select2" id="payment_term_id">
+                                      {% for payment_term in payment_terms %}
+                                        <option {% if po.payment_term_id == payment_term.id %}selected{% endif %} value="{{ payment_term.id }}">{{ payment_term.name }}</option>
+                                      {% endfor %}
+                                  </select>
+                                </div>
+                            </div>
                         </div>
                 </div>   
             </div> 
@@ -254,16 +253,7 @@ selected
             </div>
         </div>
          <div class="col-4">
-             <div class="form-group row ">
-                <label class="col-sm-5 text-right col-form-label">Payment Terms</label>
-                <div class="col-sm-7">
-                  <select class="w-100 form-control select2" id="payment_term_id">
-                      {% for payment_term in payment_terms %}
-                        <option {% if po.payment_term_id == payment_term.id %}selected{% endif %} value="{{ payment_term.id }}">{{ payment_term.name }}</option>
-                      {% endfor %}
-                  </select>
-                </div>
-            </div>
+
         </div>
     </div></div>
 
@@ -331,13 +321,13 @@ selected
                 <tr>
                     <th style="width:30%" >ITEM DETAILS</th>
                     <th style="width:10%" >WAREHOUSE DETAILS</th>
-                    <th class="text-center" style="width:12%;">
+                    <!-- <th class="text-center" style="width:12%;">
                         BARCODE LABEL TYPE
                         <i class="fa fa-info-circle text-secondary ml-1"
                            data-toggle="tooltip"
                            data-placement="top"
                            title="Manufacture or Amazon"></i>
-                    </th>
+                    </th>-->
                     <th class="text-center" style="width:6%">QUANTITY</th>
                     <th class="text-center" style="width:7%">RATE</th>
                     <th class="text-center" style="width:8%">DISCOUNT</th>
@@ -826,7 +816,7 @@ function renderLineItems() {
                 <input id="product_order_ref_${index}" maxlength="80" class="po-tiny-input po-tiny-field" title="Customer order for FBM order" placeholder="" value="${item.row_item.product_order_ref}" />
             </div>
             </td>
-            <td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>
+            <!--<td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>-->
             <td class="editable qty align-middle text-decoration-dotted text-right">${item.qty}</td>
             <td class="editable price align-middle text-decoration-dotted text-right">${item.price}</td>
               <td class="editable discount align-middle text-decoration-dotted text-right" title="Discount Percentage">${item.discount}</td>
@@ -1097,7 +1087,7 @@ function buildPOFormData(){
         "shipping_provider": $("#shipping_provider").val(),
         "surcharge_total": $("#surcharge_value").val(),
         "shipping_charge": $("#shipping_value").val(),
-        "po_status": $("#po_status").val(),
+        //"po_status": $("#po_status").val(),
         //Buil PO Form Details
         "vendor_po_number": $("#vendor_po_number").val(),
         "vendor_order_date": $("#vendor_order_date").val() || null,

@@ -1,0 +1,233 @@
+{% extends "sbadmin/base.html" %}
+{% load static %}
+
+{% block title %}View Purchase Bill | {{ bill.bill_no }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .info-label { font-size: 0.85rem; text-transform: uppercase; color: #6c757d; font-weight: 700; margin-bottom: 2px; }
+    .info-value { font-size: 1rem; color: #212529; font-weight: 600; padding: 5px 0; border-bottom: 1px solid #eee; margin-bottom: 15px; }
+    .card { border: none; box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); border-radius: 0.75rem; }
+    .card-header { background-color: transparent; border-bottom: 1px solid rgba(0,0,0,.05); padding: 1.25rem; }
+    .table thead th { border-top: none; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px; }
+    .status-badge { padding: 0.5em 1em; border-radius: 50rem; font-weight: 600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <section class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-3 align-items-center">
+                <div class="col-sm-6">
+                    <h1 class="m-0 text-dark font-weight-bold">
+                        <i class="fas fa-file-invoice-dollar mr-2 text-primary"></i>Bill: {{ bill.bill_no }}
+                    </h1>
+                </div>
+                <div class="col-sm-6 text-right">
+                    <a href="{% url 'po_bills_listing' %}" class="btn btn-outline-secondary btn-sm rounded-pill shadow-sm">
+                        <i class="fas fa-arrow-left mr-1"></i> Back to Listing
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="content">
+        <div class="container-fluid">
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0 font-weight-bold">General Information</h5>
+                            <div>
+                                {% if bill.bill_status == 1 %}
+                                    <span class="status-badge badge-success text-white"><i class="fas fa-check-circle mr-1"></i> Paid</span>
+                                {% elif bill.bill_status == 2 %}
+                                    <span class="status-badge badge-warning text-dark"><i class="fas fa-clock mr-1"></i> Partially Paid</span>
+                                {% else %}
+                                    <span class="status-badge badge-secondary text-white">Open</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="info-label">Bill Number</div>
+                                    <div class="info-value">{{ bill.bill_no }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-label">Order Number</div>
+                                    <div class="info-value text-primary">#{{ bill.bill_order_number }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-label">Location / Warehouse</div>
+                                    <div class="info-value">
+                                    {% for warehouse_list in warehouse_lists %}
+                                        {% if warehouse_list.warehouse_id|stringformat:"s" == bill.location|stringformat:"s" %}
+                                            {{ warehouse_list.warehouse_name }}
+                                        {% endif %}
+                                    {% endfor %}
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-label"><i class="far fa-calendar-alt mr-1"></i> Bill Date</div>
+                                    <div class="info-value">{{ bill.bill_date|date:"M d, Y" }}</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="info-label"><i class="far fa-calendar-check mr-1"></i> Due Date</div>
+                                    <div class="info-value {% if bill.pending_amount > 0 %}text-danger{% endif %}">
+                                        {{ bill.due_date|date:"M d, Y" }}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="info-label">Vendor Information</div>
+                                    <div class="info-value">
+                                        <strong>ID:</strong> {{ vendor_info.vendor_code }} <br>
+                                        <strong>Display Name:</strong> {{ vendor_info.display_name }} <br>
+                                        <small class="text-muted">ABN: {{ bill.vendor_abn }}</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="info-label">Billing Notes</div>
+                                    <div class="info-value font-italic text-muted" style="border:none">
+                                        {{ bill.billing_notes|default:"No notes provided for this bill." }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 font-weight-bold">Line Items</h5>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light">
+                                    <tr>
+                                        <th class="pl-4">Product / Item ID</th>
+                                        <th class="text-center">Qty</th>
+                                        <th class="text-right">Actual Amount</th>
+                                        <th class="text-right pr-4">Applied Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for item in items %}
+                                    <tr>
+                                        <td class="pl-4">
+                                            <span class="font-weight-bold text-dark">
+                                                {% for product in products %}
+                                                     {% if product.product_id == item.product_id %}
+                                                        {{ product.title }}<br/>
+                                                       <small class="text-muted">Ref:  {{ product.sku }}</small>
+                                                     {% endif %}
+                                                {% endfor %}
+                                            </span><br>
+                                        </td>
+                                        <td class="text-center"><span class="badge badge-light border">{{ item.received_qty }}</span></td>
+                                        <td class="text-right">${{ item.line_total }}</td>
+                                        <td class="text-right pr-4 font-weight-bold text-primary">${{ item.line_total_updated }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4 text-muted">No items found in this bill.</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="card mb-4 border-top border-primary" style="border-top-width: 3px !important;">
+                        <div class="card-body">
+                            <h5 class="font-weight-bold mb-4">Financial Summary</h5>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Sub Total</span>
+                                <span>${{ bill.sub_total }}</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Surcharge </span>
+                                <span>${{ bill.surcharge_amount }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Surcharge Tax Amount</span>
+                                <span>${{ bill.surcharge_tax_total }}</span>
+                            </div>
+                            <hr>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span class="text-muted">Discount (<strong>{{ bill.discount_percentage }}%</strong>)</span>
+                                <span class="text-success">-${{ bill.discount_amount|default:"0.00" }}</span>
+                            </div>
+                            <hr/>
+                            <div class="d-flex justify-content-between mb-3">
+                                <span class="h5 font-weight-bold">Bill Amount</span>
+                                <span class="h5 font-weight-bold text-primary">${{ bill.bill_amount }}</span>
+                            </div>
+
+                            <div class="p-3 bg-light rounded d-none">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <small class="font-weight-bold text-uppercase">Paid</small>
+                                    <small class="text-success font-weight-bold">${{ bill.paid_amount }}</small>
+                                </div>
+                                <div class="progress progress-xxs mb-2" style="height: 4px;">
+                                    <div class="progress-bar bg-success" style="width: 70%"></div> </div>
+                                <div class="d-flex justify-content-between">
+                                    <small class="font-weight-bold text-uppercase">Pending</small>
+                                    <small class="text-danger font-weight-bold">${{ bill.pending_amount }}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0 font-weight-bold"><i class="fas fa-paperclip mr-2"></i>Attachments</h6>
+                        </div>
+                        <div class="card-body">
+                            {% if files %}
+                                <div class="list-group list-group-flush">
+                                    {% for f in files %}
+                                        <a href="{{ f.file.url }}" target="_blank" class="list-group-item list-group-item-action px-0 border-0 d-flex align-items-center">
+                                            <i class="far fa-file-pdf mr-3 fa-lg text-danger"></i>
+                                            <div class="text-truncate">
+                                                <div class="mb-0 text-sm">{{ f.file.name }}</div>
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="text-center py-3">
+                                    <i class="fas fa-folder-open fa-2x text-light mb-2"></i>
+                                    <p class="text-muted small">No files attached</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-4 mb-5">
+                <div class="col-12 text-center">
+                    <button onclick="window.print()" class="btn btn-default mr-2">
+                        <i class="fas fa-print mr-1"></i> Print Bill
+                    </button>
+                    <a href="{% url 'po_bills_listing' %}" class="btn text-white btn-secondary px-4">
+                        Return to List
+                    </a>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</div>
+{% endblock %}

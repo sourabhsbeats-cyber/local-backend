@@ -7,7 +7,7 @@ from django.shortcuts import render, redirect
 from store_admin.models.po_models.po_models import (
     PurchaseBills,
     PurchaseBillItems,
-    PurchaseBillFiles
+    PurchaseBillFiles, VendorLedger, VendorCredits, VendorPaymentAllocations, VendorPayments
 )
 
 from store_admin.models.po_models.po_models import PurchaseOrder, POBillingStatus, PurchaseOrderItem, PurchaseReceiveFiles, \
@@ -247,12 +247,11 @@ def bills_listing_json(request):
 
 @login_required
 def view_purchase_payment(request, payment_id):
-
     payment = get_object_or_404(
         PurchasePayments,
         id=payment_id
     )
-
+    vendor_info = Vendor.objects.filter(id=payment.vendor_id).first()
     items = PurchasePaymentItems.objects.filter(
         purchase_payment_id=payment.id
     )
@@ -272,9 +271,17 @@ def view_purchase_payment(request, payment_id):
 
     excess_amount = payment.payment_made_amount - used_amount
 
+    bill_ids = items.values_list('purchase_bill_id', flat=True)
+
+    # 3. Fetch those specific Bills (Replace 'PurchaseBill' with your actual Model name)
+    # We create a dictionary { 'bill_id': bill_object }
+    bills = PurchaseBills.objects.filter(bill_id__in=bill_ids)
+
     context = {
         "payment": payment,
+        "vendor_info": vendor_info,
         "items": items,
+        "bills": bills,
         "files": files,
         "summary": {
             "amount_paid": payment.payment_made_amount,
@@ -326,13 +333,14 @@ def list_ps_receive_line_items(request, po_receive_id):
 
 from decimal import Decimal, ROUND_HALF_UP
 from decimal import Decimal, InvalidOperation
+#verified
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
 def all_purchase_payments(request):
-    warehouse_sub = Warehouse.objects.filter(
-        warehouse_id=OuterRef("warehouse")
-    ).values("warehouse_name")[:1]
+    #warehouse_sub = Warehouse.objects.filter(
+   #     warehouse_id=OuterRef("warehouse")
+   # ).values("warehouse_name")[:1]
 
     # -----------------------------
     # Subquery for vendor name
@@ -342,35 +350,18 @@ def all_purchase_payments(request):
     ).values("display_name")[:1]
 
     qs = PurchasePayments.objects.annotate(
-
-        # Warehouse name
-        warehouse_name=Coalesce(
-            Subquery(warehouse_sub),
-            Value(""),
-            output_field=TextField()
-        ),
-
         # Vendor name
         vendor_name_val=Coalesce(
             Subquery(vendor_sub),
             Value(""),
             output_field=TextField()
         ),
-
-        # Summary fields
-        paid_amount_val=Coalesce(
-            "payment_made_amount",
-            Value(0),
-            output_field=DecimalField()
-        ),
-
         bank_charges_val=Coalesce(
             "bank_charges",
             Value(0),
             output_field=DecimalField()
         ),
     )
-
     # -----------------------------
     # Search
     # -----------------------------
@@ -406,24 +397,21 @@ def all_purchase_payments(request):
     # -----------------------------
     data = list(
         qs.order_by("-id")[start:end].values(
-            "id",
-            "payment_no",
-            "vendor_id",
-            "vendor_name_val",
-            "warehouse",
-            "warehouse_name",
-            "payment_date",
-            "mode_of_payment",
-            "paid_through",
-            "payment_status",
-            "payment_made_amount",
-            "bank_charges",
-            "paid_amount_val",
-            "bank_charges_val",
-            "created_at"
+            "id", "payment_no", "reference_number", "vendor_id",
+            "vendor_name_val",   # "warehouse",
+            #"warehouse_name",
+            "payment_date",  "mode_of_payment",
+            "paid_through",  "payment_status",
+            "payment_made_amount", "bank_charges",
+            "bank_charges_val",  "created_at"
         )
     )
+    for row in data:
+        payment_item = PurchasePaymentItems.objects.filter(purchase_payment_id=row.get("id")).first()
+        row["paid_amount_val"] = payment_item.payment_amount
+        row["amount_due"] = payment_item.amount_due
 
+    #"paid_amount_val",
     last_page = math.ceil(total / size) if total else 1
 
     # -----------------------------
@@ -441,87 +429,207 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db import transaction
 from decimal import Decimal
-
-#save_purchase_payment - verified
+#verified
 @api_view(["POST"])
 def save_purchase_payment(request):
     data = request.data
+    #return JsonResponse({"status":False, "message":"Hi"})
     payment_no = data.get("payment_no")
-    reference_number = data.get("payment_recieve_number")
+    reference_number = data.get("payment_receive_number")
+
     payment_made_amount = get_decimal(data, "payment_made_amount")
     bank_charges = get_decimal(data, "bank_charges")
 
-    if [bank_charges, payment_made_amount] is None:
-        raise Exception("Invalid Charges")
+    # -----------------------------
+    # BASIC VALIDATION
+    # -----------------------------
+    if payment_made_amount is None or bank_charges is None:
+        return JsonResponse({"status": False, "message": "Invalid Charges"})
 
+    if payment_made_amount <= 0:
+        return JsonResponse({"status": False, "message": "Invalid Payment Amount"})
+
+    if bank_charges < 0:
+        return JsonResponse({"status": False, "message": "Invalid Bank Charges"})
+
+    # -----------------------------
+    # DUPLICATE CHECK
+    # -----------------------------
     qs = PurchasePayments.objects.filter(
-        Q(payment_no=payment_no) | Q(reference_number=reference_number)
+        Q(payment_no=payment_no)
     )
 
     if qs.exists():
         msg = []
         if qs.filter(payment_no=payment_no).exists():
             msg.append("Payment number already exists")
-        if qs.filter(reference_number=reference_number).exists():
-            msg.append("Reference number already exists")
 
         return JsonResponse({"status": False, "message": ", ".join(msg)})
 
-    if payment_made_amount <= 0:
-        return JsonResponse({"status": False, "message": "Invalid Payment Amount "})
-
-    if bank_charges < 0:
-        return JsonResponse({"status": False, "message": "Invalid Bank Charges"})
-
     try:
-        #return JsonResponse({"status": False, "message": ", Hi"})
         with transaction.atomic():
-            payment = PurchasePayments.objects.create(
-                vendor_id=data.get("vendor_id"),
-                warehouse=data.get("warehouse"),
-                payment_no=data.get("payment_no"),
-                payment_date=data.get("payment_date"),
-                mode_of_payment=data.get("mode_of_payment"),
-                paid_through=data.get("paid_through"),
-                payment_made_amount=Decimal(data.get("payment_made_amount", 0)),
-                bank_charges=Decimal(data.get("bank_charges", 0)),
-                card_number=data.get("card_number"),
-                reference_number=data.get("payment_recieve_number"),
-                deduct_tds=bool(int(data.get("deduct_tds", 0))),
-                notes=data.get("comments", ""),
-                payment_status=1,  # Completed
-            )
 
-            # -----------------------------
-            #  INSERT PAYMENT ITEMS
-            # -----------------------------
+            # ==================================================
+            # READ LINE ITEMS
+            # ==================================================
+            items = []
+            total_applied = Decimal("0.00")
             index = 0
-            while True:
-                prefix = f"items[{index}]"
 
-                bill_id = data.get(f"{prefix}[bill_id]")
+            while True:
+                bill_id = data.get(f"items[{index}][bill_id]")
                 if not bill_id:
                     break
 
-                PurchasePaymentItems.objects.create(
-                    purchase_payment_id=payment.id,
-                    purchase_bill_id=bill_id,
-                    payment_amount=Decimal(
-                        data.get(f"{prefix}[payment_amount]", 0)
-                    ),
-                    amount_withheld=Decimal(
-                        data.get(f"{prefix}[amount_withheld]", 0)
-                    ),
-                    payment_created_date=data.get(
-                        f"{prefix}[payment_created_date]"
-                    ),
-                )
+                amount = Decimal(data.get(f"items[{index}][payment_amount]", 0))
+                if amount <= 0:
+                    index += 1
+                    continue
 
+                items.append({
+                    "bill_id": int(bill_id),
+                    "amount": amount,
+                    "payment_created": data.get(
+                        f"items[{index}][payment_created]"
+                    )
+                })
+
+                total_applied += amount
                 index += 1
 
+            if not items:
+                return JsonResponse({
+                    "status": False,
+                    "message": "No payment items provided"
+                })
+
+            if total_applied > payment_made_amount:
+                return JsonResponse({
+                    "status": False,
+                    "message": "Applied amount exceeds payment amount"
+                })
+
+            # ==================================================
+            # CREATE PURCHASE PAYMENT (EXISTING LOGIC)
+            # ==================================================
+            payment = PurchasePayments.objects.create(
+                vendor_id=data.get("vendor_id"),
+                location=data.get("location"),
+                payment_no=payment_no,
+                payment_date=data.get("payment_date"),
+                mode_of_payment=data.get("mode_of_payment"),
+                paid_through=data.get("paid_through"),
+                payment_made_amount=payment_made_amount,
+                bank_charges=bank_charges,
+                card_number=data.get("card_number"),
+                reference_number=reference_number,
+                deduct_tds=bool(int(data.get("deduct_tds", 0))),
+                notes=data.get("comments", ""),
+                bill_id=items[0]["bill_id"],  # UI reference
+                created_by=request.user.id,
+                payment_status=1,
+            )
             # -----------------------------
-            #  INSERT FILES
+            # INSERT PAYMENT ITEMS (FIXED)
             # -----------------------------
+            for item in items:
+                bill = PurchaseBills.objects.select_for_update().get(
+                    bill_id=item["bill_id"]
+                )
+
+                PurchasePaymentItems.objects.create(
+                    purchase_payment_id=payment.id,
+                    purchase_bill_id=bill.bill_id,
+
+                    bill_amount=bill.bill_amount,
+                    amount_due=bill.pending_amount,
+
+                    payment_amount=item["amount"],
+                    amount_withheld=Decimal("0.00"),  # or from form later
+
+                    payment_created_date=item["payment_created"]
+                )
+            # ==================================================
+            # VENDOR PAYMENT (NEW)
+            # ==================================================
+            vendor_payment = VendorPayments.objects.create(
+                vendor_id=payment.vendor_id,
+                payment_no=payment_no,
+                payment_date=payment.payment_date,
+                payment_mode=payment.mode_of_payment,
+                paid_through=payment.paid_through,
+                amount_paid=payment_made_amount,
+                bank_charges=bank_charges,
+                notes="Auto from purchase payment"
+            )
+
+            # ==================================================
+            # APPLY PAYMENT TO BILLS
+            # ==================================================
+            for item in items:
+                bill = PurchaseBills.objects.select_for_update().get(
+                    bill_id=item["bill_id"]
+                )
+
+                VendorPaymentAllocations.objects.create(
+                    payment_id=vendor_payment.vendor_payment_id,
+                    bill_id=bill.bill_id,
+                    amount_applied=item["amount"]
+                )
+
+                # update bill
+                bill.paid_amount += item["amount"]
+                bill.pending_amount = bill.bill_amount - bill.paid_amount
+
+                if bill.pending_amount <= 0:
+                    bill.bill_status = 1  # Paid
+                    bill.pending_amount = Decimal("0.00")
+                else:
+                    bill.bill_status = 2  # Partially Paid
+
+                bill.save(update_fields=[
+                    "paid_amount", "pending_amount", "bill_status"
+                ])
+
+            # ==================================================
+            # HANDLE EXCESS → VENDOR CREDIT
+            # ==================================================
+            excess = payment_made_amount - total_applied
+
+            if excess > 0:
+                credit = VendorCredits.objects.create(
+                    vendor_id=payment.vendor_id,
+                    source_type="OVERPAYMENT",
+                    source_id=vendor_payment.vendor_payment_id,
+                    credit_amount=excess,
+                    used_amount=Decimal("0.00"),
+                    balance_amount=excess
+                )
+
+                VendorLedger.objects.create(
+                    vendor_id=payment.vendor_id,
+                    reference_type="CREDIT",
+                    reference_id=credit.vendor_credit_id,
+                    entry_type=2,
+                    amount=-excess,
+                    balance_after=get_vendor_balance(payment.vendor_id)
+                )
+
+            # ==================================================
+            # VENDOR LEDGER ENTRY (PAYMENT)
+            # ==================================================
+            VendorLedger.objects.create(
+                vendor_id=payment.vendor_id,
+                reference_type="PAYMENT",
+                reference_id=vendor_payment.vendor_payment_id,
+                entry_type=2,
+                amount=-payment_made_amount,
+                balance_after=get_vendor_balance(payment.vendor_id)
+            )
+
+            # ==================================================
+            # FILE UPLOADS (UNCHANGED)
+            # ==================================================
             for file in request.FILES.getlist("files[]"):
                 PurchasePaymentFiles.objects.create(
                     purchase_payment_id=payment.id,
@@ -539,6 +647,30 @@ def save_purchase_payment(request):
             "status": False,
             "message": str(e)
         }, status=400)
+
+
+def get_vendor_balance(vendor_id):
+    last = VendorLedger.objects.filter(
+        vendor_id=vendor_id
+    ).order_by("-vendor_ledger_id").first()
+
+    return last.balance_after if last else Decimal("0.00")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 from django.shortcuts import render, get_object_or_404
 @api_view(["GET"])

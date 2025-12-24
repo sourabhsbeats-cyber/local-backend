@@ -110,22 +110,11 @@ document.addEventListener("DOMContentLoaded", function () {
       columns:[
           { title: "ID", field: "po_id", visible: false },
           { formatter:"rowSelection", width:25, hozAlign:"center", headerSort:false },
-          {title:"DATE", field:"received_date", formatter: function(cell){
-                const v = cell.getValue();
-                if (!v) return "";
-                const d = new Date(v + "T00:00:00");
-                const dd = String(d.getDate()).padStart(2, "0");
-                const mm = String(d.getMonth() + 1).padStart(2, "0");
-                const yyyy = d.getFullYear();
-                return `${dd}-${mm}-${yyyy}`;
+          {title:"RCVD DATE", field:"received_date", formatter: function(cell){
+                return formattedDate(cell.getValue());
               },hozAlign:"center",headerSort:false,
               minWidth:90,headerHozAlign:"center"},
-          {
-                title: "Purchase Order#",
-                field: "po_receive_number",
-                minWidth: 110,
-                headerHozAlign: "center",
-                hozAlign: "center",
+           {title:"Purchase Receive#", field:"po_receive_number",hozAlign:"center",minWidth:110,headerHozAlign:"center",
                 formatter: function (cell) {
                     const po_receive_id = cell.getData().po_receive_id;
                     const po_number = cell.getValue();
@@ -133,15 +122,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                 }
+          },
+          {title: "Purchase Order#",
+                field: "po_number",
+                minWidth: 110,
+                headerHozAlign: "center",
+                hozAlign: "center"
             },//company_name
           {title:"VENDOR NAME", hozAlign:"center",minWidth:160,headerHozAlign:"center",
           formatter: function(cell){
             const d = cell.getRow().getData();
             return `<span class="help-text" title="Vendor Name">${d.vendor_name || ""} </span> <br/><small class="help-text" title="Company Name"> ${d.company_name || ""}</small>`;
           }},
-          {title:"Purchase Receive#", field:"po_receive_number",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
-          {
-                title: "Status",
+          {title: "Status",
                 field: "status_id",
                 minWidth: 120,
                 hozAlign: "center",
@@ -149,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 formatter: function (cell) {
                     const status = cell.getValue();
                     const statusMap = {
-                        0: "New",
+                        0: "Received",
                         1: "Placed",
                         2: "Delivered",
                         3: "Back Order",
@@ -160,11 +153,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
                 }
           },
-          {title:"QUANTITY", field:"total_received_qty",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
+          {title:"TOT QTY", field:"total_received_qty",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
           {title:"BILLED", field:"is_billed",hozAlign:"center",minWidth:110,
           formatter: function (cell) {
                 const is_billed = cell.getValue();
-                return `<span class="badge badge-pill badge-${is_billed?"success": "danger"}">${is_billed?"Billed": "Unbilled"}</span>`;
+                return `<span class="badge badge-pill badge-${is_billed==1?"success": "danger"}">${is_billed?"Billed": "Unbilled"}</span>`;
             },headerHozAlign:"center"},
           {title:"", width:70, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
               const po_receive_id = cell.getRow().getData().po_receive_id;

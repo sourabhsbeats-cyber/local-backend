@@ -17,7 +17,7 @@ class Addresses(models.Model):
     zip = models.CharField(max_length=20, blank=True)
     phone = models.CharField(max_length=50, blank=True)
     fax = models.CharField(max_length=50, blank=True)
-    created_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     created_by  = models.PositiveIntegerField(default=0)
     #class Meta:
      #   db_table = "addresses"

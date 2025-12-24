@@ -76,11 +76,10 @@
 										<label class="col-sm-4  col-form-label">Warehouse Location</label>
 										<div class="col-sm-8">
 										  <select  name="warehouse" class="select2 w-75" id="warehouse" title="Select type">
-											  <option value="19">Select </option>
-											  <option value="21">SBAU</option>
-											  <option value="23">Local 3PL</option>
-											  <option value="24">China</option>
-											  <option value="26">USA</option>
+											  <option value="">Select </option>
+											  {% for warehouse_det in warehouse_list %}
+											  	<option value="{{ warehouse_det.warehouse_id }}">{{ warehouse_det.warehouse_name }}</option>
+											  {% endfor %}
 										  </select>
 										</div>
 									</div>
@@ -181,7 +180,7 @@
 								</div>
 					</div>
 
-					<div class="card-section">
+					<div class="card-section d-none">
 							<div class="section-title">Status</div>
 							<div class="form-group row ">
 								<div class="col-sm-12 col-offset-sm-3">
@@ -662,12 +661,12 @@ function renderTable(){
 			<td class="align-middle text-center">${item.barcode_label_type || "--"}</td>
 			<td class=" qty align-middle text-right">${item.received_qty}</td>
 			<td class=" price align-middle  text-right">${item.po_item_item_po_rate}</td>
-			  <td class=" discount align-middle text-right">${item.po_item_disc_percentage}</td>
+			<td class=" discount align-middle text-right">${item.po_item_disc_percentage}</td>
 			<td class=" tax align-middle  text-right" title="Tax Percentage -">${item.po_item_subtotal}</td>
-			 <td class=" discount align-middle text-right">${item.po_item_tax_percentage}%</td>
-			 <td class=" discount align-middle text-right">${item.po_item_tax_amount}</td>
+			<td class=" discount align-middle text-right">${item.po_item_tax_percentage}%</td>
+			<td class=" discount align-middle text-right">${item.po_item_tax_amount}</td>
 			<td class="align-middle text-right">
-				<input type="number" data-index="${index}" value="${item.po_item_line_total}" class="po-item-total form-control w-100" id="line_item_total_${index}" /> </td>
+				<input type="number" data-index="${index}" data-actual_total="${item.po_item_line_total}" value="${item.po_item_line_total}" class="po-item-total form-control w-100" id="line_item_total_${index}" /> </td>
 		</tr>`;
 	});
 	tbody.html(html);
@@ -806,25 +805,25 @@ function updatePOTotals() {
 
     const tax_percentage = 10.00; // GST
 
-    // 1️⃣ Subtotal = sum of line totals
+    //  Subtotal = sum of line totals
     let subtotal = 0;
     $(".po-item-total").each(function () {
         subtotal += parseFloat($(this).val()) || 0;
     });
 
-    // 2️⃣ GST only on surcharge
+    //  GST only on surcharge
     const surcharge_tax = surcharge * (tax_percentage / 100);
 
-    // 3️⃣ Base total BEFORE discount
+    // 3 Base total BEFORE discount
     const base_total = subtotal + surcharge + surcharge_tax;
 
-    // 4️⃣ Discount applied on GRAND TOTAL
+    // Discount applied on GRAND TOTAL
     const discount_amount = base_total * (discount_percent / 100);
 
-    // 5️⃣ Final grand total
+    // Final grand total
     const grand_total = Math.max(0, base_total - discount_amount);
 
-    // 6️⃣ UI updates
+    // UI updates
     $("#po_sub_total").text(formatAUD(subtotal));
     $("#po_tax_total").text(formatAUD(surcharge_tax));
     $("#po_total").text(formatAUD(grand_total));
@@ -839,72 +838,21 @@ $("#surchase_total, #shipping_total").on("change", function(){
    updatePOTotals();
 });
 
-let vendor_id          = $("#vendor_id");
-let vendor_name        = $("#vendor_name");
-let vendor_abn      	= $("#vendor_abn");
-let warehouse   		= $("#warehouse");
-let currency_code       = $("#currency_code");
-let bill_no          = $("#bill_no");
-let bill_order_number         = $("#bill_order_number");
-let bill_date      = $("#bill_date");
-let due_date    = $("#due_date");
-let payment_term_id      = $("#payment_term_id");
-let tax_percentage      = $("#tax_percentage");
-let subject      = $("#subject");
-let bill_status             = $("#bill_status");
-let po_receive_id              = $("#po_receive_id");
-let billing_notes          = $("#billing_notes");
-
-function buildPOFormData(){
-    // Validation rules (field → message)
-    console.log(lineItems)
-    lineItems.map((row,$index)=>{
-        lineItems[$index] = {
-            ...lineItems[$index],  // keep existing keys
-            order_type: $(`#product_order_type_${$index}`).val(),
-            order_ref:  $(`#product_order_ref_${$index}`).val()
-        };
-    });
-    return {
-        "po_id": "{{ po_id }}",
-        "vendor_id": $("#vendor_id").val(),
-        "po_number": $("#po_number").val(),
-        "vendor_name": $("#vendor_name").val(),
-        "currency_code": $("#currency_code").val(),
-        "vendor_reference": $("#vendor_reference").val(),
-        "invoice_date": $("#invoice_date").val(),
-        "warehouse": $("#warehouse").val(),
-        "order_date": $("#order_date").val(),
-        "delivery_date": $("#delivery_date").val(),
-        "payment_term_id": $("#payment_term_id").val(),
-        "delivery_name": $("#delivery_name").val(),
-        "address_line1": $("#address_line1").val(),
-        "address_line2": $("#address_line2").val(),
-        "suburb": $("#suburb").val(),
-        "city": $("#city").val(),
-        "state": $("#state").val(),
-        "post_code": $("#post_code").val(),
-        "country": $("#country_id").val(),
-        "tax_percentage": $("#tax_percentage").val(),
-        "comments": $("#comments").val(),
-        "lineItems": lineItems,
-        "shipping_tracking_number": $("#shipping_tracking_no").val(),
-        "shipping_website": $("#shipping_website").val(),
-        "shipping_provider": $("#shipping_provider").val(),
-        "surcharge_total": $("#surcharge_value").val(),
-        "shipping_charge": $("#shipping_value").val(),
-        "po_status": $("#po_status").val(),
-        //Buil PO Form Details
-        "vendor_po_number": $("#vendor_po_number").val(),
-        "vendor_order_date": $("#vendor_order_date").val() || null,
-        "vendor_invoice_ref_number": $("#vendor_po_invoice_ref").val() || null,
-        "vendor_delivery_ref": $("#vendor_po_delivery_ref").val() || null,
-        "vendor_invoice_date": $("#vendor_po_invoice_date").val() || null,
-        "vendor_invoice_due_date": $("#vendor_po_invoice_due_date").val() || null
-
-    };
-    const valOrNull = (v) => v && v.trim() !== "" ? v : null;
-}
+	let vendor_id          = $("#vendor_id");
+	let vendor_name        = $("#vendor_name");
+	let vendor_abn      	= $("#vendor_abn");
+	let warehouse   		= $("#warehouse");
+	let currency_code       = $("#currency_code");
+	let bill_no          = $("#bill_no");
+	let bill_order_number         = $("#bill_order_number");
+	let bill_date      = $("#bill_date");
+	let due_date    = $("#due_date");
+	let payment_term_id      = $("#payment_term_id");
+	let tax_percentage      = $("#tax_percentage");
+	let subject      = $("#subject");
+	//let bill_status             = $("#bill_status");
+	let po_receive_id              = $("#po_receive_id");
+	let billing_notes          = $("#billing_notes");
 
 function validatePOForm(){
     const rules = [
@@ -918,7 +866,7 @@ function validatePOForm(){
         { el: due_date,    msg: "Due date is required" },
         //{ el: tax_percentage,    msg: "Tax Percentage is required" },
         //{ el: subject,            msg: "Subject is required" },
-        { el: bill_status,        msg: "Bill Status is required" },
+        //{ el: bill_status,        msg: "Bill Status is required" },
     ];
 
     // Loop and validate
@@ -960,16 +908,14 @@ $("#btn_po_create").on("click", function () {
     formData.append("bill_date", $("#bill_date").val());
     formData.append("due_date", $("#due_date").val());
     formData.append("payment_term_id", $("#payment_term_id").val());
-    formData.append("tax_percentage", $("#tax_percentage").val());
-    formData.append("bill_status", $("#bill_status").val());
     formData.append("billing_notes", $("#billing_notes").val());
 
     // ---- TOTALS (IMPORTANT) ----
     formData.append("sub_total", $("#po_sub_total").text().replace(/[^0-9.-]/g, ""));
-    formData.append("tax_total", $("#po_tax_total").text().replace(/[^0-9.-]/g, ""));
+    formData.append("surcharge_tax_total", $("#po_tax_total").text().replace(/[^0-9.-]/g, ""));
     formData.append("grand_total", $("#po_total").text().replace(/[^0-9.-]/g, ""));
 
-    formData.append("shipping_charge", $("#shipping_value").val() || 0);
+    formData.append("discount_percentage", $("#shipping_value").val() || 0);
     formData.append("surcharge_total", $("#surcharge_value").val() || 0);
 
     // ---- LINE ITEMS ----
@@ -978,12 +924,22 @@ $("#btn_po_create").on("click", function () {
         if (!qty || qty <= 0) return;
 
         const item = lineItems[index];
+
+		const line_qty        = parseFloat(item.received_qty) || 0;
+		const rate       = parseFloat(item.po_item_item_po_rate) || 0;
+		const discPct    = parseFloat(item.po_item_disc_percentage) || 0;
+		const taxAmount  = parseFloat(item.po_item_tax_amount) || 0;
+
+		const base = line_qty * rate;
+		const discount = base * (discPct / 100);
+		const actual_total = base - discount + taxAmount;
+
         formData.append(`items[${index}][product_id]`, item.product_id);
         formData.append(`items[${index}][po_item_id]`, item.item_id);
         formData.append(`items[${index}][po_receive_id]`, item.po_receive_id);
         formData.append(`items[${index}][received_item_id]`, item.received_item_id);
         formData.append(`items[${index}][received_qty]`, qty);
-        formData.append(`items[${index}][line_total]`, item.po_item_subtotal);
+        formData.append(`items[${index}][line_total]`, actual_total);
         formData.append(`items[${index}][line_total_updated]`, item.po_item_line_total);
     });
 
@@ -992,13 +948,13 @@ $("#btn_po_create").on("click", function () {
         formData.append("files[]", file);
     });
 
-
-	console.log(lineItems)
     receiveFiles.forEach((file, index) => {
         formData.append(`files[]`, file);
     });
 
     // ---- AJAX ----
+		const $btn = $(this);
+		$btn.prop("disabled", true);
     	fetch("{% url 'save_po_bill' %}", {
 		  method: "POST",
 		  headers: {
@@ -1014,16 +970,19 @@ $("#btn_po_create").on("click", function () {
 		})
 		.then(res => {
 			if(res.status){
-				$(this).prop("disabled", true);
-				toastr.success("Purchase Receive created successfully");
+				toastr.success("Purchase Bill created successfully");
 				setTimeout(function(){
 					window.location.href = "{% url 'po_bills_listing' %}"
 				}, 600);
+			}else{
+				toastr.error(res.message || "Error in Purchase Bill Create");
+            	$btn.prop("disabled", false); // re-enable ONLY on failure
 			}
 
 		})
 		.catch(err => {
 		  toastr.error("Error while saving");
+		  $btn.prop("disabled", false);
 		});
 });
 

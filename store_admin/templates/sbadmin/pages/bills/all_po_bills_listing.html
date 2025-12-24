@@ -109,9 +109,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
       columns:[
           { title: "ID", field: "bill_id", visible: false },
-          { formatter:"rowSelection", minWidth:40, hozAlign:"center" },
+          { formatter:"rowSelection", width:35, hozAlign:"center", headerSort:false },
+          {title:"BILL DATE", field:"bill_date",hozAlign:"center", width:120, headerHozAlign:"center",formatter: function (cell) { return formattedDate(cell.getValue()); }},
           {
-                title: "Bill No",
+                title: "BILL NO",
                 field: "bill_no",
                 minWidth: 110,
                 headerHozAlign: "center",
@@ -124,12 +125,17 @@ document.addEventListener("DOMContentLoaded", function () {
                     return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                 }
             },
-          {title:"Bill Order No", field:"bill_order_number",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
-          {title: "Status", field: "status", minWidth: 120, hozAlign: "center", headerHozAlign: "center",
+          {title:"REFERENCE NUMBER", field:"bill_order_number",hozAlign:"center",minWidth:120,headerHozAlign:"center"},
+          {title:"VENDOR NAME", field:"vendor_display_name",hozAlign:"center",minWidth:120,headerHozAlign:"center"},
+          {title:"LOCATION", field:"warehouse_name",hozAlign:"center",minWidth:120,headerHozAlign:"center", headerSort:false},
+
+          {title:"BILL TOTAL", width:160, field:"grand_total",hozAlign:"center",minWidth:110,headerHozAlign:"center",formatter: function (cell) { return formatAUD(cell.getValue()); }},
+          {title:"DUE DATE", width:120,  field:"due_date",hozAlign:"center",minWidth:110,headerHozAlign:"center",formatter: function (cell) { return formattedDate(cell.getValue()); }},
+          {title: "STATUS", field: "status", width:160,  minWidth: 120, hozAlign: "center", headerHozAlign: "center", headerSort:false,
                 formatter: function (cell) {
                     const status = cell.getValue();
                     const statusMap = {
-                        0: "Draft",
+                        0: "Created",
                         1: "Pending Approval",
                         2: "Open",
                         3: "Overdue",
@@ -144,15 +150,14 @@ document.addEventListener("DOMContentLoaded", function () {
                     return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
                 }
           },
-          {title:"Bill Date", field:"bill_date",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
-          {title:"Due Date", field:"due_date",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
           {title:"", width:70, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
               const bill_id = cell.getRow().getData().bill_id;
               return `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePO(${bill_id},event)"><i class="fas fa-trash-alt"></i></button>`;
           },
             cellClick:function(e){
                 e.stopPropagation();  // ✔ avoid row-selection on delete
-            }}
+            }},
+
       ]
   });
   const bulkDeleteBtn = document.getElementById("bulkDeleteBtn");

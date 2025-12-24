@@ -12,9 +12,112 @@
         <div class="col-sm-6">
           <h1>All Purchases</h1>
         </div>
+<script>
+    $(document).ready(function(){
+        $(".btn-customize-model").click(function(){
+            const STORAGE_KEY = "purchase_order_columns";
+            const savedPrefs = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+            const columns = [
+                //{ id: "order_date", label: "Order Date" },
+                //{ id: "delivery_date", label: "Delivery Date" },
+                { id: "vendor_name", label: "Vendor Name" },
+                { id: "vendor_delivery_date", label: "Vendor Delivery Date" },
+                { id: "po_vendor_ref", label: "Vendor PO#" },
+                { id: "vendor_reference", label: "Reference" },
+               // { id: "status_id", label: "Status" },
+                { id: "warehouse_name", label: "Warehouse" },
+                { id: "currency_code", label: "Currency" },
+                { id: "grand_total", label: "Total Amount" },
+                { id: "total_order_qty", label: "Ordered QTY" },
+                { id: "total_received_qty", label: "Received QTY" },
+                { id: "po_vendor_po_number", label: "Vendor Order No" },
+                { id: "po_vendor_order_date", label: "Vendor PO Order Date" },
+                { id: "po_vendor_invoice_ref_number", label: "Vendor Invoice No" },
+                { id: "vendor_shipping_tracking_no", label: "Tracking No" },
+                { id: "vendor_shipping_company", label: "Shipping Company" },
+                { id: "vendor_shipping_tracking_link", label: "Tracking Link" },
+                { id: "vendor_shipping_date", label: "Shipping Date" },
+                { id: "po_vendor_delivery_ref_number", label: "Vendor Delivery Ref" }
+            ];
+
+            let html = '<table class="table table-sm table-borderless">';
+            columns.forEach(col => {
+                const isChecked = savedPrefs[col.id] === true ? 'checked' : '';
+                html += `
+                    <tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" id="col_${col.id}" data-field="${col.id}" ${isChecked}>
+                                <label for="col_${col.id}">${col.label}</label>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+
+            html += '</table>';
+
+            $("#modal-col-list").html(html);
+            $("#columnModal").modal("show");
+        });
+
+    $(".saveColumnPrefs").on("click", function(){
+        const columnPreferences = {
+            //"order_date": document.getElementById("col_order_date").checked,
+            //"delivery_date": document.getElementById("col_delivery_date").checked,
+            "vendor_name": document.getElementById("col_vendor_name").checked,
+            "vendor_delivery_date": document.getElementById("col_vendor_delivery_date").checked,
+            "po_vendor_ref": document.getElementById("col_po_vendor_ref").checked,
+            "vendor_reference": document.getElementById("col_vendor_reference").checked,
+           // "status_id": document.getElementById("col_status_id").checked,
+            "warehouse_name": document.getElementById("col_warehouse_name").checked,
+            "currency_code": document.getElementById("col_currency_code").checked,
+            "grand_total": document.getElementById("col_grand_total").checked,
+            "total_order_qty": document.getElementById("col_total_order_qty").checked,
+            "total_received_qty": document.getElementById("col_total_received_qty").checked,
+            //"po_vendor_po_number": document.getElementById("col_po_vendor_po_number").checked,
+            "po_vendor_order_date": document.getElementById("col_po_vendor_order_date").checked,
+            "po_vendor_invoice_ref_number": document.getElementById("col_po_vendor_invoice_ref_number").checked,
+            "vendor_shipping_tracking_no": document.getElementById("col_vendor_shipping_tracking_no").checked,
+            "vendor_shipping_company": document.getElementById("col_vendor_shipping_company").checked,
+            "vendor_shipping_tracking_link": document.getElementById("col_vendor_shipping_tracking_link").checked,
+            "vendor_shipping_date": document.getElementById("col_vendor_shipping_date").checked,
+            "po_vendor_delivery_ref_number": document.getElementById("col_po_vendor_delivery_ref_number").checked
+        };
+        localStorage.setItem("purchase_order_columns", JSON.stringify(columnPreferences));
+
+        // 4. Close modal and notify user
+        $('#columnModal').modal('hide');
+        toastr.success("Preferences Saved. Reloading to apply your changes...")
+        setTimeout(function(){ location.reload(); }, 1200)
+      });
+    });
+</script>
+  <div class="modal fade" id="columnModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-dialog-scrollable" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Customize View</h5>
+                <button type="button" class="close" data-dismiss="modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="modal-col-list" class="list-group">
+
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-block saveColumnPrefs" id="saveColumnPrefs">Save Preferences</button>
+            </div>
+        </div>
+    </div>
+</div>
+
         <div class="col-sm-6">
             <div class="float-right">
+                  <button type="button"  title="Customize columns"
+                          class="help-text btn btn-customize-model btn-default btn-sm mr-2"><i class="fas fa-columns"></i>
+                </button>
              <div class="btn-group float-right">
+
                     <button type="button" id="main-action-btn" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
                     <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
                             data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -74,6 +177,37 @@
 {% block footer_scripts %}
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+    const STORAGE_KEY = "purchase_order_columns";
+
+    const defaultSettings = {
+        "po_id": false,
+        "order_date": false,
+        "delivery_date": false,
+        "vendor_name": false,
+        "vendor_delivery_date": false,
+        "po_vendor_ref": false,
+        "vendor_reference": false,
+        //"status_id": false,
+        "warehouse_name": false,
+        "currency_code": false,
+        "grand_total": false,
+        "total_order_qty": false,
+        "total_received_qty": false,
+
+        //"po_vendor_po_number": false,
+        "po_vendor_order_date": false,
+        "po_vendor_invoice_ref_number": false,
+        "vendor_shipping_tracking_no": false,
+        "vendor_shipping_company": false,
+        "vendor_shipping_tracking_link": false,
+        "vendor_shipping_date": false,
+        "po_vendor_delivery_ref_number": false,
+    };
+
+    const savedPrefs = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultSettings;
+    const getVisibility = (field, defaultVisible) => {
+        return savedPrefs.hasOwnProperty(field) ? savedPrefs[field] : defaultVisible;
+    };
     let total = 0;
     const getQueryParam = (name) => {
         return new URLSearchParams(window.location.search).get(name) || '';
@@ -111,9 +245,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
       columns:[
           { title: "ID", field: "po_id", visible: false },
-          { formatter:"rowSelection", minWidth:40, hozAlign:"center" },
-          {
-                title: "Order No",
+          { formatter:"rowSelection", minWidth:40, hozAlign:"center" , headerSort:false},
+          { title:"Order Date", field:"order_date",formatter: function(cell){
+                return formattedDate(cell.getValue(), "/");
+              }, minWidth:100, headerSort:false},
+          { title: "PO#",
                 field: "po_number",
                 minWidth: 110,
                 headerHozAlign: "center",
@@ -126,35 +262,60 @@ document.addEventListener("DOMContentLoaded", function () {
                     return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                 }
             },
-          {title:"Order Date", field:"order_date", minWidth:100},
-          {title:"Delivery Date", field:"delivery_date" , hozAlign:"center", minWidth:120},
-          {title:"Vendor Name", field:"vendor_name",hozAlign:"center",minWidth:220,headerHozAlign:"center"},
-          {title:"Reference", field:"vendor_reference",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
-          {
-                title: "Status",
+
+          { title:"Delivery Date-ETA",visible: true, formatter: function(cell){
+                return formattedDate(cell.getValue(), "/");
+              }, field:"delivery_date" , hozAlign:"center", minWidth:120, headerSort:false},
+          { title:"Vendor Name", visible: getVisibility("vendor_name", true), field:"vendor_name",hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+
+
+
+          { title:"Vendor Order No", field:"po_vendor_po_number", visible: true, hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+          { title:"Vendor PO Order Date", field:"po_vendor_order_date", visible: getVisibility("po_vendor_order_date", true), hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false, formatter: function(cell){
+                return formattedDate(cell.getValue(), "/");
+              }},
+          { title:"Vendor Invoice No", field:"po_vendor_invoice_ref_number", visible: getVisibility("po_vendor_invoice_ref_number", true), hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+          { title:"Vendor Delivery Ref", field:"po_vendor_delivery_ref_number", visible: getVisibility("po_vendor_delivery_ref_number", true), hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+          { title:"Vendor Shipping Company", field:"vendor_shipping_company", visible: getVisibility("vendor_shipping_company", true), hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+          { title:"Vendor Tracking No", field:"vendor_shipping_tracking_no", visible: getVisibility("vendor_shipping_tracking_no", true),  hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+          { title:"Vendor Tracking Link", field:"vendor_shipping_tracking_link", visible: getVisibility("vendor_shipping_tracking_link", true), hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false, formatter: function (cell) {
+                const tracking_link = cell.getValue();
+                return (tracking_link.length >=3)?`<a target="_blank" class="link text-primary text-underline" href="${tracking_link}">Track</a>`:"--";
+          }},
+          {title:"Vendor Shipping Date", visible: getVisibility("vendor_shipping_date", true), field:"vendor_shipping_date",hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false, formatter: function (cell) {
+                return formattedDate(cell.getValue());
+          }},
+          {title:"Vendor Delivery Date", visible: getVisibility("vendor_delivery_date", true), field:"vendor_delivery_date",hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false, formatter: function (cell) {
+                return formattedDate(cell.getValue());
+          }},
+          { title:"Vendor PO#",visible: getVisibility("po_vendor_ref", true), field:"po_vendor_ref",hozAlign:"center",minWidth:220,headerHozAlign:"center", headerSort:false},
+          { title:"Reference",visible: getVisibility("vendor_reference", true), field:"vendor_reference",hozAlign:"center",minWidth:110,headerHozAlign:"center", headerSort:false},
+          { title: "Status",visible: true,
                 field: "status_id",
                 minWidth: 120,
                 hozAlign: "center",
-                headerHozAlign: "center",
+                headerHozAlign: "center", headerSort:false,
                 formatter: function (cell) {
                     const status = cell.getValue();
 
                     const statusMap = {
-                        0: "Draft",
-                        1: "Placed",
+                        0: "New",
+                        1: "Approved",
                         2: "Delivered",
                         3: "Back Order",
                         4: "Cancelled",
-                        4: "Archieved"
+                        5: "Archieved"
                     };
 
                     return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
                 }
           },
-          {title:"Warehouse", field:"warehouse_name",hozAlign:"center",width:150,headerHozAlign:"center"},
-          {title:"Currency", field:"currency_code",hozAlign:"center",width:90,headerHozAlign:"center"},
-          {title:"Total", field:"total_val",hozAlign:"center",width:120,headerHozAlign:"center", formatter: "money",
-    formatterParams: { symbol: "$",  precision: 2 }},
+          {title:"Warehouse",visible: getVisibility("warehouse_name", true), headerSort:false, field:"warehouse_name",hozAlign:"center",width:150,headerHozAlign:"center"},
+          {title:"Currency", visible: getVisibility("currency_code", true), headerSort:false, field:"currency_code",hozAlign:"center",width:90,headerHozAlign:"center"},
+          {title:"Total", visible: getVisibility("grand_total", true), field:"grand_total",hozAlign:"center",width:120,headerHozAlign:"center", formatter: "money",
+            formatterParams: { symbol: "$",  precision: 2 }},
+          {title:"Ordered QTY", visible: getVisibility("total_order_qty", true),field:"total_order_qty",hozAlign:"center",width:120,headerHozAlign:"right"},
+          {title:"Received QTY",visible: getVisibility("total_received_qty", true), field:"total_received_qty",hozAlign:"center",width:120,headerHozAlign:"right"},
           {title:"", width:70, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
               const po_id = cell.getRow().getData().po_id;
               const url = "{% url 'create_order' 0 %}".replace("0", po_id);
@@ -298,6 +459,7 @@ document.getElementById("main-action-btn").addEventListener("click", function(e)
     background-color: #ffffff;
 }
 </style>
+
 {% endblock %}
 
 {% endblock %}

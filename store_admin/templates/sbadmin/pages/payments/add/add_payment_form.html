@@ -34,19 +34,31 @@
           <div class="section-title">Order Information</div>
 
           <div class="form-group row mb-2">
-            <label class="col-sm-4 col-form-label">Vendor</label>
+            <label class="col-sm-4 col-form-label">Vendor <span class="text-danger">*</span></label>
             <div class="col-sm-8">
               <input type="hidden" id="vendor_id">
               <div class="position-relative w-75">
+                  <input type="text" style="display:none">
                 <input type="text"
                        id="vendorSearch"
                        class="form-control"
+                       autocomplete="off"
                        placeholder="Search Vendor">
                 <div id="suggestionsBox"
                      class="list-group position-absolute w-100"
                      style="z-index:1000;display:none;">
                 </div>
               </div>
+            </div>
+          </div>
+
+
+            <div class="form-group row clearfix mb-2 mt-2">
+            <label class="col-sm-4 col-form-label">Bills <span class="text-danger">*</span></label>
+            <div class="col-sm-8">
+              <select class="form-control form-control-sm w-75 select2"  id="bills_select">
+                <option value="">select</option>
+              </select>
             </div>
           </div>
 
@@ -63,33 +75,33 @@
           </div>
 
           	<div class="form-group row mb-2">
-                <label class="col-sm-4 col-form-label">Payment #</label>
+                <label class="col-sm-4 col-form-label">Payment # <span class="text-danger">*</span></label>
                 <div class="col-sm-8">
                     <input type="text" value="" name="payment_no" id="payment_no" class="form-control form-control-sm w-75 " />
                 </div>
             </div>
             <hr/>
             <div class="form-group row ">
-                <label class="col-sm-4 col-form-label"> Payment Made</label>
+                <label class="col-sm-4 col-form-label"> Payment Made <span class="text-danger">*</span></label>
                 <div class="col-sm-8">
 
-                    <div class="input-group mb-3 w-75">
+                    <div class="input-group mb-3 w-50">
                   <div class="input-group-prepend">
                     <span class="input-group-text vendor_currency">AUD</span>
                   </div>
-                  <input id="payment_made_amount" type="text" class="form-control w-75 " placeholder="">
+                  <input id="payment_made_amount" type="text" class="form-control w-50" placeholder="">
                 </div>
                 </div>
             </div>
           <div class="form-group row ">
                 <label class="col-sm-4 col-form-label">Bank Charges (if any)</label>
                 <div class="col-sm-8">
-                    <input type="text"  value="" name="bank_charges" id="bank_charges" class="form-control form-control-sm w-75 " />
+                    <input type="number"  value="0" name="bank_charges" id="bank_charges" class="w-25 form-control form-control-sm " />
                 </div>
             </div>
             <hr/>
             <div class="form-group row clearfix ">
-            <label class="col-sm-4 col-form-label">Payment Date</label>
+            <label class="col-sm-4 col-form-label">Payment Date <span class="text-danger">*</span></label>
             <div class="col-sm-8">
               <input type="date" id="payment_date" class="form-control w-75" />
             </div>
@@ -97,7 +109,7 @@
 
 
            <div class="form-group row clearfix mb-2">
-            <label class="col-sm-4 col-form-label">Payment Mode </label>
+            <label class="col-sm-4 col-form-label">Payment Mode  <span class="text-danger">*</span></label>
             <div class="col-sm-8">
               <select class="form-control w-75 seelct2" id="mode_of_payment">
                 <option value="">select</option>
@@ -112,7 +124,7 @@
           </div>
 
           <div class="form-group row clearfix mb-2">
-            <label class="col-sm-4 col-form-label">Paid Through </label>
+            <label class="col-sm-4 col-form-label">Paid Through  <span class="text-danger">*</span></label>
             <div class="col-sm-8">
                    <select class="select2 w-75 form-control"
                       id="paid_through" name="paid_through" >
@@ -152,13 +164,13 @@
             </div>
           </div>
           <div class="form-group row ">
-            <label class="col-sm-4 col-form-label">Reference Number</label>
+            <label class="col-sm-4 col-form-label">Reference Number <span class="text-danger">*</span></label>
             <div class="col-sm-6">
               <input type="text"
-                     id="payment_recieve_number"
-                     name="payment_recieve_number"
+                     id="payment_receive_number"
+                     name="payment_receive_number"
                      class="form-control"
-                     placeholder="Receieved #"
+                     placeholder="Received #"
                      value="">
             </div>
           </div>
@@ -208,18 +220,6 @@
     <div class="row">
       <div class="col-md-8">
         <div class="card-section ">
-            <div class="form-group row clearfix mb-2 col-6">
-            <label class="col-sm-4 col-form-label">Bills </label>
-            <div class="col-sm-8">
-              <select class="form-control form-control-sm w-75 select2"  id="bills_select">
-                <option value="">select</option>
-              </select>
-            </div>
-          </div>
-
-
-          <div class="section-title"></div>
-
           <div class="table-responsive">
             <table class="table table-bordered table-striped w-100 tbl-line-item">
               <thead class="thead">
@@ -507,9 +507,13 @@ $("#bills_select").on("select2:select", function (e) {
                 payment_line_item.innerHTML = "";
                 return;
             }
-            console.log("Length "+line_items.length)
+
             let html_tbl = "";
             line_items.forEach(item => {
+                $("#payment_made_amount").val(item.amount_due)
+                $("#payment_no").val(item.payment_no)
+                $("#payment_date").val(item.payment_created)
+                $("#payment_receive_number").val(item.payment_ref_no)
                 html_tbl += `
                     <tr>
                         <td>${item.bill_date}</td>
@@ -517,17 +521,17 @@ $("#bills_select").on("select2:select", function (e) {
                         <td class="text-center">${item.bill_no || "-"}</td>
                         <td class="text-center">${item.location}</td>
                         <td class="text-right">${formatAUD(item.bill_amount)}</td>
-                        <td class="text-right">${formatAUD(item.bill_amount)}</td>
+                        <td class="text-right">${formatAUD(item.amount_due)}</td>
                         <td class="text-right">
                             <input type="date" style="width:110px" value="${item.payment_created}"
-                                   class="form-control form-control-sm" />
+                                   class="form-control form-control-sm payment_created" />
                         </td>
                         <td>
                             <input type="number" style="width:120px"
-                                   class="form-control form-control-sm po-item-qty"
+                                   class="form-control help-text form-control-sm po-item-qty"
                                    min="0"
-                                   value="0"
-                                   max="${Number(item.bill_amount) || 0}">
+                                   value="0" title="You can pay <= ${formatAUD(item.amount_due)}"
+                                   max="${Number(item.amount_due) || 0}">
                         </td>
                     </tr> `;
             });
@@ -543,13 +547,123 @@ function getCSRFToken() {
 </script>
 
 <script>
+function focusError($el) {
+    if (!$el || !$el.length) return;
+    $("html, body").animate(
+        { scrollTop: $el.offset().top - 120 },
+        300
+    );
+    $el.focus();
+}
+
     //action submit form
  $("#btn_bill_create").on("click", function () {
     // basic validation
-    if ($(".po-item-qty.is-invalid").length > 0) {
+    /* =========================
+       LINE ITEM INVALID CHECK
+    ========================= */
+    const $invalidQty = $(".po-item-qty.is-invalid").first();
+    if ($invalidQty.length) {
         toastr.error("Please fix invalid payment amounts");
+        focusError($invalidQty);
         return;
     }
+
+    /* =========================
+       REQUIRED HEADER FIELDS
+    ========================= */
+    const $vendorId = $("#vendor_id");
+    if (!$vendorId.val()) {
+        toastr.error("Please select a vendor");
+        focusError($("#vendorSearch"));
+        return;
+    }
+
+    const $billSelect = $("#bills_select");
+    if (!$billSelect.val()) {
+        toastr.error("Please select a bill");
+        focusError($billSelect);
+        return;
+    }
+
+    const $location = $("#location");
+    if (!$location.val()) {
+        toastr.error("Please select a location");
+        focusError($location);
+        return;
+    }
+
+    const $paymentNo = $("#payment_no");
+    if (!$paymentNo.val().trim()) {
+        toastr.error("Payment number is required");
+        focusError($paymentNo);
+        return;
+    }
+
+    const $paymentDate = $("#payment_date");
+    if (!$paymentDate.val()) {
+        toastr.error("Payment date is required");
+        focusError($paymentDate);
+        return;
+    }
+
+    const $mode = $("#mode_of_payment");
+    if (!$mode.val()) {
+        toastr.error("Please select payment mode");
+        focusError($mode);
+        return;
+    }
+
+    const $paidThrough = $("#paid_through");
+    if (!$paidThrough.val()) {
+        toastr.error("Please select paid through");
+        focusError($paidThrough);
+        return;
+    }
+
+    const $paymentAmount = $("#payment_made_amount");
+    const paymentAmountVal = parseFloat($paymentAmount.val());
+    if (!paymentAmountVal || paymentAmountVal <= 0) {
+        toastr.error("Payment made amount must be greater than 0");
+        focusError($paymentAmount);
+        return;
+    }
+
+    const $bankCharges = $("#bank_charges");
+    const bankChargesVal = parseFloat($bankCharges.val() || 0);
+    if (bankChargesVal < 0) {
+        toastr.error("Bank charges cannot be negative");
+        focusError($bankCharges);
+        return;
+    }
+
+    const $cardNo = $("#card_number");
+    if ($mode.val() === "Credit Card" && !$cardNo.val().trim()) {
+        toastr.error("Card number is required for credit card payments");
+        focusError($cardNo);
+        return;
+    }
+
+    /* =========================
+       LINE ITEM REQUIRED CHECK
+    ========================= */
+    let hasPayment = false;
+
+    $("#payment_line_item tr").each(function () {
+        const amt = parseFloat($(this).find(".po-item-qty").val());
+        if (amt && amt > 0) hasPayment = true;
+    });
+
+    if (!hasPayment) {
+        toastr.error("Please enter payment amount for at least one bill");
+        focusError($(".po-item-qty").first());
+        return;
+    }
+
+    /* =========================
+        ALL REQUIRED FIELDS OK
+    ========================= */
+
     const formData = new FormData();
     /* =========================
        BASIC PAYMENT FIELDS
@@ -563,7 +677,7 @@ function getCSRFToken() {
     formData.append("payment_made_amount", $("#payment_made_amount").val());
     formData.append("bank_charges", $("#bank_charges").val());
     formData.append("card_number", $("#card_number").val());
-    formData.append("payment_recieve_number", $("#payment_recieve_number").val());
+    formData.append("payment_receive_number", $("#payment_receive_number").val());
     formData.append("comments", $("#comments").val());
     formData.append("deduct_tds", $("#deduct_tds").is(":checked") ? 1 : 0);
 
@@ -581,10 +695,9 @@ function getCSRFToken() {
 
         formData.append(`items[${index}][bill_id]`, $("#bills_select").val());
         formData.append(`items[${index}][payment_amount]`, paymentAmount);
-
+        formData.append(`items[${index}][payment_created]`, $row.find(".payment_created").val());
         // optional fields if you later add data-attrs
         // formData.append(`items[${index}][withheld]`, ...);
-        // formData.append(`items[${index}][payment_created]`, ...);
     });
 
     /* =========================
@@ -597,7 +710,9 @@ function getCSRFToken() {
     /* =========================
        AJAX SUBMIT
     ========================= */
-   fetch("{% url 'save_purchase_payment' %}", {
+    const $btn = $(this);
+    $btn.prop("disabled", true);
+    fetch("{% url 'save_purchase_payment' %}", {
         method: "POST",
         headers: {
             "X-CSRFToken": getCSRFToken()
@@ -607,13 +722,18 @@ function getCSRFToken() {
     .then(res => res.json())
     .then(res => {
         if (res.status) {
+
             toastr.success("Payment recorded successfully");
-            // window.location.href = "..."; // optional redirect
+            setTimeout(function(){
+					window.location.href = "{% url 'payments_listing' %}"
+				}, 600);
         } else {
+            $btn.prop("disabled", false);
             toastr.error(res.message || "Failed to save payment");
         }
     })
     .catch(() => {
+        $btn.prop("disabled", false);
         toastr.error("Server error while saving payment");
     });
 });

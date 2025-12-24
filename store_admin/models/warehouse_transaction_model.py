@@ -9,7 +9,7 @@ class ProductWarehouse(models.Model):
     stock = models.PositiveIntegerField(default=0, db_column="stock")  # UNSIGNED INT
     stock_previous = models.PositiveIntegerField(default=0, db_column="stock_previous")
     created_by = models.IntegerField(null=True, blank=True, db_column="created_by")
-    created_at = models.DateTimeField(null=True, blank=True, db_column="created_at")
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, db_column="created_at")
 
     class Meta:
         db_table = "store_admin_product_warehouse"
@@ -25,7 +25,7 @@ class ProductWarehouseTransaction(models.Model):
     stock_after = models.PositiveIntegerField(db_column="stock_after")
     reference_note = models.CharField(max_length=200, null=True, blank=True, db_column="reference_note")
     created_by = models.IntegerField(null=True, blank=True, db_column="created_by")
-    created_at = models.DateTimeField(null=True, blank=True, db_column="created_at")
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True, db_column="created_at")
 
     class Meta:
         db_table = "store_admin_product_warehouse_transaction"

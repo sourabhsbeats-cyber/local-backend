@@ -117,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
           {
                 title: "Payment #",
                 field: "payment_no",
-                minWidth: 110,
+                width: 160,
                 headerHozAlign: "center",
                 hozAlign: "center",
                 formatter: function (cell) {
@@ -128,11 +128,18 @@ document.addEventListener("DOMContentLoaded", function () {
                     return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                 }
           },
-          {title:"Vendor Name", field:"vendor_name_val"},
-          {title:"Date of Payment", field:"payment_date", width:120, headerHozAlign:"center",
-              hozAlign:"center",},
+          {title:"Vendor Name", field:"vendor_name_val", hozAlign: "center" },
+          {title:"Date of Payment", field:"payment_date", width:140, headerHozAlign:"center",
+              hozAlign:"center",formatter:(cell)=>{
+              const payment_date = cell.getRow().getData().payment_date;
+              return formattedDate(payment_date);
+              }},
           {title:"PAYMENT MODE", field:"mode_of_payment", width:220},
-          {title:"PAID AMOUNT", field:"paid_amount_val" , hozAlign:"center", width:180},
+          {title:"PAID AMOUNT", field:"payment_made_amount" , hozAlign:"center", width:180,
+          formatter:(cell)=>{
+              const payment_made_amount = cell.getRow().getData().payment_made_amount;
+              return formatAUD(payment_made_amount);
+              }},
           {title:"", width:70, hozAlign:"center",headerHozAlign:"center", headerSort:false, formatter:(cell)=>{
               const id = cell.getRow().getData().id;
               const url = "{% url 'create_order' 0 %}".replace("0", id);

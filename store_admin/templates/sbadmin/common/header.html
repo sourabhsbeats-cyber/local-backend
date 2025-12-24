@@ -108,6 +108,20 @@
 $(function () {
     $('[data-toggle="tooltip"]').tooltip();
 });
+
+function formattedDate(v, segment = "/") {
+    if (!v) return "";
+
+    const d = new Date(v);
+    if (isNaN(d)) return "";
+
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const yyyy = d.getUTCFullYear();
+
+    return `${dd}${segment}${mm}${segment}${yyyy}`;
+}
+
 </script>
 
 <style>
@@ -174,4 +188,176 @@ body {
     .tabulator {
         background-color: #ffffff;
     }
+</style>
+<style>
+
+#tabuar-table .tabulator {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+/* ---------- Header ---------- */
+#tabuar-table .tabulator-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
+#tabuar-table .tabulator-col {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #212529;
+    border-right: 1px solid #e9ecef;
+}
+
+#tabuar-table .tabulator-col:last-child {
+    border-right: none;
+}
+
+/* ---------- Rows ---------- */
+#tabuar-table .tabulator-row {
+    border-bottom: 1px solid #e9ecef;
+}
+
+#tabuar-table .tabulator-row:hover {
+    background-color: #f6f8fb;
+}
+
+#tabuar-table .tabulator-row.tabulator-selected {
+    background-color: #e7f1ff;
+}
+
+/* ---------- Cells ---------- */
+#tabuar-table .tabulator-cell {
+    padding: 10px 12px;
+    vertical-align: middle;
+    border-right: 1px solid #f1f1f1;
+}
+
+#tabuar-table .tabulator-cell:last-child {
+    border-right: none;
+}
+
+/* ---------- Pagination ---------- */
+#tabuar-table .tabulator-footer {
+    background: #fafafa;
+    border-top: 1px solid #dee2e6;
+    padding: 6px 10px;
+}
+
+#tabuar-table .tabulator-paginator button {
+    border: 1px solid #dee2e6;
+    background: #fff;
+    color: #495057;
+    padding: 4px 10px;
+    margin: 0 2px;
+    border-radius: 4px;
+}
+
+#tabuar-table .tabulator-paginator button:hover {
+    background: #f1f3f5;
+}
+
+#tabuar-table .tabulator-page.active {
+    background: #0d1b2a;
+    color: #fff;
+    border-color: #0d1b2a;
+}
+
+/* ---------- Badges (Status) ---------- */
+.badge {
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 12px;
+}
+
+.badge-success {
+    background-color: #28a745;
+}
+
+.badge-danger {
+    background-color: #dc3545;
+}
+
+.badge-info {
+    background-color: #17a2b8;
+}
+
+/* ---------- Action Buttons ---------- */
+#tabuar-table .btn {
+    padding: 4px 8px;
+    line-height: 1;
+}
+
+#tabuar-table .btn-outline-danger {
+    border-color: #dc3545;
+    color: #dc3545;
+}
+
+#tabuar-table .btn-outline-danger:hover {
+    background: #dc3545;
+    color: #fff;
+}
+
+/* ---------- Checkbox Column ---------- */
+#tabuar-table .tabulator-col.tabulator-row-selection,
+#tabuar-table .tabulator-cell.tabulator-row-selection {
+    text-align: center;
+}
+#tabuar-table .tabulator-header {
+    min-height: 35px;     /* adjust */
+}
+
+/* Individual header cells */
+/* ===== TABULATOR HEADER CLEAN FIX ===== */
+
+#tabuar-table .tabulator-header {
+    background: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+    min-height: 42px;
+}
+
+/* Header cell */
+#tabuar-table .tabulator-col {
+    height: 40px;
+    padding: 0;
+    border-right: 1px solid #e9ecef;
+}
+
+/* Header content wrapper */
+#tabuar-table .tabulator-col-content {
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;   /* comment this if you want left aligned */
+    padding: 0 12px;
+}
+
+/* Header text */
+#tabuar-table .tabulator-col-title {
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* Sort arrows alignment */
+#tabuar-table .tabulator-arrow {
+    margin-left: 6px;
+    border-width: 5px;
+    opacity: 0.5;
+}
+
+/* Active sort arrow */
+#tabuar-table .tabulator-col.tabulator-sortable.tabulator-col-sorter-active
+.tabulator-arrow {
+    opacity: 1;
+}
+
+/* Remove weird spacing on checkbox column */
+#tabuar-table .tabulator-col.tabulator-row-selection
+.tabulator-col-content {
+    justify-content: center;
+}
+.tabulator{ border:1px solid #e8e8e8 }
 </style>

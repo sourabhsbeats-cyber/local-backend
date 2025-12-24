@@ -67,7 +67,14 @@
           <div class="form-group row ">
             <label class="col-sm-4 col-form-label">Received Date</label>
             <div class="col-sm-3">
-              {{ po.received_date|date:'Y-m-d' }}
+              {{ po.received_date|date:'d-m-Y' }}
+            </div>
+          </div>
+
+          <div class="form-group row ">
+            <label class="col-sm-4 col-form-label">Shipping Date</label>
+            <div class="col-sm-3">
+              {{ po.shipping_date|date:'d-m-Y' }}
             </div>
           </div>
 

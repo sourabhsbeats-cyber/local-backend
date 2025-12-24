@@ -8,6 +8,8 @@ urlpatterns = [
     path('create/', purchase_orders_view.create_order, name='create_order'),
     path('create/<int:po_id>/', purchase_orders_view.create_order, name='create_order'),
     path('view/<int:po_id>', purchase_orders_view.view_po_order, name='view_po_order'),    # with ID → edit PO
+    path('approve_po_order/<int:po_id>', purchase_orders_view.approve_po_order, name='approve_po_order'),    # with ID → edit PO
+    #path('cancel_po_order/<int:po_id>', purchase_orders_view.cancel_po_order, name='cancel_po_order'),    # with ID → edit PO
     path('save', purchase_orders_view.save_po, name='save_po_order'),
     path('generatepdf', purchase_orders_view.generate_po_pdf, name='generate_po_order'),
     path('api/list_vendors_po', purchase_orders_view.get_vendors_po, name='api_get_vendors_po'),
@@ -44,7 +46,7 @@ urlpatterns = [
     #PO payments
     path('payments/listing', payments_view.payments_listing, name='payments_listing'),
     path('payments/createnew', payments_view.create_new_bill, name='create_payment'),
-    path('payments/savebill', payments_view.save_purchase_payment, name='save_purchase_payment'),
+    path('payments/capturepayment', payments_view.save_purchase_payment, name='save_purchase_payment'),
     path('payments/view/<int:payment_id>/', payments_view.view_purchase_payment, name='view_purchase_payment'),
 
     #Table listing JSON

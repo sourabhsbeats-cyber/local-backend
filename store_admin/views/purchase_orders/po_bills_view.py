@@ -1,4 +1,6 @@
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+
 from store_admin.helpers import name_validator, name_validator_none, reference_validator, date_validator, zip_validator, \
     get_prep_label
 from store_admin.models.payment_terms_model import PaymentTerm
@@ -7,7 +9,7 @@ from django.shortcuts import render, redirect
 from store_admin.models.po_models.po_models import (
     PurchaseBills,
     PurchaseBillItems,
-    PurchaseBillFiles
+    PurchaseBillFiles, PurchasePayments
 )
 
 from store_admin.models.po_models.po_models import PurchaseOrder, POBillingStatus, PurchaseOrderItem, PurchaseReceiveFiles, \
@@ -160,18 +162,20 @@ from django.db.models import Max
 @login_required
 def create_po_bill(request):
     vendors_list = Vendor.objects.all()
-    po_next = (PurchaseBills.objects.aggregate(max_id=Max("id")).get("max_id") or 0) + 1
+    po_next = (PurchaseBills.objects.aggregate(max_id=Max("bill_id")).get("max_id") or 0) + 1
     po_bill_number = f"POB{po_next:04d}"
-
+    warehouse_list = Warehouse.objects.filter(status__in=["Active"]).all()
     payment_terms = PaymentTerm.objects.all()
     context = {
         'vendors': vendors_list,
+        'warehouse_list': warehouse_list,
         'payment_terms': payment_terms,
         'po_bill_number': po_bill_number,
         'po_received_date': datetime.date.today()}
 
     return render(request, 'sbadmin/pages/bills/add/add_bill_form.html', context)
 
+#verified
 #list vendors Purchase receives by vendor id
 def get_vendors_ps(request, vendor_id):
     ps_receives = PurchaseReceives.objects.filter(vendor_id=vendor_id, is_billed=0).all()
@@ -201,24 +205,24 @@ def bills_listing(request):
 @login_required
 def vendor_bills_listing_json(request):
     vendor_id = request.GET.get("vendor_id")
-   # bill_no = request.GET.get("bill_no")
-    qs = PurchaseBills.objects.all().order_by("-id")
+    #bill_no = request.GET.get("bill_no")
+    qs = PurchaseBills.objects.filter(is_completed=0).all().order_by("-bill_id")
     if vendor_id:
         qs = qs.filter(vendor_id=vendor_id)
 
     data = []
     for bill in qs:
         items_count = PurchaseBillItems.objects.filter(
-            purchase_bill_id=bill.id
+            purchase_bill_id=bill.bill_id
         ).count()
 
         data.append({
-            "bill_id": bill.id,
+            "bill_id": bill.bill_id,
             "bill_no": bill.bill_no,
             "bill_order_number": bill.bill_order_number,
             "vendor_id": bill.vendor_id,
             "vendor_abn": bill.vendor_abn,
-            "warehouse": bill.warehouse,
+            "warehouse": bill.location,
             "bill_date": bill.bill_date,
             "due_date": bill.due_date,
             "status": bill.bill_status,
@@ -227,8 +231,12 @@ def vendor_bills_listing_json(request):
             "tax_total": float(bill.tax_total),
             "grand_total": float(bill.grand_total),
 
-            "shipping_charge": float(bill.shipping_charge),
-            "surcharge_total": float(bill.surcharge_total),
+            "bill_amount": float(bill.bill_amount),
+            "paid_amount": float(bill.paid_amount),
+            "pending_amount": float(bill.pending_amount),
+
+            "shipping_charge": 0, #float(bill.shipping_charge),
+            "surcharge_total": 0, #float(bill.surcharge_total),
 
             "items_count": items_count,
             "created_at": bill.created_at,
@@ -238,14 +246,34 @@ def vendor_bills_listing_json(request):
         "status": True,
         "data": data
     })
+import re
+def generate_next_payment_no():
+    last_payment = (
+        PurchasePayments.objects
+        .order_by("-id")
+        .values_list("payment_no", flat=True)
+        .first()
+    )
 
+    if not last_payment:
+        return "PAY-00001"
+
+    match = re.search(r"(\d+)$", last_payment)
+    if not match:
+        return "PAY-00001"
+
+    next_no = int(match.group(1)) + 1
+    return f"PAY-{next_no:05d}"
+
+#verified
 #listing_bill_line_items
 @login_required
 def listing_bill_line_items(request):
     bill_id = request.GET.get("bill_id")
-
-    po_bill = PurchaseBills.objects.filter(id=bill_id,is_archived=0, bill_status=0).first()
-    po_bill_line_items = PurchaseBillItems.objects.filter(purchase_bill_id=po_bill.id, is_archived=0).all()
+    po_bill = PurchaseBills.objects.filter(bill_id=bill_id, is_archived=0).first()
+    if po_bill is None:
+        raise Exception("Bill not found")
+    po_bill_line_items = PurchaseBillItems.objects.filter(purchase_bill_id=po_bill.bill_id, is_archived=0).all()
     ps_rx_items_data = []
 
     #for po_bill_line_item in po_bill_line_items:
@@ -253,19 +281,22 @@ def listing_bill_line_items(request):
         #purchase_order_item = PurchaseOrderItem.objects.filter(item_id=ps_rx_item.item_id).first()
 
     if po_bill:
-        warehouse_det = Warehouse.objects.filter(warehouse_id=po_bill.warehouse).first()
+        warehouse_det = Warehouse.objects.filter(is_default=1).first()
         if not warehouse_det:
             warehouse_det = Warehouse.objects.filter(is_default=1).first()
 
         ps_rx_items_data.append({
+            "payment_no":generate_next_payment_no(),
+            "payment_ref_no":po_bill.bill_no,
+            "payment_date_ref":timezone.now(),
             "bill_date":po_bill.bill_date,
             "due_date":po_bill.due_date,
             "bill_no": po_bill.bill_no, #bil po
             "bill_order_no": po_bill.bill_order_number, #PO Order Number
             "location": warehouse_det.warehouse_name,
             "bill_amount":po_bill.grand_total,
-            "amount_due":po_bill.grand_total, #for this bill pending duue paid
-            "amount_withheld":0.0, #vendors credit amount
+            "amount_due":po_bill.pending_amount, #for this bill pending due paid
+            #"amount_withheld":0.0, #vendors credit amount
             "payment_created":datetime.date.today(), #vendors credit amount
             #"item": ps_rx_item.status_id,
         })
@@ -276,7 +307,7 @@ def bills_listing_json(request):
     vendor_id = request.GET.get("vendor_id")
     bill_no = request.GET.get("bill_no")
 
-    qs = PurchaseBills.objects.all().order_by("-id")
+    qs = PurchaseBills.objects.all().order_by("-bill_id")
 
     if vendor_id:
         qs = qs.filter(vendor_id=vendor_id)
@@ -288,16 +319,21 @@ def bills_listing_json(request):
 
     for bill in qs:
         items_count = PurchaseBillItems.objects.filter(
-            purchase_bill_id=bill.id
+            purchase_bill_id=bill.bill_id
         ).count()
+        vendor_det = Vendor.objects.filter(id=bill.vendor_id).first()
+        warehouse_det = Warehouse.objects.filter(warehouse_id=bill.location).first()
 
         data.append({
-            "bill_id": bill.id,
+            "bill_id": bill.bill_id,
             "bill_no": bill.bill_no,
             "bill_order_number": bill.bill_order_number,
             "vendor_id": bill.vendor_id,
+            "vendor_name": vendor_det.company_name,
+            "vendor_display_name": vendor_det.display_name,
+            "warehouse_name": warehouse_det.warehouse_name if warehouse_det else "",
             "vendor_abn": bill.vendor_abn,
-            "warehouse": bill.warehouse,
+            "location": bill.location,
             "bill_date": bill.bill_date,
             "due_date": bill.due_date,
             "status": bill.bill_status,
@@ -306,8 +342,8 @@ def bills_listing_json(request):
             "tax_total": float(bill.tax_total),
             "grand_total": float(bill.grand_total),
 
-            "shipping_charge": float(bill.shipping_charge),
-            "surcharge_total": float(bill.surcharge_total),
+            "shipping_charge": 0, #float(bill.shipping_charge),
+            "surcharge_total": 0, #float(bill.surcharge_total),
 
             "items_count": items_count,
             "created_at": bill.created_at,
@@ -454,33 +490,50 @@ from django.db import transaction
 from decimal import Decimal
 
 
-
+#verified
 @api_view(["POST"])
 def save_po_bill(request):
     data = request.data
-    po_receive_id = None
     try:
         with transaction.atomic():
             # -----------------------------
             # INSERT BILL (PRIMARY)
             # -----------------------------
+            po_receive_id = data.get("items[0][po_receive_id]")
+
+            grand_total = Decimal(data.get("grand_total", 0))
+
             bill = PurchaseBills.objects.create(
                 vendor_id=data.get("vendor_id"),
                 vendor_abn=data.get("vendor_abn"),
-                warehouse=data.get("warehouse"),
+                location=data.get("warehouse"),
                 bill_no=data.get("bill_no"),
                 bill_order_number=data.get("bill_order_number"),
                 bill_date=data.get("bill_date"),
                 due_date=data.get("due_date"),
                 payment_term_id=data.get("payment_term_id"),
-                tax_percentage= 10.0 , #Decimal(data.get("tax_percentage", 0)),
-                bill_status=data.get("bill_status"),
+
+                tax_percentage=Decimal("10.00"),  # or from payload
                 billing_notes=data.get("billing_notes", ""),
+
                 sub_total=Decimal(data.get("sub_total", 0)),
                 tax_total=Decimal(data.get("tax_total", 0)),
-                grand_total=Decimal(data.get("grand_total", 0)),
-                shipping_charge=Decimal(data.get("shipping_charge", 0)),
-                surcharge_total=Decimal(data.get("surcharge_total", 0)),
+                grand_total=grand_total,
+
+                surcharge_amount=Decimal(data.get("surcharge_total", 0)),
+                surcharge_tax_total=Decimal(data.get("surcharge_tax_total", 0)),
+                discount_percentage=Decimal(data.get("discount_percentage", 0)),
+
+                #  ACCOUNTING FIELDS (CRITICAL)
+                bill_amount=grand_total,
+                paid_amount=Decimal("0.00"),
+                pending_amount=grand_total,
+                bill_status=POBillingStatus.CREATED,
+
+                po_receive_id=po_receive_id,
+                created_by=request.user.id,
+                updated_by=request.user.id,
+                is_completed=0
             )
 
             # -----------------------------
@@ -492,30 +545,44 @@ def save_po_bill(request):
 
                 po_item_id = data.get(f"{prefix}[po_item_id]")
                 if not po_item_id:
-                    break  # no more items
-                po_receive_id = data.get(f"{prefix}[po_receive_id]")
+                    break
+
+                received_qty = 0
+                po_rcvd_item = PurchaseReceivedItems.objects.filter(received_item_id=data.get(f"{prefix}[received_item_id]")).first()
+                if po_rcvd_item:
+                    received_qty = po_rcvd_item.received_qty
+
                 PurchaseBillItems.objects.create(
-                    purchase_bill_id=bill.id,
+                    purchase_bill_id=bill.bill_id,
                     product_id=data.get(f"{prefix}[product_id]"),
                     po_item_id=po_item_id,
                     po_receive_id=data.get(f"{prefix}[po_receive_id]"),
                     received_item_id=data.get(f"{prefix}[received_item_id]"),
-                    received_qty=int(data.get(f"{prefix}[received_qty]")),
+                    received_qty= received_qty, #int(data.get(f"{prefix}[received_qty]", 0)),
                     line_total=Decimal(data.get(f"{prefix}[line_total]", 0)),
-                    line_total_updated=Decimal(data.get(f"{prefix}[line_total_updated]", 0)),
+                    line_total_updated=Decimal(
+                        data.get(f"{prefix}[line_total_updated]", 0)
+                    ),
                 )
 
                 index += 1
 
             # -----------------------------
-            # 3INSERT FILES
+            # INSERT FILES
             # -----------------------------
             for file in request.FILES.getlist("files[]"):
                 PurchaseBillFiles.objects.create(
-                    purchase_bill_id=bill.id,
+                    purchase_bill_id=bill.bill_id,
                     file=file
                 )
-            po_receive = PurchaseReceives.objects.filter(po_receive_id=po_receive_id).first()
+
+            # -----------------------------
+            # MARK PO RECEIVE AS BILLED
+            # -----------------------------
+            po_receive = PurchaseReceives.objects.filter(
+                po_receive_id=po_receive_id
+            ).first()
+
             if po_receive:
                 po_receive.is_billed = 1
                 po_receive.save(update_fields=["is_billed"])
@@ -523,7 +590,7 @@ def save_po_bill(request):
             return Response({
                 "status": True,
                 "message": "Purchase Bill created successfully",
-                "bill_id": bill.id
+                "bill_id": bill.bill_id
             })
 
     except Exception as e:
@@ -532,19 +599,41 @@ def save_po_bill(request):
             "message": str(e)
         }, status=400)
 
+#verified
 from django.shortcuts import render, get_object_or_404
 @api_view(["GET"])
 def view_po_bill(request, bill_id):
-    bill = get_object_or_404(PurchaseBills, id=bill_id)
 
-    items = PurchaseBillItems.objects.filter(purchase_bill_id=bill.id)
-    files = PurchaseBillFiles.objects.filter(purchase_bill_id=bill.id)
+    bill = get_object_or_404(PurchaseBills, bill_id=bill_id)
 
+    items = PurchaseBillItems.objects.filter(purchase_bill_id=bill.bill_id)
+
+    product_ids = items.values_list('product_id', flat=True).distinct()
+
+    # 3. Fetch only those products from the Product table
+    # Replace 'ProductModel' with your actual product model name
+    products = Product.objects.filter(product_id__in=product_ids)
+
+
+    files = PurchaseBillFiles.objects.filter(purchase_bill_id=bill.bill_id)
+    warehouse_lists = Warehouse.objects.filter().all()
+    vendor_info = Vendor.objects.filter(id=bill.vendor_id).first()
+
+    if bill.discount_percentage is not None:
+        bill.discount_amount = (
+                (bill.sub_total+(bill.surcharge_amount+bill.surcharge_tax_total)) * Decimal(bill.discount_percentage) / Decimal("100")
+        )
+        bill.discount_amount = bill.discount_amount.quantize(Decimal("0.011"), rounding=ROUND_HALF_UP)
+
+    #bill.discount_amount = str(bill.surcharge_tax_total)
     context = {
         "bill": bill,
+        "warehouse_lists": warehouse_lists,
+        "products": products,
         "items": items,
+        "vendor_info": vendor_info,
         "files": files,
         "view_only": True,  #  flag for template
     }
 
-    return render(request, "sbadmin/pages/bills/view/view_po_receive.html", context)
+    return render(request, "sbadmin/pages/bills/view/view_po_bill.html", context)

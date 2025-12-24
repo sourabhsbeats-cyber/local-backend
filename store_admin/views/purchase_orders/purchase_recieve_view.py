@@ -27,9 +27,11 @@ from django.shortcuts import render, redirect
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 
-from store_admin.models.po_models.po_models import PurchaseOrder, POReceiveStatus, PurchaseOrderItem, PurchaseReceiveFiles, \
+from store_admin.models.po_models.po_models import PurchaseOrder, POReceiveStatus, PurchaseOrderItem, \
+    PurchaseReceiveFiles, \
     PurchaseReceivedItems, PurchaseReceives, PurchaseOrderShipping, PurchaseOrderVendor, PurchaseBills, \
-    PurchaseBillItems, PurchaseBillFiles, PurchasePayments, PurchasePaymentItems, PurchasePaymentFiles
+    PurchaseBillItems, PurchaseBillFiles, PurchasePayments, PurchasePaymentItems, PurchasePaymentFiles, VendorPayments, \
+    VendorPaymentAllocations, VendorCredits, VendorLedger
 from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails, \
     ProductStaticAttributes, ProductDynamicAttributes, ProductImages
 from store_admin.models.setting_model import Category, Brand, Manufacturer, AttributeDefinition, UnitOfMeasurements
@@ -86,7 +88,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from store_admin.views.libs.common import clean_percent
 from store_admin.views.serializers.product_serializers import ProductImageSerializer
 from store_admin.views.serializers.purchase_serializer import PurchaseReceiveSerializer
-
+import re
 #Verified
 #Add new Action - Save btn - 
 @api_view(["POST"])
@@ -110,6 +112,32 @@ def save_po_order_receive(request):
         data = request.data
         user_id = request.user.id
 
+        REQUIRED_FIELDS = ["product_id", "po_item_id", "received_qty"]
+        line_items = {}
+
+        # Pattern matches "items[0]", "items[1]", etc.
+        indices = {re.search(r"items\[(\d+)\]", k).group(1)
+                   for k in data.keys() if k.startswith("items[")}
+
+        for idx in indices:
+            # Check if all required keys exist for this specific index
+            missing = [f for f in REQUIRED_FIELDS if f"items[{idx}][{f}]" not in data]
+
+            if not missing:
+                # If all exist, extract them safely
+                line_items[idx] = {
+                    "product_id": data[f"items[{idx}][product_id]"],
+                    "po_item_id": data[f"items[{idx}][po_item_id]"],
+                    "received_qty": int(data.get(f"items[{idx}][received_qty]", 0))
+                }
+            else:
+                return JsonResponse({"status":False, "message": "Invalid Purchase Receive details"})
+
+        # 4. Final Check
+        if not line_items:
+            return JsonResponse({"status":False, "message": "Invalid Purchase Receive details"})
+
+        #return JsonResponse({"status": False, "message": "Invalid Purchase Receive details"})
         # ---------- BASIC DATA ----------
         serializer = PurchaseReceiveSerializer(data=data)
         serializer.is_valid(raise_exception=True)
@@ -118,6 +146,7 @@ def save_po_order_receive(request):
         po_number = serializer.validated_data["po_number"]
         po_receive_number = serializer.validated_data["po_receive_number"]
         received_date = serializer.validated_data["received_date"]
+        shipping_date = serializer.validated_data["shipping_date"]
         comments = serializer.validated_data.get("comments", "")
 
         po = PurchaseOrder.objects.filter(po_number=po_number).first()
@@ -134,12 +163,14 @@ def save_po_order_receive(request):
             po_number=po_number,
             po_receive_number=po_receive_number,
             received_date=received_date,
+            shipping_date=shipping_date,
             internal_ref_notes=comments,
             created_by=user_id
         )
 
         # ---------- LINE ITEMS ----------
         items_created = 0
+        received_qty = 0
         for key in data.keys():
             if not key.startswith("items[") or not key.endswith("][product_id]"):
                 continue
@@ -570,6 +601,7 @@ def all_purchases(request):
 @renderer_classes([JSONRenderer])
 def delete_po_receive(request, po_receive_id):
     try:
+        return JsonResponse({"status": False, "message": "Implemented soon!"})
         '''Check PR is linked with the next level order else dont delete - 
         instead archieve dont show in any listing'''
         obj = PurchaseReceives.objects.filter(po_receive_id=po_receive_id).first()
@@ -589,6 +621,7 @@ def delete_po_receive(request, po_receive_id):
 @renderer_classes([JSONRenderer])
 def delete_po_bill(request, bill_id):
     try:
+        return JsonResponse({"status": False, "message": "Implemented soon!"})
         '''Check PR is linked with the next level order else dont delete - 
                 instead archieve dont show in any listing'''
         obj = PurchaseBills.objects.filter(id=bill_id).first()
@@ -609,16 +642,131 @@ def delete_po_bill(request, bill_id):
 @renderer_classes([JSONRenderer])
 def delete_payment(request, payment_id):
     try:
-        '''Check PR is linked with the next level order else dont delete - 
-                instead archieve dont show in any listing'''
-        obj = PurchasePayments.objects.filter(id=payment_id).first()
-        if not obj:
-            return JsonResponse({"status": False, "message": "Details not found"})
+        return JsonResponse({"status":False, "message": "Implemented soon!"})
+        with transaction.atomic():
 
-        obj.delete()
-        PurchasePaymentItems.objects.filter(purchase_payment_id=payment_id).delete()
-        PurchasePaymentFiles.objects.filter(purchase_payment_id=payment_id).delete()
+            payment = PurchasePayments.objects.select_for_update().filter(
+                id=payment_id
+            ).first()
 
-        return JsonResponse({"status": True, "message": " deleted"})
+            if not payment:
+                return JsonResponse({
+                    "status": False,
+                    "message": "Payment not found"
+                })
+
+            # =====================================
+            # CASE 1: DRAFT → HARD DELETE (SAFE)
+            # =====================================
+            if payment.payment_status == 0:
+                PurchasePaymentItems.objects.filter(
+                    purchase_payment_id=payment_id
+                ).delete()
+
+                PurchasePaymentFiles.objects.filter(
+                    purchase_payment_id=payment_id
+                ).delete()
+
+                payment.delete()
+
+                return JsonResponse({
+                    "status": True,
+                    "message": "Draft payment deleted"
+                })
+
+            # =====================================
+            # CASE 2: COMPLETED → CANCEL (REVERSE)
+            # =====================================
+            if payment.payment_status == 1:
+
+                vendor_payment = VendorPayments.objects.select_for_update().filter(
+                    payment_no=payment.payment_no
+                ).first()
+
+                if not vendor_payment:
+                    return JsonResponse({
+                        "status": False,
+                        "message": "Vendor payment not found"
+                    })
+
+                # ---------------------------------
+                # Reverse bill allocations
+                # ---------------------------------
+                allocations = VendorPaymentAllocations.objects.filter(
+                    payment_id=vendor_payment.vendor_payment_id
+                )
+
+                for alloc in allocations:
+                    bill = PurchaseBills.objects.select_for_update().get(
+                        bill_id=alloc.bill_id
+                    )
+
+                    bill.paid_amount -= alloc.amount_applied
+                    if bill.paid_amount < 0:
+                        bill.paid_amount = Decimal("0.00")
+
+                    bill.pending_amount = bill.bill_amount - bill.paid_amount
+
+                    bill.bill_status = (
+                        0 if bill.paid_amount == 0 else 2
+                    )
+
+                    bill.save(update_fields=[
+                        "paid_amount",
+                        "pending_amount",
+                        "bill_status"
+                    ])
+
+                allocations.delete()
+
+                # ---------------------------------
+                # Reverse vendor credits (if any)
+                # ---------------------------------
+                credits = VendorCredits.objects.filter(
+                    source_type="OVERPAYMENT",
+                    source_id=vendor_payment.vendor_payment_id
+                )
+
+                for credit in credits:
+                    if credit.used_amount > 0:
+                        return JsonResponse({
+                            "status": False,
+                            "message": "Payment credit already used. Cannot delete."
+                        })
+                    credit.delete()
+
+                # ---------------------------------
+                # Remove ledger entries
+                # ---------------------------------
+                VendorLedger.objects.filter(
+                    reference_type__in=["PAYMENT", "CREDIT"],
+                    reference_id=vendor_payment.vendor_payment_id
+                ).delete()
+
+                # ---------------------------------
+                # Mark payment as cancelled
+                # ---------------------------------
+                payment.payment_status = 2  # Cancelled
+                payment.save(update_fields=["payment_status"])
+
+                # optional: archive instead of delete
+                vendor_payment.delete()
+
+                return JsonResponse({
+                    "status": True,
+                    "message": "Payment cancelled successfully"
+                })
+
+            # =====================================
+            # CASE 3: ALREADY CANCELLED
+            # =====================================
+            return JsonResponse({
+                "status": False,
+                "message": "Payment already cancelled"
+            })
+
     except Exception as e:
-        return JsonResponse({"status": False, "message": str(e)})
+        return JsonResponse({
+            "status": False,
+            "message": str(e)
+        }, status=400)

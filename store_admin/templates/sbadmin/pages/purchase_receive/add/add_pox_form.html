@@ -40,9 +40,10 @@
               <input type="hidden" id="vendor_id">
 
               <div class="position-relative w-75">
+                <input type="text" style="display:none">
                 <input type="text"
                        id="productSearch"
-                       class="form-control"
+                       class="form-control" autocomplete="off"
                        placeholder="Search Vendor">
 
                 <div id="suggestionsBox"
@@ -67,10 +68,10 @@
             <label class="col-sm-4 col-form-label">Purchase Receive#</label>
             <div class="col-sm-3">
               <input type="text"
-                     id="po_recieve_number"
-                     name="po_recieve_number"
+                     id="po_receive_number"
+                     name="po_receive_number"
                      class="form-control"
-                     placeholder="Receieved #"
+                     placeholder="Received #"
                      value="{{ po_receive_number }}">
             </div>
           </div>
@@ -79,8 +80,18 @@
             <label class="col-sm-4 col-form-label">Received Date</label>
             <div class="col-sm-3">
               <input type="date"
-                     id="po_recieved_date"
-                     name="po_recieved_date"
+                     id="po_received_date"
+                     name="po_received_date"
+                     class="form-control"
+                     value="{{ po_received_date|date:'Y-m-d' }}">
+            </div>
+          </div>
+          <div class="form-group row hide-opacity">
+            <label class="col-sm-4 col-form-label">Shipping Date</label>
+            <div class="col-sm-3">
+              <input type="date"
+                     id="po_shipping_date"
+                     name="po_shipping_date"
                      class="form-control"
                      value="{{ po_received_date|date:'Y-m-d' }}">
             </div>
@@ -214,50 +225,7 @@
     });
 </script>
 
- <style>
-  .po-tiny-label {
-        text-align:left;
-        font-size: 12px;
-        font-weight: 500;
-        margin: 0 0 2px 0;
-        padding: 0;
-        display: block;     /* keeps neat alignment */
-        line-height: 1;
-    }
-    .po-tiny-field {
-        display: inline-block;
-        vertical-align: middle;
-        margin: 0;
-        padding: 0;
-    }
-    .po-tiny-select {
-        float:left;
-        height: 28px !important;
-        font-size: 13px !important;
-        padding: 2px 6px !important;
-        border-radius: 4px !important;
-        border: 1px solid #c7c7c7 !important;
-        width: 100%;
-    }
-    .po-tiny-input {
-        height: 28px !important;
-        font-size: 13px;
-        padding: 2px 6px !important;
-        border-radius: 4px;
-        border: 1px solid #c7c7c7;
-        width: 130px;
-    }
-    .po-tiny-select:focus,
-    .po-tiny-input:focus {
-        border-color: #007bff !important;
-        outline: none !important;
-        box-shadow: 0 0 0 1px rgba(0,123,255,0.15);
-    }
-    .po-row .form-group {
-        margin-bottom: 4px !important;
-    }
-  
-</style>
+
 <style>
     .set-opacity { opacity:0.3;  pointer-events: none;   user-select: none;     }
 </style>
@@ -271,10 +239,10 @@ $(document).ready(function () {
         const query = $(this).val();
         const box = $("#suggestionsBox");
 
-        if (query.length < 2) {
+        /*if (query.length < 2) {
             box.hide();
             return;
-        }
+        }*/
 
         timer = setTimeout(() => {
             $.ajax({
@@ -355,7 +323,7 @@ function get_po_list(vendor_id){
                     list.forEach(item => {
                         const option = `
                             <option value="${item.po_number}">
-                               <span class="float-left text-strong"> ${item.po_number}</span><span class="text-small text-muted float-right"> (${item.order_date})
+                               <span class="float-left text-strong"> ${item.po_number}</span><span class="text-small text-muted float-right"> (Order Date: ${item.order_date})
                             </option>
                         `;
                         $select.append(option);
@@ -410,7 +378,7 @@ $("#purchase_order_number").on("select2:select", function (e) {
                 `;
             });
             products_line_item.innerHTML = html_tbl;
-            $(".hide-opacity").toggleClass("set-opacity");
+            $(".hide-opacity").removeClass("set-opacity");
         }
     });
 });
@@ -431,8 +399,9 @@ function getCSRFToken() {
     // ---- BASIC FIELDS ----
     formData.append("vendor_id", $("#vendor_id").val());
     formData.append("po_number", $("#purchase_order_number").val());
-    formData.append("po_receive_number", $("#po_recieve_number").val());
-    formData.append("received_date", $("#po_recieved_date").val());
+    formData.append("po_receive_number", $("#po_receive_number").val());
+    formData.append("received_date", $("#po_received_date").val());
+    formData.append("shipping_date", $("#po_shipping_date").val());
     formData.append("comments", $("#comments").val());
 
     // ---- LINE ITEMS ----
@@ -469,7 +438,6 @@ function getCSRFToken() {
     })
     .then(res => {
       if(res.status){
-        console.log(res)
         toastr.success(res?.message || "Purchase Receive created successfully");
         setTimeout(() => {
             window.location.href= "{% url 'po_order_receives' %}";

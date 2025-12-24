@@ -1,5 +1,5 @@
 {% extends "sbadmin/base.html" %}
-{% block title %}Add PO{% endblock %}
+{% block title %}View PO | {{ po.po_number }} {% endblock %}
 {% block content %}
 <style>
     #trackingLink{
@@ -192,6 +192,13 @@
     background: #f9fafb;
     border-color: #d6d9dd;
 }
+.link {
+    color:#007bff !important;
+border-bottom:1px solid #007bff !important;
+}
+.link:hover{
+    color:#0054ae !important;
+}
 </style>
 <div class="content-wrapper">
     <div class="content-header">
@@ -204,7 +211,7 @@
                                 <button class="back-btn" onclick="window.history.back()">
                                     <i class="fa fa-chevron-left"></i>
                                 </button>
-                                <h4 class="mb-0 font-weight-bold">Order #{{ po.po_number }}</h4>
+                                <h4 class="mb-0 font-weight-bold ml-2">Order # {{ po.po_number }}</h4>
                                 <span class="status-active ml-2">
                                     
                                     <span class="badge badge-pill badge-info">
@@ -244,9 +251,12 @@
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit </a>
                                         <a class="dropdown-item" onclick="deletePO('{{  po.po_id }}')" href="#">Delete</a>
-                                        <!--<a class="dropdown-item" href="#">Something else</a>
-                                        <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item" href="#">Separated link</a>-->
+                                        {% if po.status_id == 0 %}
+                                        <a title="Only New PO Orders can be approved" class="help-text dropdown-item" onclick="approvePO('{{  po.po_id }}')" href="#">Approve</a>
+                                        {% endif %}
+                                      <div class="dropdown-divider"></div>
+                                        <a class="dropdown-item" href="{% url 'create_order' %}">New PO</a>
+
                                     </div>
                                 </div>
 
@@ -257,8 +267,8 @@
 
                                     <div class="dropdown-menu dropdown-menu-right">
                                         <a class="dropdown-item" target="_blank" href="{% url 'create_order' po.po_id %}">Print</a>
-                                       <!-- <a class="dropdown-item" href="#">Another Action</a> 
-                                        <div class="dropdown-divider"></div>
+                                       <a class="dropdown-item" href="{% url 'create_po_order_receive' %}">New PO Receive</a>
+                                       <!--  <div class="dropdown-divider"></div>
                                         <a class="dropdown-item" href="#">Separated link</a> -->
                                     </div>
                                 </div>
@@ -267,7 +277,7 @@
                         <div class="row mt-3">
                             <div class="col-sm-6">
                                 <div style="font-size:14px;">
-                                    <span class="text-muted">Created by</span> Admin
+                                    <span class="text-muted">Created by</span> {{ created_by }}
                                     <i class="fa fa-circle text-secondary ml-1" style="font-size:6px;"></i>
                                     <i class="fa fa-box ml-2 mr-1 text-secondary"></i> <span id="total_products"></span>
                                 </div>
@@ -318,8 +328,8 @@
                                       <span id="trackingRef"><b>Tracking :</b> {% if shipping.tracking_number == "" %}
                                         {% else %} {% for provider in shipping_providers %}
                                                         {% if shipping.provider|slugify == provider.carrier_id|slugify %}
-                                                            <a class="link btn-link" href="{{ provider.tracking_url|cut:'{0}' }}{{ shipping.tracking_number }}" target="_blank">
-                                                                Track Shipping
+                                                            <a  class="link btn-link help-text" title="Tracking Link: {{ provider.tracking_url|cut:'{0}' }}{{ shipping.tracking_number }}"  href="{{ provider.tracking_url|cut:'{0}' }}{{ shipping.tracking_number }}" target="_blank">
+                                                                {{ shipping.tracking_number }}
                                                             </a>
                                                         {% endif %}
                                                     {% endfor %}
@@ -394,7 +404,7 @@
                             <ul class="nav nav-pills">
                               <li class="nav-item"><a class="nav-link active" href="#activity" data-toggle="tab">Payments</a></li>
                               <li class="nav-item"><a class="nav-link" href="#timeline" data-toggle="tab">Notes</a></li>
-
+							  <li class="nav-item"><a class="nav-link" href="#pologs" data-toggle="tab">Logs</a></li>
                             </ul>
                           </div><!-- /.card-header -->
                           <div class="card-body">
@@ -411,24 +421,13 @@
                             <span class="badge badge-pill status-pill ml-1">Unpaid</span>
                         </div>
                         <!-- INVOICE -->
-                        <div class="mb-3 pb-3 border-bottom">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="fa fa-file-invoice text-secondary mr-2"></i>
-                                <span class="font-weight-bold">Invoice</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">INV-001</span>
-                                <span class="text-dark font-weight-bold" id="po_out_standing_invoice">$600.00</span>
-                            </div>
-                        </div>
                         <!--
                         <div class="mb-3 pb-3 border-bottom">
                         <div class="d-flex align-items-center mb-2">
                                 <i class="fa fa-wallet text-secondary mr-2"></i>
                                 <span class="font-weight-bold">Payment Receive</span>
                                 <span class="badge badge-light ml-2">1</span>
-                            </div> 
+                            </div>
                             <div class="d-flex justify-content-between mb-1">
                                 <div>
                                     <span class="font-weight-bold">#1</span>
@@ -452,23 +451,26 @@
                         </div>
                         <!-- BUTTON -->
                         <div class="dropdown">
-                            <button class="btn btn-success btn-block dropdown-toggle"
+                            <button class="btn btn-success btn-block"
                                     type="button"
                                     data-toggle="dropdown">
                                 Record Payment
                             </button>
 
-                            <div class="dropdown-menu w-100">
-                                <a class="dropdown-item" href="#">Add Payment</a>
-                                <a class="dropdown-item" href="#">Refund</a>
-                            </div>
                         </div>
                         </div>
                         </div>
                         </div>
                         </div>
+
+
                         <div class="tab-pane" id="timeline">
                             {{ po.comments|default:"--" }}
+                        </div>
+						 <div class="tab-pane " id="pologs">
+                                <!-- Post -->
+                        {{ po_logs|safe }}
+
                         </div>
                                 </div>
                             </div>
@@ -487,8 +489,9 @@
                                         <th style="width:40%;">ITEM DETAILS</th>
                                         <th style="width:10%;" class="text-center">ORDER TYPE</th>
                                         <th style="width:100px;" class="text-center">ORDER REF</th>
-                                        <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>
+
                                         <th style="width:9%;" class="text-center">QUANTITY</th>
+                                           <!-- <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>-->
                                         <th style="width:10%;" class="text-center">RATE</th>
                                         <th style="width:10%;" class="text-center">TOTAL PRICE</th>
                                         <th style="width:10%;" class="text-center">DISCOUNT</th>
@@ -503,6 +506,46 @@
                             </table>
                             
                         </div>
+                        <style>
+    /* 1. Set a fixed height and enable scrolling on the wrapper */
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
+    }
+
+    /* 2. Make the header stick to the top of the wrapper */
+    .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa; /* Must have a background to hide rows sliding behind it */
+        z-index: 10;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    /* 3. Ensure the table layout remains stable */
+    .table {
+        border-collapse: separate; /* Required for sticky borders to work correctly */
+        border-spacing: 0;
+        width: 100%;
+    }
+    #product_line_item td {
+    padding: 12px 8px; /* Vertical | Horizontal padding */
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+    border-right: 1px solid #f1f1f1; /* Optional: adds subtle vertical separation */
+}
+
+/* Ensure the last column doesn't have a right border */
+#product_line_item td:last-child {
+    border-right: none;
+}
+
+/* Maintain alignment for header and body */
+.table th, .table td {
+    box-sizing: border-box;
+}
+</style>
                         <table class="summary-box float-right" style="width: 300px;">
                                 <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
                                 <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
@@ -522,45 +565,84 @@
  {% csrf_token %}
  
 <script>
+function approvePO(poId){
+    event.stopPropagation();
+    event.preventDefault();
+    Swal.fire({
+        title: "Approve PO?",
+        text: "This action cannot be undone.",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Approve"
+    }).then(result => {
+        if (!result.value) return;
+        if (result.value) {
+            // Note: Ensure this URL matches your urls.py pattern perfectly
+            fetch("{% url 'approve_po_order' 0 %}".replace("0",poId), {
+                method: "POST",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Accept": "application/json"
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status){
+                    Swal.fire({
+                        title: "Approved",
+                        text: data.message,
+                        icon: "success",
+                        confirmButtonText: "OK"
+                    }).then(() => {
+                        window.location.href = "{% url 'po_listing' %}";
+                    });
+                } else {
+                    Swal.fire("Error", data.message || "Something went wrong", "error");
+                }
+            })
+            .catch(() => Swal.fire("Error", "Server error", "error"));
+        }
+    });
+}
 function deletePO(poId){
-     event.stopPropagation();
-          event.preventDefault();
-          Swal.fire({
-            title: "Delete PO?",
-            text: "This action cannot be undone.",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonColor: "#d33",
-            confirmButtonText: "Delete"
-        }).then(result => {
-            if (!result.value) return;
-            if (result.value) {
-                // Note: Ensure this URL matches your urls.py pattern perfectly
-                fetch("{% url 'delete_po_single' 0 %}".replace("0",poId), {
-                    method: "DELETE",
-                    headers: {
-                        "X-CSRFToken": "{{ csrf_token }}",
-                        "Accept": "application/json"
-                    }
-                })
-                .then(r => r.json())
-                .then(data => {
-                    if(data.status){
-                        Swal.fire({
-                            title: "Deleted",
-                            text: "PO removed successfully",
-                            icon: "success",
-                            confirmButtonText: "OK"
-                        }).then(() => {
-                            window.location.href = "{% url 'po_listing' %}";
-                        });
-                    } else {
-                        Swal.fire("Error", data.message || "Something went wrong", "error");
-                    }
-                })
-                .catch(() => Swal.fire("Error", "Server error", "error"));
-            }
-        });
+    event.stopPropagation();
+    event.preventDefault();
+    Swal.fire({
+        title: "Delete PO?",
+        text: "This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        confirmButtonText: "Delete"
+    }).then(result => {
+        if (!result.value) return;
+        if (result.value) {
+            // Note: Ensure this URL matches your urls.py pattern perfectly
+            fetch("{% url 'delete_po_single' 0 %}".replace("0",poId), {
+                method: "DELETE",
+                headers: {
+                    "X-CSRFToken": "{{ csrf_token }}",
+                    "Accept": "application/json"
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if(data.status){
+                    Swal.fire({
+                        title: "Deleted",
+                        text: "PO removed successfully",
+                        icon: "success",
+                        confirmButtonText: "OK"
+                    }).then(() => {
+                        window.location.href = "{% url 'po_listing' %}";
+                    });
+                } else {
+                    Swal.fire("Error", data.message || "Something went wrong", "error");
+                }
+            })
+            .catch(() => Swal.fire("Error", "Server error", "error"));
+        }
+    });
 }
 
 function copyTrackingRef(ref) {
@@ -573,7 +655,7 @@ function copyTrackingRef(ref) {
     });
 }
 </script>
-                                <script>
+<script>
 document.addEventListener("DOMContentLoaded", function () {
 
     let name = "{{ po.vendor_name|default:'' }}";
@@ -584,10 +666,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("avatarBox").innerText = first;
 });
 </script>
-
-
 <script>
-
 document.addEventListener("DOMContentLoaded", function () {
     function getCSRFToken() {
         return document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -639,7 +718,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 </script>
-
 <script>
     document.querySelectorAll('.help-text').forEach(function (el) {
     new bootstrap.Tooltip(el);
@@ -678,7 +756,7 @@ function renderLineItems() {
     lineItems.forEach((item, index) => {
         html += `
         <tr data-index="${index}" class="po-line-row">
-            <td class="align-middle pl-0 pr-0">
+            <td class="align-middle pl-3 pr-2">
             <div class="font-weight-bold mb-1" style="font-size:13px;line-height:14px;">${item.row_item.title} </div>
                 <div class="d-flex align-items-center">
                     <img src="${item.row_item.image}" width="28" height="28" class="rounded border mr-2">
@@ -691,7 +769,7 @@ function renderLineItems() {
             </td>
             <td class="align-middle text-center">${item.row_item.order_type || "--"}</td>
             <td class="align-middle text-center" style="overflow:hidden;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word;">${item.row_item.order_ref || "--"}</td>
-            <td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>
+           <!-- <td class="align-middle text-center">${item.row_item.barcode_label_type || "--"}</td>-->
             <td class=" qty align-middle text-decoration-dotted text-right">${item.qty}</td>
             <td class="price align-middle text-decoration-dotted text-right">${formatAUD(item.price)}</td>
             <td class="price align-middle text-decoration-dotted text-right">${formatAUD(item.price*item.qty)}</td>
@@ -703,7 +781,7 @@ function renderLineItems() {
             <td id="line_total_${index}" class="align-middle text-right">${formatAUD(item.line_total.toFixed(2))}</td>
         </tr>`;
     });
-    html += `<tr><td colspan="4" class="align-middle text-center border-0"></td>
+    html += `<tr><td colspan="3" class="align-middle text-center border-0"></td>
     <td id="qty_total_td" class="align-middle text-right">0</td>
     <td class="align-middle text-right"></td>
     <td id="price_total_td" class="align-middle text-right">0.00</td>
