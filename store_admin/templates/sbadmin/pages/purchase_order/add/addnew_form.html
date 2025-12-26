@@ -730,13 +730,40 @@ $(document).on("click", "#btn_add_line_item", function () {
         toastr.error("Invalid option");
         return;
     }
+    const qty_inp = $("#row_qty").val().trim();
+    if (!/^\d+$/.test(qty_inp)) {
+        toastr.error("Quantity must be an integer");
+        return;
+    }
+    if(qty_inp<=0){
+        toastr.error("Invalid quantity");
+        return;
+    }
+    const price_inp = $("#row_price").val().trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(price_inp)) {
+        toastr.error("Price must be a valid number");
+        return;
+    }
+     if(price_inp<=0){
+        toastr.error("Invalid Price");
+        return;
+    }
+    const disc_inp = $("#row_discount_percentage").val().trim();
+    if (!/^\d+(\.\d{1,2})?$/.test(disc_inp)) {
+        toastr.error("Discount must be a valid number");
+        return;
+    }
+    if(disc_inp<0 || disc_inp>100){
+        toastr.error("Invalid Discount");
+        return;
+    }
     let global_tax_value = parseFloat($("#tax_percentage").val()) || 0;
-    const qty = parseFloat($("#row_qty").val()) || 0;
+    const qty = parseInt(qty_inp) || 0;
     const price = parseFloat($("#row_price").val()) || 0;
     const discount = clampPercentage($("#row_discount_percentage").val());
     const tax = clampPercentage($("#row_tax_percentage").val()) || global_tax_value;
     const row_item = JSON.parse(row_det);
-    
+
     // Prevent duplicates
     if (lineItems.some(detail => detail.row_item.id === row_item.id)) {
         toastr.error("Product already added");
@@ -746,16 +773,16 @@ $(document).on("click", "#btn_add_line_item", function () {
     // ------------------------------
     // CALCULATIONS
     // ------------------------------
-    let sub_total = qty * price;               // base
-    sub_total -= sub_total * (discount / 100); // discount applied
+    let sub_total = round2(qty * price);               // base
+    sub_total  = round2(sub_total - (sub_total * (discount / 100))); // discount applied
 
-    let tax_amount = sub_total * (tax / 100);  // tax value in rupees
+    let tax_amount = round2(sub_total * (tax / 100));  // tax value in rupees
     //Apply tax excempt
     if(row_item.is_taxfree){
         tax_amount = 0.0
     }
 
-    let line_total = sub_total + tax_amount;   // final
+    let line_total = round2(sub_total + tax_amount);   // final
 
     // ------------------------------
     // ADD ITEM TO ARRAY
@@ -881,8 +908,6 @@ $(document).on("blur", ".edit-field", function () {
     const td = input.closest("td");
     const index = td.closest("tr").data("index");
     const item = lineItems[index];
-    console.log(item.row_item)
-    console.log(item.row_item.is_taxfree)
     let newVal = parseFloat(input.val());
     if (isNaN(newVal)) newVal = 0;
 
@@ -930,28 +955,31 @@ $(document).on("blur", ".edit-field", function () {
     // -----------------------------------
     // RE-CALCULATE TOTALS
     // -----------------------------------
-    let sub_total = item.qty * item.price;
-    sub_total -= sub_total * (item.discount / 100);
+    let sub_total = round2(item.qty * item.price);
+    sub_total = round2(sub_total - (sub_total * (item.discount / 100)));
 
-    let tax_total = sub_total * (item.tax / 100);
+    let tax_total = round2(sub_total * (item.tax / 100));
     if(item.row_item.is_taxfree)
         tax_total = 0.0
 
-    let line_total = sub_total + tax_total;
+    let line_total =  round2(sub_total + tax_total);
 
     // Update array values
     item.sub_total = sub_total;   // before tax
     item.tax_total = tax_total;   // only tax amount
+    item.tax_amount = tax_total;
     item.line_total = line_total; // final row total
     // Update UI
     $(`#sub_total_${index}`).text(sub_total.toFixed(2));
-    $(`#tax_amount_${index}`).text(tax_total.toFixed(2));
-    $(`#line_total_${index}`).text(line_total.toFixed(2));
+    $(`#tax_amount_${index}`).text(round2(tax_total).toFixed(2));
+    $(`#line_total_${index}`).text(round2(line_total).toFixed(2));
     td.text(newVal);
 
     updatePOTotals();
 });
-
+function round2(v) {
+    return Math.round((Number(v) + Number.EPSILON) * 100) / 100;
+}
 // DELETE LINE ITEM
 $(document).on("click", ".delete-item", function () {
     lineItems.splice($(this).data("index"), 1);
@@ -964,52 +992,88 @@ $(document).on("click", ".delete-item", function () {
 // TOTALS
 // -----------------------------------------------
 function updatePOTotals() {
+    // Helper → strict 2-decimal rounding
+    const r2 = (v) => round2(v);
+
     if (!lineItems || lineItems.length === 0) {
-        $("#po_sub_total").text("$0.00");
-        $("#po_tax_total").text("$0.00");
-        $("#po_total").text("$0.00");
+        $("#po_sub_total").text(formatAUD(0));
+        $("#po_tax_total").text(formatAUD(0));
+        $("#po_total").text(formatAUD(0));
+        $("#line_item_count").text("Total Products: 0");
         return;
     }
-    const surcharge_total = parseFloat($("#surcharge_value").val()) || 0; //fething from global config
-    const shipping_total = parseFloat($("#shipping_value").val()) || 0;//fething from global config
-    const tax_percentage = parseFloat($("#tax_percentage").val()) || 0;//fething from global config
+
+    const shipping = r2($("#shipping_value").val());
+    const surcharge = r2($("#surcharge_value").val());
+    const headerTaxPct = r2($("#tax_percentage").val());
 
     let subtotal = 0;
-    let total_qty = 0;
+    let totalTax = 0;
+    let grandLineTotal = 0;
+    let totalQty = 0;
 
-    let total_sub = 0;
-    let total_tax_amnt = 0;
-    let total_line = 0;
-
+    // ------------------------------------
+    // LINE LEVEL — ROUND FIRST (CRITICAL)
+    // ------------------------------------
     lineItems.forEach(item => {
-        subtotal += item.sub_total || 0;
-        total_qty += item.qty || 0;
-        total_tax_amnt += item.tax_amount || 0;
-        total_line += item.line_total || 0;
-    });
-    $("#line_item_count").text(`Total Products: ${total_qty}`);
-    //  Subtotal
-    $("#po_sub_total").text(formatAUD(subtotal));
-    // Add shipping + surcharge
-    const ship_surch_total = shipping_total + surcharge_total;
-    //  Calculate tax
-    const ship_surcharge_tax = ship_surch_total * (tax_percentage / 100);
-    let tax_total = total_tax_amnt+ship_surcharge_tax;
+        const qty = Number(item.qty) || 0;
+        totalQty += qty;
 
-    //  Grand Total
-    const grand_total = ship_surcharge_tax + total_line+ship_surch_total;
-    // Update labels
-    $("#shipping_label").text(formatAUD(shipping_total));
-    $("#surcharge_label").text(formatAUD(surcharge_total));
-    $("#po_tax_total").text(formatAUD(tax_total));
-    $("#po_total").text(formatAUD(grand_total));
-    
-    const summaryHTML = `<div style='line-height:1.4;'>
-    <strong>Tax Summary</strong><br>----------------------------------<br>
-    <strong style='text-align:left;'>Products: </strong>&nbsp;&nbsp;${formatAUD(total_tax_amnt)} <br>
-    <strong  style='text-align:left;'> [Shipping+Surcharge] (${tax_percentage}%):</strong>&nbsp;&nbsp; ${formatAUD(ship_surcharge_tax)}<br>
-    <strong  style='text-align:left;'>Total Tax:</strong> ${formatAUD(tax_total)}
-    </div>`;
+        const lineSub = r2(item.sub_total);
+        const lineTax = r2(item.tax_amount);
+        const lineTot = r2(item.line_total);
+
+        subtotal += lineSub;
+        totalTax += lineTax;
+        grandLineTotal += lineTot;
+
+        // persist rounded values (prevents drift)
+        item.sub_total = lineSub;
+        item.tax_amount = lineTax;
+        item.line_total = lineTot;
+    });
+
+    subtotal = r2(subtotal);
+    totalTax = r2(totalTax);
+    grandLineTotal = r2(grandLineTotal);
+
+    // ------------------------------------
+    // SHIPPING + SURCHARGE TAX
+    // ------------------------------------
+    const shipSurchTotal = r2(shipping + surcharge);
+    const shipSurchTax = r2(shipSurchTotal * (headerTaxPct / 100));
+
+    // ------------------------------------
+    // GRAND TOTAL
+    // ------------------------------------
+    const taxTotal = r2(totalTax + shipSurchTax);
+    const grandTotal = r2(grandLineTotal + shipSurchTotal + shipSurchTax);
+
+    // ------------------------------------
+    // UI UPDATE
+    // ------------------------------------
+    $("#line_item_count").text(`Total Products: ${totalQty}`);
+    $("#po_sub_total").text(formatAUD(subtotal));
+    $("#po_tax_total").text(formatAUD(taxTotal));
+    $("#po_total").text(formatAUD(grandTotal));
+
+    $("#shipping_label").text(formatAUD(shipping));
+    $("#surcharge_label").text(formatAUD(surcharge));
+
+    // ------------------------------------
+    // TAX SUMMARY TOOLTIP
+    // ------------------------------------
+    const summaryHTML = `
+        <div style="line-height:1.4;">
+            <strong>Tax Summary</strong><br>
+            -----------------------------<br>
+            <strong>Products:</strong> ${formatAUD(totalTax)}<br>
+            <strong>[Shipping + Surcharge] (${headerTaxPct}%):</strong>
+            ${formatAUD(shipSurchTax)}<br>
+            <strong>Total Tax:</strong> ${formatAUD(taxTotal)}
+        </div>
+    `;
+
     $("#total_smmary_tooltip")
         .tooltip("dispose")
         .tooltip({
@@ -1017,7 +1081,7 @@ function updatePOTotals() {
             title: summaryHTML,
             placement: "bottom",
             trigger: "hover"
-    });
+        });
 }
 
 $("#surchase_total, #shipping_total").on("change", function(){
@@ -1221,7 +1285,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     po_create.setAttribute("disabled","true")
                     toastr.success(data?.message || "PO saved successfully!");
                         setTimeout(function(){
-                           window.location.reload()
+                           //window.location.reload()
                         },800);
                 }else
                     toastr.error(data?.message || "Error saving PO");

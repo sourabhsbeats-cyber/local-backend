@@ -687,3 +687,31 @@ CREATE TABLE `store_admin_shipping_providers` (
     `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     INDEX (`carrier_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+
+
+use sb_commerce_b2b_dev;
+CREATE TABLE `store_admin_organization_settings` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+
+    -- Core Branding
+    `company_name` VARCHAR(255) NOT NULL,
+    `logo` VARCHAR(255) DEFAULT NULL, -- Stores the file path/URL
+
+    -- Official Contact Details
+    `contact_email` VARCHAR(191) DEFAULT NULL,
+    `website_url` VARCHAR(255) DEFAULT NULL,
+    `contact_phone` VARCHAR(50) DEFAULT NULL,
+
+    -- Physical Contact Address
+    `country` VARCHAR(100) DEFAULT NULL,
+    `street_address` TEXT DEFAULT NULL,
+    `city` VARCHAR(100) DEFAULT NULL,
+    `state` VARCHAR(100) DEFAULT NULL,
+    `zip_code` VARCHAR(20) DEFAULT NULL,
+
+    -- Metadata
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

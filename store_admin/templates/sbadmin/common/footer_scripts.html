@@ -25,7 +25,11 @@ $(document).ready(function () {
     $('.select2').select2();
 });
 </script>
-
+<script>
+    document.querySelectorAll('.help-text').forEach(function (el) {
+    new bootstrap.Tooltip(el);
+});
+</script>
 <script>
     /**
  * smartNumericInput jQuery Plugin

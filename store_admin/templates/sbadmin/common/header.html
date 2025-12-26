@@ -361,3 +361,91 @@ body {
 }
 .tabulator{ border:1px solid #e8e8e8 }
 </style>
+<script>
+const MENU_CACHE_KEY = "sidebar_menus_v1";
+document.addEventListener("DOMContentLoaded", () => {
+    const cached = sessionStorage.getItem(MENU_CACHE_KEY);
+    if (cached) {
+        try {
+            buildMenu(JSON.parse(cached));
+            return;
+        } catch (e) {
+            sessionStorage.removeItem(MENU_CACHE_KEY);
+        }
+    }
+
+    fetch("{% url 'get_user_navigation' %}")
+        .then(res => res.json())
+        .then(data => {
+            sessionStorage.setItem(
+                MENU_CACHE_KEY,
+                JSON.stringify(data.menus)
+            );
+            buildMenu(data.menus);
+        });
+});
+
+
+function buildMenu(menus) {
+    const ul = document.getElementById("sidebar-menu");
+    const currentPath = window.location.pathname;
+
+    ul.innerHTML = menus.map(menu => {
+        const isParentActive =
+            menu.match && currentPath.startsWith(menu.match);
+
+        if (menu.children) {
+
+            // 🔑 find the most specific child match
+            let activeChild = null;
+            let maxMatchLength = -1;
+
+            menu.children.forEach(child => {
+                if (child.match && currentPath.startsWith(child.match)) {
+                    if (child.match.length > maxMatchLength) {
+                        maxMatchLength = child.match.length;
+                        activeChild = child;
+                    }
+                } else if (currentPath === child.url && maxMatchLength === -1) {
+                    activeChild = child;
+                }
+            });
+
+            return `
+            <li class="nav-item has-treeview ${isParentActive ? "menu-open" : ""}">
+                <a href="#"
+                   class="nav-link ${isParentActive ? "active" : ""}">
+                    <i class="nav-icon ${menu.icon}"></i>
+                    <p>
+                        ${menu.label}
+                        <i class="right fas fa-angle-left"></i>
+                    </p>
+                </a>
+                <ul class="nav nav-treeview">
+                    ${menu.children.map(child => `
+                        <li class="nav-item">
+                            <a href="${child.url}"
+                               class="nav-link ${activeChild === child ? "active" : ""}">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>${child.label}</p>
+                            </a>
+                        </li>
+                    `).join("")}
+                </ul>
+            </li>`;
+        }
+
+        return `
+        <li class="nav-item">
+            <a href="${menu.url}"
+               class="nav-link ${isParentActive ? "active" : ""}">
+                <i class="nav-icon ${menu.icon}"></i>
+                <p>${menu.label}</p>
+            </a>
+        </li>`;
+    }).join("");
+}
+
+
+
+</script>

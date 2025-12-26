@@ -362,7 +362,10 @@ def list_ps_receive_line_items(request, po_receive_id):
     ps_rx_items_data = []
     for ps_rx_item in ps_rx_items:
         product = Product.objects.filter(product_id=ps_rx_item.product_id).first()
+
         purchase_order_item = PurchaseOrderItem.objects.filter(item_id=ps_rx_item.item_id).first()
+      #  print(purchase_order_item)
+       # return JsonResponse({}) asdasdasd
         #purchase_receives = PurchaseReceivedItems.objects.filter(po_receive_id=po_receive_id).first()
 
         # base cost

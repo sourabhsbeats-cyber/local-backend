@@ -22,7 +22,7 @@ urlpatterns = [
     #EOF Purchase Orders
 
     #purchase received
-    path('poreceives', purchase_recieve_view.listing, name='po_order_receives'),
+    path('poreceives/', purchase_recieve_view.listing, name='po_order_receives'),
     path('poreceives/view/<int:po_receive_id>', purchase_recieve_view.view_po_receive, name='view_po_receive_order'),
     #Add new - action - Save PO
     path('poreceives/save', purchase_recieve_view.save_po_order_receive, name='save_po_receive'),

@@ -138,6 +138,26 @@ def create_order(request, po_id=None):
 
     return render(request, 'sbadmin/pages/purchase_order/add/addnew_form.html', context)
 
+
+def d2(v):
+    Q = Decimal("0.01")
+    return v.quantize(Q, rounding=ROUND_HALF_UP)
+
+from decimal import Decimal, ROUND_HALF_UP, getcontext
+
+getcontext().prec = 28  # global precision
+
+Q2 = Decimal("0.01")
+Q4 = Decimal("0.0001")
+
+def r2(v):
+    return v.quantize(Q2, rounding=ROUND_HALF_UP)
+
+def r4(v):
+    return v.quantize(Q4, rounding=ROUND_HALF_UP)
+
+
+
 #UPDATE SAVE PO
 #verified
 @api_view(["POST"])
@@ -241,8 +261,88 @@ def save_po(request):
         if not can_pdf_generate:
             return JsonResponse({"status": False, "message": err_msg})
 
-        PurchaseOrderItem.objects.filter(po_id=po.po_id).delete()
+        #PurchaseOrderItem.objects.filter(po_id=po.po_id).delete()
+        existing_items = {
+            i.product_id: i
+            for i in PurchaseOrderItem.objects.filter(po_id=po.po_id)
+        }
+        incoming_product_ids = set()
 
+        for item in line_items:
+            product_id = item["row_item"]["id"]
+            incoming_product_ids.add(product_id)
+
+            #product = Product.objects.get(product_id=product_id)
+            tax_pct = Decimal(str(item["tax"]))
+            qty = Decimal(str(item["qty"]))
+            price = Decimal(str(item["price"]))
+            discount_pct = Decimal(str(item["discount"]))
+
+            base = qty * price
+
+            # Discount (keep 4 decimals)
+            discount_amt = r4((base * discount_pct) / Decimal("100"))
+
+            # Subtotal (4 decimals)
+            subtotal_4 = r4(base - discount_amt)
+
+            # Tax (4 decimals)
+            tax_amt_4 = r4((subtotal_4 * tax_pct) / Decimal("100"))
+
+            # FINAL VALUES (2 decimals ONLY HERE)
+            subtotal = r2(subtotal_4)
+            tax_amount = r2(tax_amt_4)
+            line_total = r2(subtotal + tax_amount)
+
+            item_tax_amount = tax_amount
+            print(item_tax_amount)
+            #item_tax_amount = 0  # calculate
+            #discount_amt = 0  # calculate
+
+            if product_id in existing_items:
+                # UPDATE
+                po_item = existing_items[product_id]
+                po_item.qty = qty
+                po_item.price = price
+                po_item.tax_percentage = tax_pct
+                po_item.tax_amount = item_tax_amount
+                po_item.discount_percentage = discount_pct
+                po_item.discount_amt = discount_amt
+                po_item.order_ref = item["order_ref"]
+                po_item.order_type = item["order_type"]
+                po_item.line_total = line_total
+                po_item.save(update_fields=[
+                    "qty",
+                    "price",
+                    "tax_percentage",
+                    "tax_amount",
+                    "line_total",
+                    "discount_percentage",
+                    "discount_amt",
+                    "order_ref",
+                    "order_type"
+                ])
+            else:
+                # CREATE
+                PurchaseOrderItem.objects.create(
+                    po_id=po.po_id,
+                    product_id=product_id,
+                    qty=qty,
+                    price=price,
+                    tax_percentage=tax_pct,
+                    tax_amount=item_tax_amount,
+                    discount_percentage=discount_pct,
+                    line_total=line_total,
+                    discount_amt=discount_amt,
+                    order_ref=item["order_ref"],
+                    order_type=item["order_type"],
+                    created_by=request.user.id,
+                )
+        PurchaseOrderItem.objects.filter(
+            po_id=po.po_id
+        ).exclude(product_id__in=incoming_product_ids).delete()
+
+        '''
         for item in line_items:
             product_id = item["row_item"]["id"]
             tax_percentage = item["tax"]
@@ -260,16 +360,27 @@ def save_po(request):
                 order_ref=item["order_ref"],
                 order_type=item["order_type"],
                 created_by=request.user.id,
-            )
-            '''
-               subtotal, tax_amount, actual_total, discount_amt,
-            '''
+            )'''
+
         items = PurchaseOrderItem.objects.filter(po_id=po.po_id)
 
-        subtotal_total = sum(i.subtotal for i in items)
-        discount_total = sum(i.discount_amt for i in items)
-        tax_total = sum(i.tax_amount for i in items)
-        line_total_total = sum(i.line_total for i in items)
+        subtotal_total = sum(
+            (i.subtotal for i in items),
+            Decimal("0.00")
+        )
+        discount_total = sum(
+            (i.discount_amt for i in items),
+            Decimal("0.00")
+        )
+        tax_total = sum(
+            (i.tax_amount for i in items),
+            Decimal("0.00")
+        )
+
+        line_total_total = sum(
+            (i.line_total for i in items),
+            Decimal("0.00")
+        )
 
         po.sub_total = subtotal_total
         po.discount_total = discount_total
@@ -794,8 +905,10 @@ def list_po_line_items(request):
 @login_required
 def listing(request):
     # ---- Context ----
+    vendors = Vendor.objects.all()
     context = {
         "user": request.user.id,
+        "vendors": vendors,
     }
     return render(request, 'sbadmin/pages/purchase_order/all_po_listing.html', context)
 
@@ -885,10 +998,21 @@ def delete_po(request, po_id):
 
 #verified
 ''' TABLES LISTING TABLE '''
+
+
+
+from django.db.models import Q, Subquery, OuterRef, Value, TextField, DecimalField
+from django.db.models.functions import Coalesce
+from rest_framework.decorators import api_view, permission_classes, renderer_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
 def all_purchases(request):
+    # 1. Setup Subqueries for Annotations
     warehouse_sub = Warehouse.objects.filter(
         warehouse_id=OuterRef("warehouse_id")
     ).values("warehouse_name")[:1]
@@ -900,37 +1024,66 @@ def all_purchases(request):
     po_vendor_sub = PurchaseOrderVendor.objects.filter(
         po_id=OuterRef("po_id")
     ).values("po_number")[:1]
-    
+
+    # 2. Base QuerySet (Define this FIRST)
     qs = PurchaseOrder.objects.filter(
-            is_archived=0,          #
-            vendor_id__isnull=False,
-            vendor_code__isnull=False
-        ).annotate(
-            warehouse_name=Coalesce(
-                Subquery(warehouse_sub),
-                Value(""),
-                output_field=TextField()
-            ),
-            vendor_name_val=Coalesce(
-                Subquery(vendor_sub),
-                Value(""),
-                output_field=TextField()
-            ),
-            po_vendor_ref=Coalesce(
-                Subquery(po_vendor_sub),
-                Value(""),
-                output_field=TextField()
-            ),
-            subtotal_val=Coalesce("sub_total", Value(0), output_field=DecimalField()),
-            tax_val=Coalesce("tax_total", Value(0), output_field=DecimalField()),
-            total_val=Coalesce("summary_total", Value(0), output_field=DecimalField()),
+        is_archived=0,
+        vendor_id__isnull=False,
+        vendor_code__isnull=False
+    ).annotate(
+        warehouse_name=Coalesce(Subquery(warehouse_sub), Value(""), output_field=TextField()),
+        vendor_name_val=Coalesce(Subquery(vendor_sub), Value(""), output_field=TextField()),
+        po_vendor_ref=Coalesce(Subquery(po_vendor_sub), Value(""), output_field=TextField()),
+        subtotal_val=Coalesce("sub_total", Value(0, DecimalField())),
+        tax_val=Coalesce("tax_total", Value(0, DecimalField())),
+        total_val=Coalesce("summary_total", Value(0, DecimalField())),
     )
-    #for row in qs.values():
-       # print(row)
+
+    # 3. Apply Filters (Get params from request)
+    status = request.GET.get("status")
+    if status and status != "All" and status != "":
+        # Map string status to your integer ID if necessary
+        # Example: if "Open" is stored as 0 in DB
+        status_map = {"Open": 0, "Approved": 1, "Delivered": 4} # Adjust to your logic
+        actual_status = status_map.get(status, status)
+        qs = qs.filter(status_id=actual_status)
+
+    order_no = request.GET.get("order_no")
+    if order_no:
+        qs = qs.filter(po_number__icontains=order_no)
+
+    vendor_id = request.GET.get("vendor_id")
+    if vendor_id:
+        qs = qs.filter(vendor_id=vendor_id)
+
+    vendor_ref = request.GET.get("vendor_ref")
+    if vendor_ref:
+        qs = qs.filter(vendor_reference__icontains=vendor_ref)
+
+    warehouse = request.GET.get("warehouse")
+    if warehouse:
+        # Filtering on the annotated 'warehouse_name'
+        qs = qs.filter(warehouse_name__icontains=warehouse)
+
+    supplier_ref = request.GET.get("supplier_ref")
+    if supplier_ref:
+        # Filtering on the annotated 'po_vendor_ref'
+        qs = qs.filter(po_vendor_ref__icontains=supplier_ref)
+
+    # 4. Global Search (q)
     q = request.GET.get("q", "").strip()
     if q:
-        qs = qs.filter(Q(title__icontains=q) | Q(sku__icontains=q) | Q(brand_name_val__icontains=q))
+        qs = qs.filter(
+            Q(po_number__icontains=q) |
+            Q(vendor_name_val__icontains=q) |
+            Q(vendor_reference__icontains=q)
+        )
 
+    # 5. Pagination (Optional but recommended for Tabulator)
+    # total_count = qs.count()
+    # ... apply slicing ...
+
+    # 6. Return Data
     try:
         page = int(request.GET.get("page", 1))
     except:
@@ -1050,6 +1203,43 @@ def all_purchases(request):
         ).quantize(Decimal("0.00"), rounding=ROUND_HALF_UP)
         po_data["grand_total"] =  format(grand_total, ".2f")
 
+        status_id = d(po_data.get("status_id"))
+        if status_id >= 1:
+            # 1. Check Shipping Details
+            # If a tracking number exists, the initial status becomes "Shipped"
+            shipping_exists = PurchaseOrderShipping.objects.filter(po_id=po_data.get("po_id")).first()
+            if shipping_exists and shipping_exists.tracking_number:
+                po_data["status_id"] = 2  # Shipped
+
+            # 2. Calculate Totals for Items
+            po_items = PurchaseOrderItem.objects.filter(po_id=po_data.get("po_id"))
+            totals = po_items.aggregate(
+                total_ordered=Sum('ordered_qty'),
+                total_received=Sum('received_qty')
+            )
+
+            total_qty = totals['total_ordered'] or 0
+            received_qty = totals['total_received'] or 0
+
+            # 3. Determine Delivery Status
+            if received_qty > 0:
+                if received_qty >= total_qty:
+                    po_data["status_id"] = 4  # Delivered
+                else:
+                    # received_qty is > 0 but < total_qty
+                    po_data["status_id"] = 3  # Partially Delivered
+
+        '''
+        const statusMap = {
+                0: "New",
+                1: "Approved",
+                2: "Shipped",
+                3: "Partially Delivered",
+                4: "Delivered",
+                5: "Cancelled",
+                6: "Archived"
+              };
+              '''
         #po_data["status_detail"] = "New"
         #po_data["pending_amount"] = "New"
 
