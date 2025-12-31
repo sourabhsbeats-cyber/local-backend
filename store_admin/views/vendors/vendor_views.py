@@ -36,6 +36,83 @@ def add_new_vendor(request):
     }
     return render(request, 'sbadmin/pages/vendor/add_new.html', context)
 
+
+@login_required
+def view_vendor(request, vendor_id):
+    vendor = get_object_or_404(Vendor, id=vendor_id)
+
+    payment_terms = PaymentTerm.objects.all()
+    currency_list = Country.objects.values('currency').annotate(
+        id=Min('id'),
+        currency_name=Min('currency_name')
+    )
+    countries_list = Country.objects.values('name', 'id')
+
+    # ------------------- BILLING ---------------------
+    billing_rel = VendorAddress.objects.filter(
+        vendor_id=vendor.id, address_type="billing"
+    ).first()
+
+    billing_address = (
+        Addresses.objects.select_related("country", "state")
+        .filter(id=billing_rel.address_id).first()
+        if billing_rel else None
+    )
+
+    billing_country_id = billing_address.country_id if billing_address else None
+    billing_state_id = billing_address.state_id if billing_address else None
+    billing_state_list = (
+        State.objects.filter(country_id=billing_country_id)
+        if billing_country_id else []
+    )
+
+    billing_state_name = billing_address.state.name if billing_address and billing_address.state else ""
+
+    # ------------------- SHIPPING ---------------------
+    shipping_rel = VendorAddress.objects.filter(
+        vendor_id=vendor.id, address_type="shipping"
+    ).first()
+
+    shipping_address = (
+        Addresses.objects.select_related("country", "state")
+        .filter(id=shipping_rel.address_id).first()
+        if shipping_rel else None
+    )
+
+    shipping_country_id = shipping_address.country_id if shipping_address else None
+    shipping_state_id = shipping_address.state_id if shipping_address else None
+    shipping_state_list = (
+        State.objects.filter(country_id=shipping_country_id)
+        if shipping_country_id else []
+    )
+
+    shipping_state_name = shipping_address.state.name if shipping_address and shipping_address.state else ""
+
+    # ------------------- BANK / CONTACT ---------------------
+    bank_details = VendorBank.objects.filter(vendor_id=vendor.id)
+    contact_details = VendorContact.objects.filter(vendor_id=vendor.id)
+
+    context = {
+        'vendor': vendor,
+        'payment_terms': payment_terms,
+        'countries_list': countries_list,
+        'currency_list': currency_list,
+
+        'billing': billing_address,
+        'billing_state_list': billing_state_list,
+        'billing_state_name': billing_state_name,  # ⬅️ new
+
+        'shipping': shipping_address,
+        'shipping_state_list': shipping_state_list,
+        'shipping_state_name': shipping_state_name,  # ⬅️ new
+
+        'banks': bank_details,
+        'contacts': contact_details,
+    }
+
+    return render(request, 'sbadmin/pages/vendor/view/view_details.html', context)
+
+
 @login_required
 def edit_vendor(request, vendor_id):
     vendor = get_object_or_404(Vendor, id=vendor_id)

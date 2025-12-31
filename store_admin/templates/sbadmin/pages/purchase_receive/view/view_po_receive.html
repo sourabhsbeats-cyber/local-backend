@@ -4,23 +4,56 @@
 {% block content %}
 <div class="content-wrapper">
 
-  <section class="content-header">
-    <div class="container-fluid">
-      <div class="row mb-2 align-items-center">
-        <div class="col-sm-6">
-          <div class="m-0" style="font-size:19px;">View Purchase Receive</div>
-        </div>
-        <div class="col-sm-6">
-          <ol class="breadcrumb float-sm-right">
-            <li class="breadcrumb-item">
-              <a href="{% url 'po_order_receives' %}">All PO's</a>
-            </li>
-            <li class="breadcrumb-item active">Add</li>
-          </ol>
-        </div>
-      </div>
-    </div>
+  <section class="mt-2">
+
   </section>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+          <h4 class="mb-0 font-weight-bold ml-2">Purchase Receive #{{ po.po_receive_number }}</h4>
+          <span class="status-active ml-2">
+              <span class="badge badge-pill badge-info">
+                  <i class="fa fa-bolt fa-small"></i>
+                {% if po.is_billed == 1 %}
+                  Billed
+                {% else %}
+                  Unbilled
+                {% endif %}
+              </span>
+          </span>
+      </div>
+      <div>
+          <a href="{% url 'edit_po_receive_order' po.po_receive_id %}" class="mr-1 btn btn-light border" style="border-radius: 8px;">
+              <i class="fas fa-pencil-alt mr-1"></i> Edit
+          </a>
+        <!--
+          <button id="btn_po_generate_pdf" class="mr-1 btn btn-light border " style="border-radius: 8px;">
+              <i class="fa fa-download mr-1"></i> Export
+          </button>
+          -->
+         <a href="{% url 'po_order_receives' %}" class="mr-1 btn btn-dark text-white" style="border:1px solid #fff;border-radius:8px;">
+            All Receives
+         </a>
+
+          <div class="btn-group d-none mr-2">
+              <button type="button" class="btn btn-dark" style="border:1px solid #fff;border-radius:8px 0 0 8px;">
+                  Action
+              </button>
+              <button type="button" class="btn btn-dark dropdown-toggle dropdown-icon" data-toggle="dropdown" style="border-radius:0 8px 8px 0;border:1px solid #fff">
+              </button>
+              <div class="dropdown-menu">
+                  <a class="dropdown-item" href="/">Edit </a>
+                  <a class="dropdown-item" onclick="" href="#">Delete</a>
+                <div class="dropdown-divider"></div>
+                  <a class="dropdown-item" href="">New PO</a>
+              </div>
+          </div>
+
+
+      </div>
+  </div>
+
+
 
   <section class="">
     {% csrf_token %}
@@ -54,13 +87,6 @@
             <label class="col-sm-4 col-form-label">Purchase Order#</label>
             <div class="col-sm-8">
                 {{ po.po_receive_number }} - {{ po.received_date|date:'Y-m-d' }}
-            </div>
-          </div>
-
-          <div class="form-group row hide-opacity">
-            <label class="col-sm-4 col-form-label">Purchase Receive#</label>
-            <div class="col-sm-3">
-              {{ po.po_receive_number }}
             </div>
           </div>
 
@@ -152,21 +178,19 @@
           <div class="row mt-3 mb-3">
             <div class="col-md-6 pl-3">
               <label>Notes (Internal Ref):</label>
-              {{ po.internal_ref_notes|hide_none }}
+              {{ po.internal_ref_notes|hide_none|default:"--" }}
             </div>
           </div>
 
-          <div class="row mb-5 mt-5">
-            <div class="col-12">
 
-              <button onclick="window.history.back()"
-                      class="btn btn-secondary ml-2">
-                <i class="fas fa-history"></i> Cancel
-              </button>
-            </div>
-          </div>
 
         </div>
+        <div class="row mb-1 mt-2">
+            <div class="col-12 text-muted text-sm">
+              Created at {{ po.created_at }},
+              Created by {{ created_by }}
+            </div>
+          </div>
       </div>
     </div>
 

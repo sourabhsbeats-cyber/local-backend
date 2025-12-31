@@ -30,6 +30,9 @@ def safe_int(val, default=None):
     except:
         return default
 
+from django.utils.dateformat import format as df
+def safe_df(value, fmt):
+    return df(value, fmt) if value else "-"
 
 def safe_decimal(val, default=None):
     s = to_str(val)
@@ -186,6 +189,14 @@ def date_validator(value, allowed_past_days=0):
         )
     return value
 
+from datetime import datetime
+def parse_date_or_none(value):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return None
 
 def name_validator(value):
     if value is None or value.strip() == "":

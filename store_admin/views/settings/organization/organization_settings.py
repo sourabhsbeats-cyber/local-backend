@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from store_admin.auth_backend import User
 from store_admin.models import Country, State
-from store_admin.models.organization_model import Organization, OrganizationLocation
+from store_admin.models.organization_model import Organization, OrganizationInventoryLocation
 from store_admin.models.payment_terms_model import PaymentTerm
 from django.contrib.auth.decorators import login_required
 
@@ -24,7 +24,7 @@ def view_organization_details(request):
     users_cnt = User.objects.filter(is_active=True).count()
     roles_cnt = Group.objects.count()
     organization_detail = Organization.objects.first()
-    org_locations = OrganizationLocation.objects.filter(organization=organization_detail)
+    org_locations = OrganizationInventoryLocation.objects.filter(organization=organization_detail)
     states_list = []
     if organization_detail.country_id is not None:
         states_list = State.objects.filter(country_id=int(organization_detail.country_id)).values('id', 'name')
@@ -84,22 +84,22 @@ def save_location(request):
         org = Organization.objects.first()
 
         if location_id:
-            count = OrganizationLocation.objects.filter(organization=org).count()
+            count = OrganizationInventoryLocation.objects.filter(organization=org).count()
             if count >= 5:
                 return JsonResponse({
                     'status': 'error',
                     'message': 'Maximum limit of 5 locations reached. Please delete an existing location to add a new one.'
                 }, status=400)
 
-            loc = OrganizationLocation.objects.get(id=location_id, organization=org)
+            loc = OrganizationInventoryLocation.objects.get(id=location_id, organization=org)
         else:
-            loc = OrganizationLocation(organization=org)
+            loc = OrganizationInventoryLocation(organization=org)
 
         # Name is the only guaranteed field
         loc.name = request.POST.get('name')
 
         # All others use .get() and can be null/empty
-        loc.parent_location_name = request.POST.get('parent_location', '')
+        loc.parent_location_id = int(request.POST.get('parent_location', None) or 0)
         loc.attention = request.POST.get('attention', '')
         loc.address_line1 = request.POST.get('address_line1', '')
         loc.address_line2 = request.POST.get('address_line2', '')
@@ -122,12 +122,12 @@ def save_location(request):
 @permission_classes([IsAuthenticated])
 def get_location_detail(request, loc_id):
     try:
-        loc = OrganizationLocation.objects.get(id=loc_id)
+        loc = OrganizationInventoryLocation.objects.get(id=loc_id)
         return JsonResponse({
             'status': 'success',
             'id': loc.id,
             'name': loc.name,
-            'parent_location': loc.parent_location_name,
+            'parent_location_id': loc.parent_location_id,
             'attention': loc.attention,
             'address_line1': loc.address_line1,
             'address_line2': loc.address_line2,
@@ -139,7 +139,7 @@ def get_location_detail(request, loc_id):
             'country_name': loc.country_name,
             'state_name': loc.state_name
         })
-    except OrganizationLocation.DoesNotExist:
+    except OrganizationInventoryLocation.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Location not found'}, status=404)
 
 
@@ -150,12 +150,12 @@ def delete_location(request):
         loc_id = request.POST.get('location_id')
         # Ensure we only delete locations belonging to the main organization
         org = Organization.objects.get(id=1)
-        location = OrganizationLocation.objects.get(id=loc_id, organization=org)
+        location = OrganizationInventoryLocation.objects.get(id=loc_id, organization=org)
 
         location.delete()
 
         return JsonResponse({'status': 'success', 'message': 'Location deleted successfully.'})
-    except OrganizationLocation.DoesNotExist:
+    except OrganizationInventoryLocation.DoesNotExist:
         return JsonResponse({'status': 'error', 'message': 'Location not found.'}, status=404)
     except Exception as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

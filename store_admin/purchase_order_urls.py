@@ -9,6 +9,7 @@ urlpatterns = [
     path('create/<int:po_id>/', purchase_orders_view.create_order, name='create_order'),
     path('view/<int:po_id>', purchase_orders_view.view_po_order, name='view_po_order'),    # with ID → edit PO
     path('approve_po_order/<int:po_id>', purchase_orders_view.approve_po_order, name='approve_po_order'),    # with ID → edit PO
+    path('approve_and_create_receive/<int:po_id>', purchase_orders_view.approve_and_create_receive, name='approve_and_create_receive'),    # with ID → edit PO
     #path('cancel_po_order/<int:po_id>', purchase_orders_view.cancel_po_order, name='cancel_po_order'),    # with ID → edit PO
     path('save', purchase_orders_view.save_po, name='save_po_order'),
     path('generatepdf', purchase_orders_view.generate_po_pdf, name='generate_po_order'),
@@ -24,6 +25,7 @@ urlpatterns = [
     #purchase received
     path('poreceives/', purchase_recieve_view.listing, name='po_order_receives'),
     path('poreceives/view/<int:po_receive_id>', purchase_recieve_view.view_po_receive, name='view_po_receive_order'),
+    path('poreceives/edit/<int:po_receive_id>', purchase_recieve_view.edit_po_receive, name='edit_po_receive_order'),
     #Add new - action - Save PO
     path('poreceives/save', purchase_recieve_view.save_po_order_receive, name='save_po_receive'),
     path('poreceives/create', purchase_recieve_view.create_po_order_receive, name='create_po_order_receive'),

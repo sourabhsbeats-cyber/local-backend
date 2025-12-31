@@ -212,10 +212,10 @@
 
                         <div class="col-md-4"><label>Parent Location</label></div>
                         <div class="col-md-8 form-group">
-                            <select name="parent_location" class="form-control select2">
+                            <select style="min-width:180px;" name="parent_location" class="form-control select2">
                                 <option value="">Select Location</option>
                                 {% for loc in org.locations.all %}
-                                <option value="{{ loc.name }}">{{ loc.name }}</option>
+                                <option value="{{ loc.id }}">{{ loc.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -312,7 +312,7 @@ function editLocation(locId) {
             $('[name="website_url"]').val(data.website_url);
 
             // Set Parent Location (Matches by Name string)
-            $('[name="parent_location"]').val(data.parent_location).trigger('change');
+            $('[name="parent_location"]').val(data.parent_location_id).trigger('change');
 
             // Map Country Name to ID
             if (data.country_name) {
@@ -333,9 +333,10 @@ function editLocation(locId) {
                     }, 800);
                 }
             }
-
+            $('[name="parent_location"]').select2({ width: "190px" })
             $('.modal-title').text('Edit Location');
             $('#locationModal').modal('show');
+
         })
         .catch(err => toastr.error("Could not fetch location data."));
 }
@@ -404,6 +405,7 @@ function deleteLocation(locId) {
     });
 }
 document.addEventListener("DOMContentLoaded", function() {
+
      $('#country_select').on('change', function () {
         let countryId = $(this).val();
         let selectedState = "{{ org.state_id }}";

@@ -117,10 +117,13 @@ class PurchaseOrder(models.Model):
         blank=True,
         null=True
     )
+
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(blank=True, null=True)
     created_by = models.IntegerField(blank=True, null=True)
+
     updated_by = models.IntegerField(blank=True, null=True)
+    updated_at = models.DateTimeField(blank=True, null=True)
+
     sub_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # qty*price
     tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtital 's tax amount
     summary_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtotal + taxamount

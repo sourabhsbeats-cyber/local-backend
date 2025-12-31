@@ -24,10 +24,10 @@ class Organization(models.Model):
         managed = False  # 🔥 IMPORTANT
         db_table = 'store_admin_organization_settings'
 
-class OrganizationLocation(models.Model):
+class OrganizationInventoryLocation(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='locations')
     name = models.CharField(max_length=255)
-    parent_location_name = models.CharField(max_length=255, null=True, blank=True) # Stored as text
+    parent_location_id = models.IntegerField(default=0) # Stored as text
 
     # Address Fields as plain text
     attention = models.CharField(max_length=255, null=True, blank=True)
@@ -42,4 +42,4 @@ class OrganizationLocation(models.Model):
     website_url = models.URLField(null=True, blank=True)
 
     class Meta:
-        db_table = 'store_admin_organization_locations'
+        db_table = 'store_admin_organization_inventory_locations'

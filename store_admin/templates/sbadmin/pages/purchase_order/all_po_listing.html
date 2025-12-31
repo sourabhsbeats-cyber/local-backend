@@ -41,6 +41,51 @@
             ];
 
             let html = '<table class="table table-sm table-borderless">';
+            html += `
+                    <tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" disabled checked>
+                                <label >Selection</label>
+                            </div>
+                        </td>
+                    </tr><tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" disabled checked>
+                                <label >Order Date</label>
+                            </div>
+                        </td>
+                    </tr><tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" disabled checked>
+                                <label >PO#</label>
+                            </div>
+                        </td>
+                    </tr><tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" disabled checked>
+                                <label >Delivery Date-ETA</label>
+                            </div>
+                        </td>
+                    </tr><tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" disabled checked>
+                                <label >Vendor Order No</label>
+                            </div>
+                        </td>
+                    </tr><tr>
+                        <td>
+                            <div class="icheck-primary">
+                                <input type="checkbox" disabled checked>
+                                <label >Status</label>
+                            </div>
+                        </td>
+                    </tr>`;
+
             columns.forEach(col => {
                 const isChecked = savedPrefs[col.id] === true ? 'checked' : '';
                 html += `
@@ -101,7 +146,6 @@
             </div>
             <div class="modal-body">
                 <div id="modal-col-list" class="list-group">
-
                 </div>
             </div>
             <div class="modal-footer">
@@ -122,10 +166,10 @@
                         <span class="sr-only">Toggle Dropdown</span>
                     </button>
 
-                    <div class="dropdown-menu dropdown-menu-right">
+                    <div class="dropdown-menu  dropdown-menu-right">
                         <a class="dropdown-item" href="{% url 'create_order' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
-                        <a class="dropdown-item" href="#"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
-                        <a class="dropdown-item" href="#" ><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+                        <a disabled="" class="dropdown-item" href="#"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
+                        <a disabled="" class="dropdown-item" href="#" ><i class="fas fa-download fa-sm mr-1"></i> Export</a>
 
                     </div>
              </div>
@@ -346,15 +390,6 @@ document.addEventListener("DOMContentLoaded", function () {
                   { title: "ID", field: "po_id", visible: false },
                   { formatter: "rowSelection", minWidth: 40, hozAlign: "center", headerSort: false },
                   {
-                    title: "Order Date",
-                    field: "order_date",
-                    minWidth: 100,
-                    headerSort: false,
-                    formatter: function(cell) {
-                      return formattedDate(cell.getValue(), "/");
-                    }
-                  },
-                  {
                     title: "PO#",
                     field: "po_number",
                     minWidth: 110,
@@ -367,6 +402,16 @@ document.addEventListener("DOMContentLoaded", function () {
                       return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                     }
                   },
+                  {
+                    title: "Order Date",
+                    field: "order_date",
+                    minWidth: 100,
+                    headerSort: false,
+                    formatter: function(cell) {
+                      return formattedDate(cell.getValue(), "/");
+                    }
+                  },
+
                   {
                       title: "Delivery Date-ETA",
                       field: "delivery_date",
@@ -440,6 +485,32 @@ document.addEventListener("DOMContentLoaded", function () {
                     minWidth: 220,
                     headerHozAlign: "center",
                     headerSort: false
+                  },
+                  {
+                    title: "Status",
+                    field: "status_id",
+                    visible: true,
+                    minWidth: 170,
+                    hozAlign: "center",
+                    headerHozAlign: "center",
+                    headerSort: false,
+                    formatter: function(cell) {
+                      const status = cell.getValue();
+                      const statusMap = {
+                        0: "New",
+                        1: "Approved",
+                        2: "Shipped",
+                        3: "Partially Delivered",
+                        4: "Delivered",
+                        5: "Cancelled",
+                        6: "Archived"
+                      };
+                      let badgeClass = (status === 4) ? "badge-success" : "badge-info";
+                      if (status === 5) badgeClass = "badge-danger";   // Red for Cancelled
+                      if (status === 6) badgeClass = "badge-secondary"; // Grey for Archived
+                      const statusText = statusMap[status] || "Unknown";
+                      return `<span class="badge badge-pill ${badgeClass}">${statusText}</span>`;
+                    }
                   },
                   {
                     title: "Vendor PO Order Date",
@@ -546,32 +617,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     headerHozAlign: "center",
                     headerSort: false
                   },
-                  {
-                    title: "Status",
-                    field: "status_id",
-                    visible: true,
-                    minWidth: 120,
-                    hozAlign: "center",
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: function(cell) {
-                      const status = cell.getValue();
-                      const statusMap = {
-                        0: "New",
-                        1: "Approved",
-                        2: "Shipped",
-                        3: "Partially Delivered",
-                        4: "Delivered",
-                        5: "Cancelled",
-                        6: "Archived"
-                      };
-                      let badgeClass = (status === 4) ? "badge-success" : "badge-info";
-                      if (status === 5) badgeClass = "badge-danger";   // Red for Cancelled
-                      if (status === 6) badgeClass = "badge-secondary"; // Grey for Archived
-                      const statusText = statusMap[status] || "Unknown";
-                      return `<span class="badge badge-pill ${badgeClass}">${statusText}</span>`;
-                    }
-                  },
+
                   {
                     title: "Warehouse",
                     field: "warehouse_name",
@@ -760,5 +806,6 @@ document.getElementById("main-action-btn").addEventListener("click", function(e)
 });
 
 </script>
+
 {% endblock %}
 {% endblock %}

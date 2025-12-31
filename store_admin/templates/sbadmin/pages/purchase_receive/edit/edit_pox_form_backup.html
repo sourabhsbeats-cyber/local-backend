@@ -3,25 +3,38 @@
 
 {% block content %}
 <div class="content-wrapper">
-
-  <section class="content-header">
-    <div class="container-fluid">
-      <div class="row mb-2 align-items-center">
-        <div class="col-sm-6">
-          <div class="m-0" style="font-size:19px;">New Purchase Receive</div>
-        </div>
-        <div class="col-sm-6">
-          <ol class="breadcrumb float-sm-right">
-            <li class="breadcrumb-item">
-              <a href="{% url 'po_order_receives' %}">All PO's</a>
-            </li>
-            <li class="breadcrumb-item active">Add</li>
-          </ol>
-        </div>
-      </div>
-    </div>
+  <section class="mt-2">
   </section>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="d-flex align-items-center">
+          <h4 class="mb-0 font-weight-bold ml-2">Purchase Receive #{{ po.po_receive_number }}</h4>
+          <span class="status-active ml-2">
+              <span class="badge badge-pill badge-info">
+                  <i class="fa fa-bolt fa-small"></i>
+                {% if po.is_billed == 1 %}
+                  Billed
+                {% else %}
+                  Unbilled
+                {% endif %}
+              </span>
+          </span>
+      </div>
+      <div>
+          <button id="btn_po_receive_save" class="mr-1 btn btn-success border" style="border-radius: 8px;">
+              <i class="fas fa-save  mr-1"></i> Save
+          </button>
+        <!--
+          <button id="btn_po_generate_pdf" class="mr-1 btn btn-light border " style="border-radius: 8px;">
+              <i class="fa fa-download mr-1"></i> Export
+          </button>
+          -->
+         <a href="{% url 'po_order_receives' %}" class="mr-1 btn btn-dark text-white" style="border:1px solid #fff;border-radius:8px;">
+            All Receives
+         </a>
 
+
+      </div>
+  </div>
   <section class="">
     {% csrf_token %}
 
@@ -33,6 +46,7 @@
         <div class="card-section">
           <div class="section-title">Order Information</div>
 
+
           <div class="form-group row">
             <label class="col-sm-4 col-form-label">Vendor</label>
             <div class="col-sm-8">
@@ -40,16 +54,12 @@
               <input type="hidden" id="vendor_id">
 
               <div class="position-relative w-75">
-                <input type="text" style="display:none">
-                <input type="text"
-                       id="productSearch"
-                       class="form-control" autocomplete="off"
-                       placeholder="Search Vendor">
-
-                <div id="suggestionsBox"
-                     class="list-group position-absolute w-100"
-                     style="z-index:1000;display:none;">
-                </div>
+                      <div class="ml-2" style="font-size:14px;">
+                        <div class="" style="font-size: 13px;line-height:14px;font-weight: 600">{{ vendors_detail.company_name }} </div>
+                        <div><span class="text-muted">Display Name:{{ vendors_detail.display_name }} </div>
+                        <div><span class="text-muted">Email:</span> {{ vendors_detail.email_address }}  | {{ vendors_detail.vendor_code }} </div>
+                        <div><span class="text-muted">Mobile#:</span>{{ vendors_detail.mobile_number }}  | <span class="text-muted">Work#:</span> {{ vendors_detail.work_phone }}  </div>
+                      </div>
               </div>
             </div>
           </div>
@@ -57,43 +67,28 @@
           <div class="form-group row clearfix">
             <label class="col-sm-4 col-form-label">Purchase Order#</label>
             <div class="col-sm-8">
-              <select class="select2 w-75 form-control"
-                      id="purchase_order_number">
-                <option value="">Select Purchase Order</option>
-              </select>
+                {{ po.po_number }}
             </div>
           </div>
 
-          <div class="form-group row hide-opacity">
-            <label class="col-sm-4 col-form-label">Purchase Receive#</label>
-            <div class="col-sm-3">
-              <input type="text"
-                     id="po_receive_number"
-                     name="po_receive_number"
-                     class="form-control"
-                     placeholder="Received #"
-                     value="{{ po_receive_number }}">
-            </div>
-          </div>
-
-          <div class="form-group row hide-opacity">
+          <div class="form-group row">
             <label class="col-sm-4 col-form-label">Received Date</label>
             <div class="col-sm-3">
               <input type="date"
                      id="po_received_date"
                      name="po_received_date"
                      class="form-control"
-                     value="{{ po_received_date|date:'Y-m-d' }}">
+                     value="{{ po.received_date|date:'Y-m-d' }}">
             </div>
           </div>
-          <div class="form-group row hide-opacity">
+          <div class="form-group row ">
             <label class="col-sm-4 col-form-label">Shipping Date</label>
             <div class="col-sm-3">
               <input type="date"
                      id="po_shipping_date"
                      name="po_shipping_date"
                      class="form-control"
-                     value="{{ po_received_date|date:'Y-m-d' }}">
+                     value="{{ po.shipping_date|date:'Y-m-d' }}">
             </div>
           </div>
 
@@ -102,7 +97,7 @@
 
       <!-- RIGHT -->
       <div class="col-md-4">
-        <div class="card-section hide-opacity">
+        <div class="card-section">
           <div class="section-title">
             <label class="font-weight-normal">
               Attach File(s) to Purchase Receive
@@ -138,7 +133,7 @@
     <!-- PRODUCTS -->
     <div class="row">
       <div class="col-md-8">
-        <div class="card-section hide-opacity">
+        <div class="card-section">
 
           <div class="section-title">Products</div>
 
@@ -168,7 +163,7 @@
                         class="form-control"
                         rows="3"
                         name="comments"
-                        style="width:95%">{{ po.comments|hide_none }}</textarea>
+                        style="width:95%">{{ po.internal_ref_notes|hide_none }}</textarea>
             </div>
           </div>
 
@@ -231,59 +226,44 @@
 </style>
 <script>
 $(document).ready(function () {
-    $(".hide-opacity").toggleClass("set-opacity");
-    // Product search debounce
-    let timer;
-    $("#productSearch").on("input", function () {
-        clearTimeout(timer);
-        const query = $(this).val();
-        const box = $("#suggestionsBox");
+  //Product search debounce
+  const products_line_item = document.getElementById("product_line_item");
+      const po_id = '{{ po.po_number }}'; // correct Select2 value
+      $.ajax({
+          url: "{% url 'list_po_line_items' %}",
+          method: "GET",
+          data: { po_id },
+          success: function (response) {
+              const po_products = response?.data?.products || [];
+              if (!po_products.length) {
+                  products_line_item.innerHTML = "";
+                  return;
+              }
+              let html_tbl = "";
+              po_products.forEach(item => {
+                  html_tbl += `
+                      <tr>
+                          <td class="text-left" style="width:40%">${item.item_name} - (${item.item_sku})</td>
+                          <td class="text-right" style="width:15%">${item.ordered}</td>
+                          <td class="text-right" style="width:15%">${item.po_item_pending || 0}</td>
+                          <td class="text-right" style="width:15%">${item.received || 0}</td>
+                          <td class="text-right" style="width:15%">
+                              <input type="number"
+                                     class="form-control form-control-sm po-item-qty"
+                                     data-product-id="${item.product_id}"
+                                      data-po-item-id="${item.item_id}"
+                                      min="0"
+                                      value="${item.po_item_pending}"
+                                      max="${item.po_item_pending}">
+                          </td>
+                      </tr>
+                  `;
+              });
+              products_line_item.innerHTML = html_tbl;
+              $(".hide-opacity").removeClass("set-opacity");
+          }
+      });
 
-        /*if (query.length < 2) {
-            box.hide();
-            return;
-        }*/
-
-        timer = setTimeout(() => {
-            $.ajax({
-                url: "{% url 'api_vendor_search' %}",
-                method: "GET",
-                data: { q: query },
-                success: function (response) {
-                    const product_data = response.data;
-                    console.log(product_data)
-                    box.empty();
-
-                    if (!product_data.length) return box.hide();
-
-                    product_data.forEach(item => {
-                        const html = `
-                            <a href="#"
-                               data-item='${JSON.stringify(item)}'
-                               class="list-group-item list-group-item-action d-flex product-option"
-                               data-title="${item.display_name}" data-vendor_id="${item.id}" data-display_name="${item.display_name}">
-                                <div class="ml-2" style="font-size:14px;">
-                                    <div class="" style="font-size: 13px;line-height:14px;font-weight: 600">${item.company_name}</div>
-                                    <div><span class="text-muted">Display Name: ${item.display_name}</div>
-                                    <div><span class="text-muted">Email:</span> ${item.email_address || "--"} | ${item.vendor_code}</div>
-                                    <div><span class="text-muted">Mobile#:</span> ${item.mobile_number} | <span class="text-muted">Work#:</span> ${item.work_phone}</div>
-                                </div>
-                            </a>`;
-                        box.append(html);
-                    });
-
-                    box.show();
-                }
-            });
-        }, 300);
-    });
-
-    // Select product
-    $(document).on("click", "#suggestionsBox a", function (e) {
-        e.preventDefault();
-        $("#productSearch").val($(this).data("display_name"));
-        $("#suggestionsBox").hide();
-    });
 });
 
 // Product click → autofill fields
@@ -296,92 +276,9 @@ $(document).on("click", ".product-option", function (e) {
     get_po_list(item.id)
 });
 
-const $select = $("#purchase_order_number");
 
 let timer;
-function get_po_list(vendor_id){
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-            $.ajax({
-                url: "{% url 'api_get_vendors_po' %}",
-                method: "GET",
-                data: {  vendor_id },
-                success: function (response) {
 
-                     $select.empty().append(
-                        '<option value="">Select Purchase Order</option>'
-                    );
-                    const list = response?.data || [];
-
-                    if (!list.length)
-                        $select.empty().append(
-                            '<option value="">No Purchase Order</option>'
-                        );
-
-                    if (!list.length) return;
-
-                    list.forEach(item => {
-                        const option = `
-                            <option value="${item.po_number}">
-                               <span class="float-left text-strong"> ${item.po_number}</span><span class="text-small text-muted float-right"> (Order Date: ${item.order_date})
-                            </option>
-                        `;
-                        $select.append(option);
-                    });
-
-                    // refresh select2
-                    if ($select.hasClass("select2-hidden-accessible")) {
-                        $select.trigger("change.select2");
-                    } else {
-                        $select.select2({
-                            placeholder: "Select Purchase Order",
-                            width: "100%"
-                        });
-                    }
-                }
-            });
-        }, 300);
-
-}
-
-const products_line_item = document.getElementById("product_line_item");
-$("#purchase_order_number").on("select2:select", function (e) {
-    const po_id = e.params.data.id; // correct Select2 value
-    $.ajax({
-        url: "{% url 'list_po_line_items' %}",
-        method: "GET",
-        data: { po_id },
-        success: function (response) {
-            const po_products = response?.data?.products || [];
-            if (!po_products.length) {
-                products_line_item.innerHTML = "";
-                return;
-            }
-            let html_tbl = "";
-            po_products.forEach(item => {
-                html_tbl += `
-                    <tr>
-                        <td class="text-left" style="width:40%">${item.item_name} - (${item.item_sku})</td>
-                        <td class="text-right" style="width:15%">${item.ordered}</td>
-                        <td class="text-right" style="width:15%">${item.po_item_pending || 0}</td>
-                        <td class="text-right" style="width:15%">${item.received || 0}</td>
-                        <td class="text-right" style="width:15%">
-                            <input type="number"
-                                   class="form-control form-control-sm po-item-qty"
-                                   data-product-id="${item.product_id}"
-                                    data-po-item-id="${item.item_id}"
-                                    min="0"
-                                    value="${item.po_item_pending}"
-                                    max="${item.po_item_pending}">
-                        </td>
-                    </tr>
-                `;
-            });
-            products_line_item.innerHTML = html_tbl;
-            $(".hide-opacity").removeClass("set-opacity");
-        }
-    });
-});
 
 function getCSRFToken() {
     return document.querySelector('[name=csrfmiddlewaretoken]').value;
@@ -389,11 +286,12 @@ function getCSRFToken() {
 </script>
 
 <script>
- $("#btn_po_create").on("click", function () {
+ $("#btn_po_receive_save").on("click", function () {
     if ($(".po-item-qty.is-invalid").length > 0) {
         toastr.error("Please fix invalid quantities");
         return;
     }
+    return
     const formData = new FormData();
 
     // ---- BASIC FIELDS ----

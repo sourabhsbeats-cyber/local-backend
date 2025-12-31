@@ -41,7 +41,6 @@ urlpatterns = [
     path('product/product_manufacturers/', product_settings.manage_product_manufacturers, name='manage_product_manufacturers'),
     path('product/product_uom', product_settings.manage_unit_of_measures, name='manage_unit_of_measures'),
 
-
     path('product/add_product_brand/', product_settings.add_new_brand, name='add_new_brand'),
     path('add_product_manufacturer/', product_settings.add_new_manufacturer, name='add_new_manufacturer'),
 

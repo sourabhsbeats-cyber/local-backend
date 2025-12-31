@@ -17,6 +17,7 @@ urlpatterns = [
    
     path('addvendor/', vendor_views.add_new_vendor, name='add_new_vendor'),
     path('editvendor/<int:vendor_id>', vendor_views.edit_vendor, name='edit_vendor'),
+    path('<int:vendor_id>/view', vendor_views.view_vendor, name='view_vendor'),
     path("delete/<int:vendor_id>/", vendor_views.delete_vendor, name="delete_vendor_contact"),
     path('savevendor/', vendor_views.save_vendor, name='save_vendor'),
     #stage 1

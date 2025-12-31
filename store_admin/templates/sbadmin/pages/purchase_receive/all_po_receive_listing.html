@@ -13,20 +13,7 @@
           <h1>All Purchases Receives</h1>
         </div>
         <div class="col-sm-6">
-            <div class="float-right">
-             <div class="btn-group float-right">
-                    <button type="button" id="main-action-btn" class="btn btn-outline-success"><i class="fas fa-bars fa-sm mr-1 text-sm"></i>Actions</button>
-                    <button type="button" class="btn btn-outline-success dropdown-toggle dropdown-toggle-split"
-                            data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                        <span class="sr-only">Toggle Dropdown</span>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-right">
-                        <a class="dropdown-item" href="{% url 'create_po_order_receive' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
-                        <a class="dropdown-item" href="#"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
-                        <a class="dropdown-item" href="#" ><i class="fas fa-download fa-sm mr-1"></i> Export</a>
-                    </div>
-             </div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -118,7 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 formatter: function (cell) {
                     const po_receive_id = cell.getData().po_receive_id;
                     const po_number = cell.getValue();
-                    const url = "{% url 'view_po_receive_order' 0 %}".replace("0", po_receive_id);
+                    const url = "{% url 'edit_po_receive_order' 0 %}".replace("0", po_receive_id);
 
                     return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
                 }
@@ -142,13 +129,15 @@ document.addEventListener("DOMContentLoaded", function () {
                 formatter: function (cell) {
                     const status = cell.getValue();
                     const statusMap = {
-                        0: "Received",
-                        1: "Placed",
-                        2: "Delivered",
-                        3: "Back Order",
-                        4: "Cancelled",
-                        4: "Archieved"
-                    };
+                        0: "New",
+                        1: "Approved",
+                        2: "Shipped",
+                        3: "Partially Delivered",
+                        4: "Delivered",
+                        5: "Cancelled",
+                        6: "Archived"
+                      };
+
 
                     return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
                 }

@@ -64,12 +64,13 @@ TEMPLATES = [
         ],
         'APP_DIRS': True,
         'OPTIONS': {
-            "debug": False,  # ✅ Add or change this line here
+            #"debug": False,  # ✅ Add or change this line here
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',
+                'store_admin.context_processors.common_master_data',
             ],
             'builtins': [
                 'store_admin.templatetags.custom_filters',
