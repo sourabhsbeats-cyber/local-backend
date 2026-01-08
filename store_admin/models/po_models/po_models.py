@@ -2,6 +2,16 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from django.db import models
 
+class POStatus(models.IntegerChoices):
+    DRAFT = -1, "Draft"
+    NEW = 0, "New"
+    APPROVED = 1, "Approved"
+    IN_TRANSIT = 2, "In-transit"
+    DELIVERED = 3, "Delivered"
+    PARTIALLY_DELIVERED = 4, "Partially Delivered"
+    COMPLETED = 5, "Completed"
+    DELETED = 6, "Deleted"
+
 class POApprovalStatus(models.IntegerChoices):
     DRAFT = -1, "Draft"
     NEW = 0, "New"
@@ -9,10 +19,11 @@ class POApprovalStatus(models.IntegerChoices):
     CANCELLED = 2, "Cancelled"
     COMPLETED = 3, "Completed"
 
-class POReceiveStatus(models.IntegerChoices):
-    NOT_RECEIVED = 0, "Not Received"
-    PARTIALLY_RECEIVED = 1, "Partially Received"
-    RECEIVED = 2, "Received"
+class POPaymentStatus(models.IntegerChoices):
+    PAID = 1, "Paid"
+    UNPAID = 2, "Unpaid"
+    CANCELLED = 3, "Cancelled"
+    ON_HOLD = 4, "On Hold"
 
 class POBillingStatus(models.IntegerChoices):
     CREATED = 0, "Created"
@@ -49,12 +60,15 @@ class PurchaseReceives(models.Model):
     po_receive_number   = models.CharField(max_length=20)
     received_date       = models.DateField(blank=True, null=True)
     shipping_date       = models.DateField(blank=True, null=True)
-    status_id           = models.IntegerField(choices=POReceiveStatus.choices, default=0, blank=True, null=True)
+    status_id           = models.IntegerField(choices=POStatus.choices, default=0, blank=True, null=True)
     internal_ref_notes  = models.TextField(blank=True, null=True)
     created_at          = models.DateTimeField(auto_now_add=True)
+    updated_at          = models.DateTimeField(auto_now_add=True)
     created_by          = models.IntegerField(blank=True, null=True)
+    updated_by          = models.IntegerField(blank=True, null=True)
 
     is_billed           = models.IntegerField(default=0)
+    is_completed        = models.IntegerField(default=0)
     class Meta:
         db_table = 'store_admin_purchase_receives'
 
@@ -106,14 +120,23 @@ class PurchaseOrder(models.Model):
     state = models.CharField(max_length=100, blank=True, null=True)
     post_code = models.CharField(max_length=20, blank=True, null=True)
     country_id = models.IntegerField(blank=True, null=True)
+
+    parent_po_id = models.IntegerField(blank=True, null=True)
+
     tax_percentage = models.DecimalField(max_digits=10, decimal_places=4, default=1)
     payment_term_id = models.IntegerField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
 
     status_id = models.IntegerField(
-        choices=POApprovalStatus.choices,
+        choices=POStatus.choices,
         default=-1,
+        blank=True,
+        null=True
+    )
+    payment_status_id = models.IntegerField(
+        choices=POPaymentStatus.choices,
+        default=0,
         blank=True,
         null=True
     )
@@ -216,11 +239,13 @@ class PurchaseOrderVendor(models.Model):
     po_vendor_id = models.AutoField(primary_key=True)
     po_id  = models.IntegerField()
     po_number = models.CharField(max_length=80)
+    order_number = models.CharField(max_length=80)
     order_date = models.DateTimeField(blank=True, null= True)
     invoice_date = models.DateTimeField(blank=True, null= True)
     invoice_due_date = models.DateTimeField(blank=True, null= True)
     invoice_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
     delivery_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
+    invoice_status = models.CharField(max_length=60) #vendor_invoice_status
 
     created_by = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -232,9 +257,12 @@ class PurchaseOrderShipping(models.Model):
     po_shipping_id = models.AutoField(primary_key=True)
     po_id  = models.IntegerField()
 
-    provider = models.CharField(max_length=80)
+    provider = models.IntegerField(blank=True, null=True)
     website = models.CharField(max_length=180)
     tracking_number = models.CharField(max_length=80)
+
+    shipped_date = models.DateField(blank=True, null=True)
+    received_date = models.DateField(blank=True, null=True)
 
     created_by = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -21,9 +21,9 @@ def common_master_data(request):
         warehouse_locations = list(OrganizationInventoryLocation.objects.all())
         cache.set("warehouse_locations", warehouse_locations, 3600)
 
-    shipping_providers = cache.get("shipping_providers")
+    shipping_providers = None #cache.get("shipping_providers")
     if not shipping_providers:
-        shipping_providers = list(ShippingProviders.objects.all())
+        shipping_providers = list(ShippingProviders.objects.filter(is_archived=0,status=1).all())
         cache.set("shipping_providers", shipping_providers, 3600)
 
     return {

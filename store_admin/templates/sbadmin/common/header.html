@@ -454,6 +454,8 @@ function buildMenu(menus) {
     }).join("");
 }
 
-
+function getCSRFToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
 
 </script>

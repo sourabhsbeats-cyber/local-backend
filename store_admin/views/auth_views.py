@@ -1,8 +1,48 @@
+import json
+
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, JsonResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny
+from django.http import JsonResponse
+
+@api_view(['POST'])
+@permission_classes([AllowAny]) # Idhu dhaan Anonymous access allow pannum
+@csrf_exempt  # React API call-ukku CSRF bypass panna idhu venum
+def api_login(request):
+    if request.method == 'POST':
+        try:
+            # React
+            data = json.loads(request.body)
+            username = data.get("username")
+            password = data.get("password")
+
+            user = authenticate(request, username=username, password=password)
+
+            if user is not None:
+                login(request, user)
+                # Success Response - JSON-ah anuppuvom
+                return JsonResponse({
+                    'status': 'success',
+                    'message': f"Welcome back, {user.name}!",
+                    'redirect_url': '/dashboard'
+                }, status=200)
+            else:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Invalid username or password'
+                }, status=401)
+
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+    return JsonResponse({'message': 'Only POST method allowed'}, status=405)
+
+
 
 # Create your views here.
 def login_view(request):

@@ -168,8 +168,8 @@
 
                     <div class="dropdown-menu  dropdown-menu-right">
                         <a class="dropdown-item" href="{% url 'create_order' %}"><i class="fas fa-plus fa-sm mr-1"></i> Add New</a>
-                        <a disabled="" class="dropdown-item" href="#"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
-                        <a disabled="" class="dropdown-item" href="#" ><i class="fas fa-download fa-sm mr-1"></i> Export</a>
+                        <a  class="dropdown-item" href="{% url 'import_po_orders' %}"><i class="fas fa-upload fa-sm mr-1"></i> Import</a>
+                        <a  class="dropdown-item" download="true" href="{% url 'export_po_orders' %}" ><i class="fas fa-download fa-sm mr-1"></i> Export</a>
 
                     </div>
              </div>
@@ -186,27 +186,27 @@
       <form class="row" id="po-filter-form">
           <!-- Status -->
           <div class="col-lg-4 col-md-6 col-12 mb-2">
-            <label class="form-label" for="filter_status">Status</label>
+            <label class="form-label" for="filter_status">Purchase Status</label>
             <select class="form-control form-control-sm" id="filter_status">
-              <option value="">select</option>
-              <option value="All">All</option>
-              <option value="Open">Open</option>
-              <option value="Unapproved">Unapproved</option>
-              <option value="Approved">Approved</option>
-              <option value="Delivered">Delivered</option>
-              <option value="Partially Delivered">Partially Delivered</option>
-              <option value="Deleted">Deleted</option>
-              <option value="Completed">Completed</option>
+              <option value="">All</option>
+              <option value="0">Parked</option>
+                <option value="1">Placed</option>
+                <option value="2">Partially Delivered</option>
+                <option value="4">Partially Delivered</option>
+                <option value="3">Delivered</option>
+                <option value="5">Closed</option>
+                <option value="6">Cancelled</option>
+                <!-- <option value="6">Deleted</option>-->
             </select>
           </div>
 
           <!-- Order No -->
           <div class="col-lg-4 col-md-6 col-12 mb-2">
-            <label class="form-label" for="filter_order_no">Order No.</label>
+            <label class="form-label" for="filter_order_no">Vendor PO Number</label>
             <input type="text"
                    class="form-control form-control-sm"
                    id="filter_order_no"
-                   placeholder="Order No">
+                   placeholder="Vendor PO Number">
           </div>
 
           <!-- Vendor -->
@@ -233,8 +233,9 @@
             <label class="form-label" for="filter_warehouse">Warehouse</label>
             <select class="form-control form-control-sm" id="filter_warehouse">
               <option value="">select</option>
-              <option value="Head">Head Office</option>
-              <option value="Main">Main Warehouse</option>
+                {% for warehouse in WAREHOUSE_LOCATIONS %}
+                <option value="{{ warehouse.id }}">{{ warehouse.name }}</option>
+                {% endfor %}
             </select>
           </div>
 
@@ -245,6 +246,29 @@
                    class="form-control form-control-sm"
                    id="filter_supplier_ref"
                    placeholder="Supplier Ref">
+          </div>
+
+
+          <div class="col-lg-4 col-md-6 col-12 mb-2">
+            <label class="form-label" for="filter_vendor_payment_status">Vendor Invoice Status</label>
+            <select id="filter_vendor_payment_status" class="form-control-sm form-control">
+                <option value="">All</option>
+                <option value="1">Paid</option>
+                <option value="2">Unpaid</option>
+                <option value="3">Cancelled</option>
+                <option value="4">On Hold</option>
+            </select>
+          </div>
+          <div class="col-lg-4 col-md-6 col-12 mb-2">
+            <label class="form-label" for="filter_shipping_status">Shipping Status</label>
+            <select id="filter_shipping_status" class="form-control-sm form-control">
+                <option value="">All</option>
+                <option value="1">Pending</option>
+                <option value="2">Shipped</option>
+                <option value="3">Back Order</option>
+                <option value="4">Partially Delivered</option>
+                <option value="4">Delivered</option>
+            </select>
           </div>
 
           <!-- Actions -->
@@ -303,6 +327,7 @@ function getFilterParams() {
         vendor_ref: document.getElementById("filter_vendor_ref").value.trim(),
         warehouse: document.getElementById("filter_warehouse").value,
         supplier_ref: document.getElementById("filter_supplier_ref").value.trim(),
+        vendor_payment_status: document.getElementById("filter_vendor_payment_status").value.trim(),
     };
 }
 </script>
@@ -487,7 +512,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     headerSort: false
                   },
                   {
-                    title: "Status",
+                    title: "Tracking Status",
                     field: "status_id",
                     visible: true,
                     minWidth: 170,
@@ -499,14 +524,14 @@ document.addEventListener("DOMContentLoaded", function () {
                       const statusMap = {
                         0: "New",
                         1: "Approved",
-                        2: "Shipped",
-                        3: "Partially Delivered",
-                        4: "Delivered",
-                        5: "Cancelled",
-                        6: "Archived"
+                        2: "In-transit",
+                        3: "Delivered",
+                        4: "Partially Delivered",
+                        5: "Completed",
+                        6: "Deleted"
                       };
-                      let badgeClass = (status === 4) ? "badge-success" : "badge-info";
-                      if (status === 5) badgeClass = "badge-danger";   // Red for Cancelled
+                      let badgeClass = (status === 4) ? "badge-primary" : "badge-info";
+                      if (status === 5) badgeClass = "badge-success";   // Red for Cancelled
                       if (status === 6) badgeClass = "badge-secondary"; // Grey for Archived
                       const statusText = statusMap[status] || "Unknown";
                       return `<span class="badge badge-pill ${badgeClass}">${statusText}</span>`;

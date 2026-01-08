@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'store_admin',
 ]
 
@@ -51,9 +52,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'store_admin.middleware.NoCacheMiddleware',
-    'store_admin.middleware.SecurityHeadersMiddleware'
+    'store_admin.middleware.SecurityHeadersMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Ippo add pannadhu
+    'django.middleware.common.CommonMiddleware',
 ]
-
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+]
+CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'sbadmin.urls'
 
 TEMPLATES = [

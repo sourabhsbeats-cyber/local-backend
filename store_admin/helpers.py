@@ -30,6 +30,12 @@ def safe_int(val, default=None):
     except:
         return default
 
+def to_int_or_none(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
 from django.utils.dateformat import format as df
 def safe_df(value, fmt):
     return df(value, fmt) if value else "-"
@@ -193,10 +199,20 @@ from datetime import datetime
 def parse_date_or_none(value):
     if not value:
         return None
-    try:
-        return datetime.strptime(value, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return None
+
+        # Pandas Timestamp or datetime
+    if hasattr(value, "date"):
+        return value.date()
+
+    value = str(value).strip()
+
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d-%b-%Y"):
+        try:
+            return datetime.strptime(value, fmt).date()
+        except ValueError:
+            continue
+
+    return None
 
 def name_validator(value):
     if value is None or value.strip() == "":
@@ -283,7 +299,7 @@ def validate_purchase_order_model(po, line_items):
         ("vendor_name",     "Vendor Name is required"),
         ("po_number",       "PO Number is required."),
         ("currency_code",   "Currency Code is required"),
-        ("vendor_reference","Vendor Reference is required"),
+        #("vendor_reference","Vendor Reference is required"),
         ("warehouse_id",    "Warehouse is required"),
         ("order_date",      "Order Date is required"),
         ("delivery_date",   "Delivery Date is required"),
@@ -306,19 +322,19 @@ def validate_purchase_order_model(po, line_items):
     if not line_items or len(line_items) == 0:
         return False, "Please add at least one product line item"
 
-    if PurchaseOrder.objects.filter(vendor_reference=po.vendor_reference).exclude(po_id=po.po_id).exists():
-        return False, "Can not duplicate Vendor Reference#."
+    #if PurchaseOrder.objects.filter(vendor_reference=po.vendor_reference).exclude(po_id=po.po_id).exists():
+    #    return False, "Can not duplicate Vendor Reference#."
 
     if PurchaseOrder.objects.filter(po_number=po.po_number).exclude(po_id=po.po_id).exists():
         return False, "Can not duplicate Purchase Order Number."
 
-
-    if len(po.vendor_reference) < 4:
-        return False, "Invalid Vendor Reference."
-    try:
-        name_validator_none(po.vendor_name)
-    except ValidationError as e:
-        return False, "Invalid vendor name."
+    if len(po.vendor_reference) >= 1:
+        if len(po.vendor_reference) < 4:
+            return False, "Invalid Vendor Reference1."
+    #try:
+    #    name_validator_none(po.vendor_name)
+   #except ValidationError as e:
+    #    return False, "Invalid vendor name."
 
     try:
         name_validator_none(po.delivery_name)

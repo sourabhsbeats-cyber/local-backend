@@ -2,10 +2,49 @@
 {% block title %}View PO | {{ po.po_number }} {% endblock %}
 {% block content %}
 <style>
-    #trackingLink{
-        max-width:120px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:inline-block;
+    /* 1. Set a fixed height and enable scrolling on the wrapper */
+    .table-responsive {
+        max-height: 400px;
+        overflow-y: auto;
+        border: 1px solid #dee2e6;
     }
-    .status-pill {
+
+    /* 2. Make the header stick to the top of the wrapper */
+    .table thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa; /* Must have a background to hide rows sliding behind it */
+        z-index: 10;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    /* 3. Ensure the table layout remains stable */
+    .table {
+        border-collapse: separate; /* Required for sticky borders to work correctly */
+        border-spacing: 0;
+        width: 100%;
+    }
+    #product_line_item td {
+    padding: 12px 8px; /* Vertical | Horizontal padding */
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+    border-right: 1px solid #f1f1f1; /* Optional: adds subtle vertical separation */
+}
+
+/* Ensure the last column doesn't have a right border */
+#product_line_item td:last-child {
+    border-right: none;
+}
+
+/* Maintain alignment for header and body */
+.table th, .table td {
+    box-sizing: border-box;
+}
+
+#trackingLink{
+    max-width:120px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; display:inline-block;
+}
+.status-pill {
     background: #d4f5e9;
     color: #0b8e5f;
     font-size: 11px;
@@ -221,10 +260,15 @@ border-bottom:1px solid #007bff !important;
                                         {% elif po.status_id == 1 %}
                                         Approved
                                         {% elif po.status_id == 2 %}
-                                        Cancelled
+                                        In-transit
                                         {% elif po.status_id == 3 %}
+                                        Delivered
+                                        {% elif po.status_id == 4 %}
+                                        Partially Delivered
+                                        {% elif po.status_id == 5 %}
                                         Completed
-                                        {% endif %} 
+                                        {% endif %}
+
                                     </span>
 
                                     {% if is_all_received %}
@@ -234,26 +278,30 @@ border-bottom:1px solid #007bff !important;
                                         <span class="badge badge-pill badge-info">
                                         <i class="fa fa-bolt fa-small"></i> Not Received </span>
                                     {% else %}
-                                        <span class="badge badge-pill badge-info">
-                                        <i class="fa fa-bolt fa-small"></i> Received Partial </span>
+                                       <!-- <span class="badge badge-pill badge-info">
+                                        <i class="fa fa-bolt fa-small"></i> Received Partial </span>-->
                                     {% endif %}
                                 </span>
                             </div>
                             <div>
-
+                                {% if po_receive %}
+                                    <a id="btn_po_view" href="{% url 'edit_po_receive_order' po_receive_id=po_receive.po_receive_id %}" class="mr-1 btn btn-outline-info text-info" style="border-radius: 8px;">
+                                        <i class="fa fa-paper-plane mr-1"></i> View Receive
+                                    </a>
+                                {% endif %}
                                 {% if po.status_id == 0 %}
-                                    <a title="Approve and Create Receive" id="btn_create_receive"  class="dropdown-item help-text mr-2">
+                                    <a title="Approve and Create Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-2">
                                         <i class="fas fa-box mr-1"></i> Receive
                                     </a>
                                 {% endif %}
                                 {% if is_all_received %}
-                                   <button title="All Received, Click to Receive Complete"  type="button" class="help-text btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
+                                   <!-- <button title="All Received, Click to Receive Complete"  type="button" class="help-text btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
                                         Complete
-                                    </button>
+                                    </button> -->
                                 {% else %}
-                                <button disabled type="button" class="btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
+                               <!-- <button disabled type="button" class="btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
                                         Complete
-                                    </button>
+                                    </button>-->
                                 {% endif %}
 
                                 <div class="vertical-divider mx-3 d-inline-block"></div>
@@ -350,29 +398,40 @@ border-bottom:1px solid #007bff !important;
                                
 
                                 <div class="col-md-4 p-2 float-left">
-                                    <div class=" invoice-col">
-                                      <h6 class="text-muted"><b>Shipping Info</b></h6>
-                                      <span id="trackingRef"><b>Tracking :</b> {% if shipping.tracking_number == "" %}
-                                        {% else %} {% for provider in shipping_providers %}
-                                                        {% if shipping.provider|slugify == provider.carrier_id|slugify %}
-                                                            <a  class="link btn-link help-text" title="Tracking Link: {{ provider.tracking_url|cut:'{0}' }}{{ shipping.tracking_number }}"  href="{{ provider.tracking_url|cut:'{0}' }}{{ shipping.tracking_number }}" target="_blank">
-                                                                {{ shipping.tracking_number }}
-                                                            </a>
-                                                        {% endif %}
-                                                    {% endfor %}
+                                    <div class="invoice-col">
+    <h6 class="text-muted"><b>Shipping Info</b></h6>
 
-                                         </span></b>
-                                        {# <button class="copy-btn" onclick="copyTrackingRef('ref')"><i class="fa fa-copy"></i></button> #}
-                                        {% endif %}<div class="clearfix"></div>
-                                            <div class="clearfix"></div>
-                                      <b>Provider: </b>
-                                        {% for provider in shipping_providers %}
-                                            {% if shipping.provider|slugify == provider.carrier_id|slugify %}
-                                                {{ provider.carrier_name }}
-                                            {% endif %}
-                                        {% endfor %}
-                                       <div class="clearfix"></div>
-                                    </div>
+    <b>Tracking :</b>
+
+    <div id="trackingRef">
+        {% for ship in shipping_joined %}
+            <div>
+                {% if ship.tracking_link %}
+                    <a class="link btn-link help-text"
+                       href="{{ ship.tracking_link }}"
+                       title="Shipped On:{{ ship.shipped_date|date:'Y-m-d' }}, Received On:{{ ship.received_date|date:'Y-m-d' }}"
+                       target="_blank">
+                        {{ ship.tracking_number }}
+                    </a>
+                {% else %}
+                    {{ ship.tracking_number }}
+                {% endif %}
+                –
+                <span class="text-muted">
+                    {{ ship.provider_name|default:"Provider not found" }}
+                </span>
+            </div>
+        {% empty %}
+            <span class="text-muted">No tracking available</span>
+        {% endfor %}
+    </div>
+</div>
+
+
+
+
+
+
                                 </div>
                                 <div class="col-md-4 p-2 pt-0 float-left">
                                     <div class=" invoice-col">
@@ -440,7 +499,7 @@ border-bottom:1px solid #007bff !important;
                                 <!-- Post -->
                                 <div class="post">
                                   <div class="user-block">
-                                    <div class=" shadow-sm" >
+                                    <div class=" " >
 
                         <!-- STATUS -->
                         <div class="mb-3">
@@ -477,12 +536,59 @@ border-bottom:1px solid #007bff !important;
                             </div>
                         </div>
                         <!-- BUTTON -->
-                        <div class="dropdown">
-                           <!--  <button class="btn btn-success btn-block"
-                                    type="button"
-                                    data-toggle="dropdown">
-                                Record Payment
-                            </button> -->
+                        <div >
+
+                        <div class="invoice-col">
+                            <hr/>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor PO Order Date</span>
+                                <span class="text-muted">{{ vendor_po.order_date|date:'Y-m-d'|default:"--" }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor Order Number</span>
+                                <span class="text-muted">{{ vendor_po.order_number|default:"--" }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor PO#</span>
+                                <span class="text-muted">{{ vendor_po.po_number|hide_none|default:"--" }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor Invoice#</span>
+                                <span class="text-muted">{{ vendor_po.invoice_ref_number|hide_none|default:"--" }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor Delivery Ref#</span>
+                                <span class="text-muted">{{ vendor_po.delivery_ref_number|hide_none|default:"--" }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor Invoice Date</span>
+                                <span class="text-muted">{{ vendor_po.invoice_date|date:'Y-m-d'|default:"--" }}</span>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor Invoice Due Date</span>
+                                <span class="text-muted">{{ vendor_po.invoice_due_date|date:'Y-m-d'|default:"--" }}</span>
+                            </div>
+
+
+
+                            <div class="d-flex justify-content-between">
+                                <span class="font-weight-bold">Vendor Invoice Status</span>
+                                <span class="text-muted">
+                                    {% if vendor_po.invoice_status == None %}--
+                                    {% elif vendor_po.invoice_status == 1 %}Paid
+                                       {% elif vendor_po.invoice_status == 2 %}Unpaid
+                                       {% elif vendor_po.invoice_status == 3 %}Canceled
+                                       {% elif vendor_po.invoice_status == 4 %}On Hold{% endif %}
+                                </span>
+                            </div>
+                        </div>
+
+
 
                         </div>
                         </div>
@@ -533,46 +639,7 @@ border-bottom:1px solid #007bff !important;
                             </table>
                             
                         </div>
-                        <style>
-    /* 1. Set a fixed height and enable scrolling on the wrapper */
-    .table-responsive {
-        max-height: 400px;
-        overflow-y: auto;
-        border: 1px solid #dee2e6;
-    }
 
-    /* 2. Make the header stick to the top of the wrapper */
-    .table thead th {
-        position: sticky;
-        top: 0;
-        background-color: #f8f9fa; /* Must have a background to hide rows sliding behind it */
-        z-index: 10;
-        border-bottom: 2px solid #dee2e6;
-    }
-
-    /* 3. Ensure the table layout remains stable */
-    .table {
-        border-collapse: separate; /* Required for sticky borders to work correctly */
-        border-spacing: 0;
-        width: 100%;
-    }
-    #product_line_item td {
-    padding: 12px 8px; /* Vertical | Horizontal padding */
-    vertical-align: middle;
-    border-bottom: 1px solid #dee2e6;
-    border-right: 1px solid #f1f1f1; /* Optional: adds subtle vertical separation */
-}
-
-/* Ensure the last column doesn't have a right border */
-#product_line_item td:last-child {
-    border-right: none;
-}
-
-/* Maintain alignment for header and body */
-.table th, .table td {
-    box-sizing: border-box;
-}
-</style>
                         <table class="summary-box float-right" style="width: 300px;">
                                 <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
                                 <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
@@ -592,6 +659,44 @@ border-bottom:1px solid #007bff !important;
  {% csrf_token %}
  
 <script>
+
+    {% if po.status_id == 0 %}
+    document.getElementById("btn_create_receive").addEventListener("click",function(e){
+       e.stopPropagation();
+       e.preventDefault();
+        e.target.disabled = true
+        fetch("{% url 'approve_and_create_receive' po.po_id %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({"po_id":"{{ po.po_id }}"})
+            })
+            .then(response => {
+                return response.json().then(data => ({ status: response.status, body: data }));
+            })
+            .then(resp => {
+                // handle success / redirect here
+                const data = resp.body;
+                if(data.status){
+                    toastr.success(data.message);
+                    setTimeout(function(){
+                        window.location.href = data.redirect_url;
+                    },800);
+
+                }else{
+                    e.target.disabled = false
+                    toastr.error(data.message || "Error creating")
+                }
+              })
+              .catch(err => {
+                  e.target.disabled = false
+
+                console.error("Request failed", err);
+              });
+    });
+    {% endif %}
 function approvePO(poId){
     event.stopPropagation();
     event.preventDefault();
@@ -802,7 +907,7 @@ function renderLineItems() {
             <td class="price align-middle text-decoration-dotted text-right">${formatAUD(item.price*item.qty)}</td>
               <td class=" discount align-middle text-decoration-dotted text-right"  title="Discount Percentage">${item.discount}%</td>
             <td id="sub_total_${index}" class=" discount align-middle text-right">${formatAUD(item.sub_total.toFixed(2))}</td>
-            <td class=" tax align-middle  text-decoration-dotted text-right" title="Tax Percentage">${item.row_item.is_taxfree?0:item.tax}%</td>
+            <td class=" tax align-middle  text-decoration-dotted text-right" title="Tax Percentage">${item.tax}%</td> <!-- item.row_item.is_taxfree?0: -->
              <td id="tax_amount_${index}" class=" discount align-middle text-right">${formatAUD(item.tax_amount.toFixed(2))}</td>
              <td id="line_cost_${index}" class=" discount align-middle text-right">${formatAUD(item.cost_per_item.toFixed(2))}</td>
             <td id="line_total_${index}" class="align-middle text-right">${formatAUD(item.line_total.toFixed(2))}</td>

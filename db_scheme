@@ -715,3 +715,27 @@ CREATE TABLE `store_admin_organization_settings` (
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+---------------
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_receives`
+ADD COLUMN `is_completed` INT NULL DEFAULT '0' AFTER `shipping_date`;
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_receives`
+ADD COLUMN `updated_by` INT NULL DEFAULT '0' AFTER `is_completed`,
+ADD COLUMN `updated_at` DATETIME NULL DEFAULT CURRENT_TIMESTAMP AFTER `updated_by`;
+-----------------
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_order_vendor_details`
+ADD COLUMN `invoice_status` VARCHAR(60) NULL AFTER `is_archived`;
+
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_orders`
+ADD COLUMN `payment_status_id` INT NULL AFTER `updated_at`;
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_order_vendor_details`
+CHANGE COLUMN `invoice_status` `invoice_status` INT NULL DEFAULT NULL ;
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_orders`
+ADD COLUMN `parent_po_id` INT NULL DEFAULT NULL AFTER `payment_status_id`;
+
+

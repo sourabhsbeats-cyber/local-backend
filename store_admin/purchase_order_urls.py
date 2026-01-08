@@ -1,6 +1,6 @@
 from django.urls import path
 from .views.purchase_orders import (purchase_orders_view,
-                                    purchase_recieve_view, po_bills_view)
+                                    purchase_recieve_view, po_bills_view, bulk_export_po_orders, bulk_import_po_orders)
 from .views.payments import payments_view
 
 urlpatterns = [
@@ -10,12 +10,35 @@ urlpatterns = [
     path('view/<int:po_id>', purchase_orders_view.view_po_order, name='view_po_order'),    # with ID → edit PO
     path('approve_po_order/<int:po_id>', purchase_orders_view.approve_po_order, name='approve_po_order'),    # with ID → edit PO
     path('approve_and_create_receive/<int:po_id>', purchase_orders_view.approve_and_create_receive, name='approve_and_create_receive'),    # with ID → edit PO
+
+    # bulk upload
+    # stage 1 - Form - import_vendor_file_upload - show error
+    path('import_po_orders', bulk_import_po_orders.import_purchase_order, name='import_po_orders'),
+    # stage 2 - Preview import
+    path('import_po_orders/uploadfile_and_validate', bulk_import_po_orders.import_po_validate,
+         name='import_po_file_upload'),
+
+    # stage3
+    path('import_po_orders/importpreview/<str:cleaned_filename>/<str:dup_option>/<str:uploaded_filename>',
+         bulk_import_po_orders.preview_import, name='preview_po_import'),
+
+    # stage4 - - complete import
+    path('import_po_orders/importvendor_/', bulk_import_po_orders.final_po_import,
+         name='final_po_import'),
+    path('download_po_sample/<str:file_type>/<str:file_format>', bulk_import_po_orders.download_po_template,
+         name='download_po_template'),
+
+    # EOF PO
+    #EOF product custom attributes
+    #path('bulk_export_xls', bulk_export_po_orders.export_products_xlsx, name="export_po_orders_xlsx"),
     #path('cancel_po_order/<int:po_id>', purchase_orders_view.cancel_po_order, name='cancel_po_order'),    # with ID → edit PO
+
     path('save', purchase_orders_view.save_po, name='save_po_order'),
     path('generatepdf', purchase_orders_view.generate_po_pdf, name='generate_po_order'),
     path('api/list_vendors_po', purchase_orders_view.get_vendors_po, name='api_get_vendors_po'),
     path('api/listitems', purchase_orders_view.list_po_line_items, name='list_po_line_items'),
     path('listing', purchase_orders_view.listing, name='po_listing'),
+    path('export_po_orders', bulk_export_po_orders.export_po_orders_xlsx, name='export_po_orders'),
     #json listing - Table Listing
     path('api/allpurchases', purchase_orders_view.all_purchases, name='all_purchases_json'),
     path('api/allpurchasereceives', purchase_orders_view.all_purchase_receives, name='all_purchase_receives_json'),
@@ -28,9 +51,15 @@ urlpatterns = [
     path('poreceives/edit/<int:po_receive_id>', purchase_recieve_view.edit_po_receive, name='edit_po_receive_order'),
     #Add new - action - Save PO
     path('poreceives/save', purchase_recieve_view.save_po_order_receive, name='save_po_receive'),
+
     path('poreceives/create', purchase_recieve_view.create_po_order_receive, name='create_po_order_receive'),
     path('poreceives/delete/<int:po_receive_id>', purchase_recieve_view.delete_po_receive, name='delete_po_receive'),
     path('api/ps_receives/listlineitems/<int:po_receive_id>', po_bills_view.list_ps_receive_line_items, name='list_ps_receive_line_items'),
+
+    path('poreceives/save_split_receive', purchase_recieve_view.save_po_receive_split, name='save_po_receive_split'),
+    path('poreceives/save_split_receive_complete', purchase_recieve_view.save_po_receive_split_complete, name='save_po_receive_split_complete'),
+
+    path('poreceives/save_po_receive_full', purchase_recieve_view.save_po_receive_full, name='save_po_receive_full'),
 
     #PO Bills
     path('bills/delete/<int:bill_id>', purchase_recieve_view.delete_po_bill, name='delete_po_bill'),
@@ -54,7 +83,5 @@ urlpatterns = [
     #Table listing JSON
     path('payments/list_payments_json', payments_view.all_purchase_payments, name='list_payments_json'),
     path('payments/delete/<int:payment_id>', purchase_recieve_view.delete_payment, name='delete_payment'),
-
-
 ]
 

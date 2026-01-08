@@ -138,11 +138,10 @@ document.addEventListener("DOMContentLoaded", function () {
                         6: "Archived"
                       };
 
-
                     return `<span class="badge badge-pill badge-info">${statusMap[status] || "Unknown"}</span>`;
                 }
           },
-          {title:"TOT QTY", field:"total_received_qty",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
+         // {title:"TOT QTY", field:"total_received_qty",hozAlign:"center",minWidth:110,headerHozAlign:"center"},
           {title:"BILLED", field:"is_billed",hozAlign:"center",minWidth:110,
           formatter: function (cell) {
                 const is_billed = cell.getValue();
@@ -269,12 +268,13 @@ document.addEventListener("DOMContentLoaded", function () {
         });
 </script>
 <script>
+    /*
 document.getElementById("main-action-btn").addEventListener("click", function(e){
     e.preventDefault();   // stop form/button submitting
     e.stopPropagation();
     const splitBtn = this.nextElementSibling;
     $(splitBtn).dropdown("toggle");
-});
+});*/
 
 </script>
 {% endblock %}

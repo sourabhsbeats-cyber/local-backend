@@ -16,7 +16,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponseBadRequest
 
 from store_admin.helpers import name_validator, name_validator_none, reference_validator, date_validator, zip_validator, \
-    get_prep_label, format_tax_percentage, parse_date_or_none
+    get_prep_label, format_tax_percentage, parse_date_or_none, safe_int, to_int_or_none
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.address_model import Addresses
 from django.db import transaction
@@ -27,7 +27,7 @@ from django.shortcuts import render, redirect
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 
-from store_admin.models.po_models.po_models import PurchaseOrder, POReceiveStatus, PurchaseOrderItem, \
+from store_admin.models.po_models.po_models import PurchaseOrder, POStatus, PurchaseOrderItem, \
     PurchaseReceiveFiles, \
     PurchaseReceivedItems, PurchaseReceives, PurchaseOrderShipping, PurchaseOrderVendor, PurchaseBills, \
     PurchaseBillItems, PurchaseBillFiles, PurchasePayments, PurchasePaymentItems, PurchasePaymentFiles, VendorPayments, \
@@ -120,11 +120,12 @@ def save_po_order_receive(request):
             receive.save(update_fields=["received_date", "shipping_date"])
         #shipping_date - po receive update
 
-
         po_vendor = PurchaseOrderVendor.objects.filter(po_id=po_id).first()
         if po_vendor:
             po_vendor.po_number = data.get("vendor_po_no")
             po_vendor.order_date = parse_date_or_none(data.get("vendor_po_order_date"))
+            po_vendor.invoice_status =to_int_or_none(data.get("vendor_po_payment_status"))
+            po_vendor.order_number = data.get("vendor_po_order_number")
             po_vendor.invoice_ref_number = data.get("vendor_po_invoice_no")
             po_vendor.delivery_ref_number = data.get("vendor_po_delivery_ref_no")
             po_vendor.invoice_date = parse_date_or_none(data.get("vendor_po_invoice_date"))
@@ -134,18 +135,19 @@ def save_po_order_receive(request):
             PurchaseOrderVendor.objects.create(
                 po_id=po_id,
                 po_number=data.get("vendor_po_no"),
+                order_number=data.get("vendor_po_order_number"),
                 order_date=parse_date_or_none(data.get("vendor_po_order_date")),
                 invoice_ref_number=data.get("vendor_po_invoice_no"),
                 delivery_ref_number=data.get("vendor_po_delivery_ref_no"),
+                invoice_status=to_int_or_none(data.get("vendor_po_payment_status")),
                 invoice_date=parse_date_or_none(data.get("vendor_po_invoice_date")),
                 invoice_due_date=parse_date_or_none(data.get("vendor_po_invoice_due_date")),
                 created_by=user_id
             )
 
         #insert all shipping
-        shipping_providers = data.get("shipping_provider", [])
-        shipping_tracking_nos = data.get("shipping_tracking_no", [])
-        print(shipping_providers)
+        shipping_details = data.get("shipping_details", [])
+        #print(shipping_providers)
         with transaction.atomic():
             # 1. delete all existing records
             PurchaseOrderShipping.objects.filter(po_id=po_id).delete()
@@ -153,12 +155,14 @@ def save_po_order_receive(request):
             shipping_objs = [
                 PurchaseOrderShipping(
                     po_id=po_id,
-                    provider=provider,
-                    tracking_number=tracking,
+                    provider=item.get("provider"),
+                    tracking_number=item.get("tracking_no"),
+                    shipped_date=parse_date_or_none(item.get("shipped_date")),
+                    received_date=parse_date_or_none(item.get("received_date")),
                     created_by=request.user.id
                 )
-                for provider, tracking in zip(shipping_providers, shipping_tracking_nos)
-                if provider and tracking
+                for item in shipping_details
+                if item.get("provider")
             ]
             # 3. bulk insert
             PurchaseOrderShipping.objects.bulk_create(shipping_objs)
@@ -369,7 +373,7 @@ def edit_po_receive(request, po_receive_id):
         })
     vendors_detail = Vendor.objects.filter(id=po_receive.vendor_id).first()
     received_files = PurchaseReceiveFiles.objects.filter(po_receive_id=po_receive_id).all()
-    print(line_items)
+
 
     po_line_items = get_po_line_items(po_order.po_id)
     vendor_po = PurchaseOrderVendor.objects.filter(po_id=po_order.po_id).first()
@@ -406,7 +410,7 @@ def validate_purchase_order_model(po, line_items):
         ("vendor_name",     "Vendor Name is required"),
         ("po_number",       "PO Number is required."),
         ("currency_code",   "Currency Code is required"),
-        ("vendor_reference","Vendor Reference is required"),
+       # ("vendor_reference","Vendor Reference is required"),
         ("warehouse_id",    "Warehouse is required"),
         ("order_date",      "Order Date is required"),
         ("delivery_date",   "Delivery Date is required"),
@@ -898,3 +902,313 @@ def delete_payment(request, payment_id):
             "status": False,
             "message": str(e)
         }, status=400)
+
+
+from django.db import transaction
+from django.http import JsonResponse
+from decimal import Decimal
+import json
+
+#btn split receipt
+def save_po_receive_split(request):
+    # 1. Catch the raw JSON payload from the request body
+    try:
+        raw_data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    po_id = raw_data.get("po_id")
+
+    # This matches the "lineItems" key in your provided JSON payload
+    line_items_data = raw_data.get("lineItems", [])
+
+    # 2. Fetch original records
+    try:
+        po = PurchaseOrder.objects.get(po_id=po_id)
+
+        po_order_items = PurchaseOrderItem.objects.filter(po_id=po_id)
+    except PurchaseOrder.DoesNotExist:
+        return JsonResponse({"error": "Purchase Order not found"}, status=404)
+
+    original_receive = PurchaseReceives.objects.filter(po_id=po_id).first()
+    po_receive_items = PurchaseReceivedItems.objects.filter(po_receive_id=original_receive.po_receive_id)
+
+    # 3. Create lookup for received quantities
+    received_lookup = {
+        item['row_item']['id']: item['received_qty']
+        for item in line_items_data
+    }
+
+    # 1. Ensure the list isn't empty
+    # 2. Check if all items are zero
+    if not line_items_data or all(line_item.get('received_qty', 0) == 0 for line_item in line_items_data):
+        return JsonResponse({
+            "status": False,
+            "message": "Error: At least one item must have a received quantity greater than zero."
+        }, status=400)  # Changed from 404 to 400
+
+    sub_po_vendor = PurchaseOrderVendor.objects.filter(po_id=po_id).first()
+
+    with transaction.atomic():
+        # --- STEP A: Create Sub PO (Backorder) ---
+        sub_po = PurchaseOrder.objects.get(po_id=po_id)
+        sub_po.pk = None
+        sub_po.po_number = f"{po.po_number}-1"
+        sub_po.status_id = POStatus.APPROVED
+        sub_po.parent_po_id = po.po_id
+        sub_po.save()
+
+        #create povendor
+        sub_po_vendor.pk = None
+        sub_po_vendor.po_id = sub_po.po_id
+        sub_po_vendor.po_number = sub_po.po_number
+        sub_po_vendor.save()
+
+        # --- 2. CLONE PURCHASE RECEIVE (The Receipt Record) ---
+        new_receive = None
+        if original_receive:
+            new_receive = original_receive
+            new_receive.pk = None
+            new_receive.po_id = sub_po.po_id  # Link to the new Sub-PO
+            new_receive.po_number = sub_po.po_number
+            # New receipt number suffix
+            new_receive.po_receive_number = f"{original_receive.po_receive_number}/1"
+            new_receive.save()
+
+        current_po_summary = Decimal('0')
+        sub_po_summary = Decimal('0')
+
+        sub_total = 0
+        tax_total = 0
+        # --- STEP B: Process Items ---
+        for item in po_order_items:
+            original_qty = Decimal(str(item.qty))
+            # Get received qty from payload lookup
+            received_qty = Decimal(str(received_lookup.get(item.product_id, 0)))
+            remaining_qty = original_qty - received_qty
+
+            price = Decimal(str(item.price))
+            tax_pct = Decimal(str(item.tax_percentage))
+            disc_pct = Decimal(str(item.discount_percentage))
+
+            # 1. Update ORIGINAL ITEM (The Received portion)
+            item.qty = received_qty
+            item.ordered_qty = received_qty
+            item.received_qty = received_qty
+            item.pending_qty = 0
+
+            # Recalculate financial fields
+            item.subtotal = item.qty * price
+            item.discount_amt = (item.subtotal * disc_pct) / Decimal('100')
+            taxable = item.subtotal - item.discount_amt
+            item.tax_amount = (taxable * tax_pct) / Decimal('100')
+            item.line_total = taxable + item.tax_amount
+            item.save()
+
+            # 🔑 UPDATE EXISTING PURCHASE RECEIVED ITEM
+            if original_receive:
+                pri, created = PurchaseReceivedItems.objects.get_or_create(
+                    po_receive_id=original_receive.po_receive_id,
+                    product_id=item.product_id,
+                    defaults={
+                        "item_id": item.item_id,
+                        "received_qty": received_qty,
+                        "status_id": 1
+                    }
+                )
+
+                if not created:
+                    pri.received_qty = received_qty  #  even if 0
+                    pri.save(update_fields=["received_qty"])
+
+            current_po_summary += item.line_total
+            tax_total += item.tax_amount
+            sub_total += item.subtotal
+            # 2. Create SUB ITEM (The Back ordered portion)
+            if remaining_qty >= 0:
+                new_sub_item = PurchaseOrderItem.objects.get(item_id=item.item_id)
+                new_sub_item.pk = None
+                new_sub_item.po_id = sub_po.po_id
+                new_sub_item.qty = remaining_qty
+                new_sub_item.received_qty = 0
+                new_sub_item.pending_qty = remaining_qty
+
+                # Recalculate financial fields
+                new_sub_item.subtotal = remaining_qty * price
+                new_sub_item.discount_amt = (new_sub_item.subtotal * disc_pct) / Decimal('100')
+                sub_taxable = new_sub_item.subtotal - new_sub_item.discount_amt
+                new_sub_item.tax_amount = (sub_taxable * tax_pct) / Decimal('100')
+                new_sub_item.line_total = sub_taxable + new_sub_item.tax_amount
+                new_sub_item.save()
+                sub_po_summary += new_sub_item.line_total
+
+                # C. Create SUB RECEIVED ITEM (The record of remaining qty)
+                if new_receive:
+                    PurchaseReceivedItems.objects.create(
+                        po_receive_id=new_receive.po_receive_id,
+                        product_id=item.product_id,
+                        item_id=new_sub_item.item_id,  # Linked to the new backorder item
+                        received_qty=0,  # Not received yet in the sub-po
+                        status_id=0
+                    )
+
+        # --- STEP C: Finalize Master Totals ---
+        po.summary_total = current_po_summary
+        po.sub_total = sub_total
+        po.tax_total = tax_total
+        po.updated_by = request.user.id
+        po.updated_at = timezone.now()
+        po.status_id = POStatus.DELIVERED
+        po.save()
+
+
+        sub_po.summary_total = sub_po_summary
+        sub_po.save()
+        #clone po vendor details
+        #create purchase receive
+    return JsonResponse({"status": True, "message":"PO-Split created successfully", "new_po": sub_po.po_number})
+
+
+def save_po_receive_full(request):
+    try:
+        raw_data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    po_id = raw_data.get("po_id")
+    line_items_data = raw_data.get("lineItems", [])
+
+    try:
+        po = PurchaseOrder.objects.get(po_id=po_id)
+        po_order_items = PurchaseOrderItem.objects.filter(po_id=po_id)
+    except PurchaseOrder.DoesNotExist:
+        return JsonResponse({"error": "Purchase Order not found"}, status=404)
+
+    # 🔒 Purchase Receive MUST exist
+    original_receive = PurchaseReceives.objects.filter(po_id=po_id).first()
+    if not original_receive:
+        return JsonResponse(
+            {"error": "Purchase Receive record does not exist"},
+            status=400
+        )
+
+    # product_id → received_qty
+    received_lookup = {
+        item["row_item"]["id"]: Decimal(str(item["received_qty"]))
+        for item in line_items_data
+    }
+
+    with transaction.atomic():
+        sub_total = Decimal("0")
+        tax_total = Decimal("0")
+        summary_total = Decimal("0")
+
+        for item in po_order_items:
+            original_qty = Decimal(str(item.qty))
+            received_qty = received_lookup.get(item.product_id, Decimal("0"))
+
+            #  FULL RECEIVE VALIDATION
+            if received_qty != original_qty:
+                return JsonResponse(
+                    {"error": "Partial quantity detected. Use Split Receive."},
+                    status=400
+                )
+
+            price = Decimal(str(item.price))
+            tax_pct = Decimal(str(item.tax_percentage))
+            disc_pct = Decimal(str(item.discount_percentage))
+
+            # ---- Update PO Item ----
+            item.qty = original_qty
+            item.ordered_qty = original_qty
+            item.received_qty = original_qty
+            item.pending_qty = 0
+
+            item.subtotal = original_qty * price
+            item.discount_amt = (item.subtotal * disc_pct) / Decimal("100")
+            taxable = item.subtotal - item.discount_amt
+            item.tax_amount = (taxable * tax_pct) / Decimal("100")
+            item.line_total = taxable + item.tax_amount
+            item.save()
+
+            # 🔒 PurchaseReceivedItems MUST exist
+            try:
+                pri = PurchaseReceivedItems.objects.get(
+                    po_receive_id=original_receive.po_receive_id,
+                    product_id=item.product_id,
+                    item_id=item.item_id
+                )
+            except PurchaseReceivedItems.DoesNotExist:
+                raise ValueError(
+                    f"Missing PurchaseReceivedItem for product {item.product_id}"
+                )
+
+            # Update even if qty = 0
+            pri.received_qty = original_qty
+            pri.status_id = 1
+            pri.save(update_fields=["received_qty", "status_id"])
+
+            sub_total += item.subtotal
+            tax_total += item.tax_amount
+            summary_total += item.line_total
+
+        # ---- Finalize PO ----
+        po.sub_total = sub_total
+        po.tax_total = tax_total
+        po.summary_total = summary_total
+        po.updated_by = request.user.id
+        po.updated_at = timezone.now()
+        po.status_id = POStatus.DELIVERED #received full
+        po.save()
+
+    return JsonResponse(
+        {"status": True, "message": "PO receive completed successfully"}
+    )
+
+
+#PO Complete - action btn
+#split receive completed
+def save_po_receive_split_complete(request):
+    # 1. Catch the raw JSON payload from the request body
+    try:
+        raw_data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    po_id = raw_data.get("po_id")
+    po_receive_id = raw_data.get("po_receive_id")
+    # This matches the "lineItems" key in your provided JSON payload
+    line_items_data = raw_data.get("lineItems", [])
+
+    original_receive = PurchaseReceives.objects.filter(po_receive_id=po_receive_id).first()
+
+    try:
+        po = PurchaseOrder.objects.get(po_id=po_id)
+        po_order_items = PurchaseOrderItem.objects.filter(po_id=po_id)
+    except PurchaseOrder.DoesNotExist:
+        return JsonResponse({"error": "Purchase Order not found"}, status=404)
+
+    for item in po_order_items:
+        if item.ordered_qty != item.received_qty:
+            return JsonResponse({"status":False, "error": "This has pending receive, Can not complete this order"}, status=404)
+    # 3. Create lookup for received quantities
+    received_lookup = {
+        item['row_item']['id']: item['received_qty']
+        for item in line_items_data
+    }
+
+    with transaction.atomic():
+        # --- Complete received ---
+        original_receive.updated_by = request.user.id
+        original_receive.updated_at = timezone.now()
+        original_receive.is_completed = 1
+
+        po.status_id = POStatus.COMPLETED
+        po.updated_at = timezone.now()
+        po.updated_by = request.user.id
+        po.save()
+
+        original_receive.save(update_fields=['is_completed', 'updated_by', 'updated_at'])
+        # --- STEP C: Finalize Master Totals ---
+
+    return JsonResponse({"status": True, "message": "PO-Split received completed successfully"})

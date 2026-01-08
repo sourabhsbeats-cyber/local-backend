@@ -15,6 +15,7 @@ urlpatterns = [
     #path('', views.test, name='test'),
     path('', lambda request: redirect('login')),
     path('login/', auth_views.login_view, name='login'),
+    path('api/login/', auth_views.api_login, name='api_login'),
     path('logout/', auth_views.logout_view, name='logout'),
     path('app/dashboard/', dashboard_views.dashboard, name='dashboard'),
     #user menu item
