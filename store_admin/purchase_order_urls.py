@@ -42,7 +42,14 @@ urlpatterns = [
     #json listing - Table Listing
     path('api/allpurchases', purchase_orders_view.all_purchases, name='all_purchases_json'),
     path('api/allpurchasereceives', purchase_orders_view.all_purchase_receives, name='all_purchase_receives_json'),
+    path('api/purchase-order/<int:po_id>/<int:product_id>/<int:receive_id>/invoices/', purchase_orders_view.all_po_invoices, name='all_purchase_receives_json1'),
+    path('api/purchase-order/<int:po_id>/<int:product_id>/<int:receive_id>/shipments/', purchase_orders_view.all_po_shipments, name='all_po_shipments'),
+    path('api/purchase-order/save_purchase_invoice/', purchase_orders_view.save_purchase_invoice, name='all_purchase_receives_json2'),
+    path('api/purchase-order/save_item_shipping/', purchase_orders_view.save_shipping_details, name='save_item_shipping_details'),
+    path('api/purchase-order/delete_shipment/', purchase_orders_view.delete_po_shipment, name='delete_po_shipment'),
     path("delete/<int:po_id>/", purchase_orders_view.delete_po, name="delete_po_single"),
+
+    #api/purchase-order/313/invoices/
     #EOF Purchase Orders
 
     #purchase received
@@ -56,7 +63,7 @@ urlpatterns = [
     path('poreceives/delete/<int:po_receive_id>', purchase_recieve_view.delete_po_receive, name='delete_po_receive'),
     path('api/ps_receives/listlineitems/<int:po_receive_id>', po_bills_view.list_ps_receive_line_items, name='list_ps_receive_line_items'),
 
-    path('poreceives/save_split_receive', purchase_recieve_view.save_po_receive_split, name='save_po_receive_split'),
+    path('poreceives/save_split_receive', purchase_recieve_view.save_po_receive, name='save_po_receive_split'),
     path('poreceives/save_split_receive_complete', purchase_recieve_view.save_po_receive_split_complete, name='save_po_receive_split_complete'),
 
     path('poreceives/save_po_receive_full', purchase_recieve_view.save_po_receive_full, name='save_po_receive_full'),

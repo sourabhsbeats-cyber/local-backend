@@ -25,7 +25,7 @@ def api_login(request):
 
             if user is not None:
                 login(request, user)
-                # Success Response - JSON-ah anuppuvom
+                # Success Response - JSON-ah 
                 return JsonResponse({
                     'status': 'success',
                     'message': f"Welcome back, {user.name}!",
@@ -103,25 +103,25 @@ def get_user_navigations(request):
             "match": "/purchaseorder/",
             "children": [
                 {
-                    "label": "Purchase Order",
+                    "label": "Purchase Orders",
                     "url": reverse("po_listing"),
                     "match": "/purchaseorder/",
                 },
+               # {
+               #     "label": "Purchase Receives",
+               #     "url": reverse("po_order_receives"),
+               #     "match": "/purchaseorder/poreceives/",
+                #},
                 {
-                    "label": "Purchase Receives",
-                    "url": reverse("po_order_receives"),
-                    "match": "/purchaseorder/poreceives/",
-                },
-                {
-                    "label": "Bills",
+                    "label": "Invoices",
                     "url": reverse("po_bills_listing"),
                     "match": "/purchaseorder/bill/",
                 },
-                {
-                    "label": "Payments Made",
-                    "url": reverse("payments_listing"),
-                    "match": "/purchaseorder/payments/",
-                },
+               # {
+              #      "label": "Payments Made",
+              #      "url": reverse("payments_listing"),
+              #      "match": "/purchaseorder/payments/",
+             #   },
             ],
         },
         {

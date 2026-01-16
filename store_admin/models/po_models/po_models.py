@@ -3,26 +3,29 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db import models
 
 class POStatus(models.IntegerChoices):
-    DRAFT = -1, "Draft"
-    NEW = 0, "New"
-    APPROVED = 1, "Approved"
-    IN_TRANSIT = 2, "In-transit"
-    DELIVERED = 3, "Delivered"
-    PARTIALLY_DELIVERED = 4, "Partially Delivered"
-    COMPLETED = 5, "Completed"
-    DELETED = 6, "Deleted"
+    DRAFT__PENDING = -1, "Draft|Pending"
+    PARKED__PENDING = 0, "Parked|Pending"
+    PLACED__PENDING = 1, "Placed|Pending"
+    PLACED__SHIPPED = 2, "Placed|Shipped"
+    PLACED__BACK_ORDER = 3, "Placed|Back Order"
+    PARTIALLY_DELIVERED__PARTIALLY_DELIVERED = 4, "Partially Delivered|Partially Delivered"
+    DELIVERED__DELIVERED = 5, "Delivered|Delivered" #All costs added and payments completed; PO is fully locked and tracking status must be Delivered
+    CLOSED_DELIVERED = 6, "Closed|Delivered"
 
-class POApprovalStatus(models.IntegerChoices):
-    DRAFT = -1, "Draft"
-    NEW = 0, "New"
-    APPROVED = 1, "Approved"
-    CANCELLED = 2, "Cancelled"
-    COMPLETED = 3, "Completed"
+    #CANCELLED = 7, "Cancelled"
+
+class POShippingStatus(models.IntegerChoices):
+    PENDING = -1, "Pending"
+    SHIPPED = 2, "Shipped"
+    BACK_ORDER = 3, "Back Order"
+    PARTIALLY_DELIVERED = 4, "Partially Delivered"
+    ALL_RECEIVED = 6, "All stock received"
+    DELIVERED = 5, "Delivered"
 
 class POPaymentStatus(models.IntegerChoices):
     PAID = 1, "Paid"
     UNPAID = 2, "Unpaid"
-    CANCELLED = 3, "Cancelled"
+    CANCELED = 3, "Cancelled"
     ON_HOLD = 4, "On Hold"
 
 class POBillingStatus(models.IntegerChoices):
@@ -31,26 +34,25 @@ class POBillingStatus(models.IntegerChoices):
     PARTIALLY_BILLED = 2, "Partially Billed"
     BILLED = 3, "Billed"
 
+class LedgerEntryType(models.IntegerChoices):
+    DEBIT = 1, "Debit"
+    CREDIT = 2, "Credit"
+
+po_status_list = [
+    {"id": -1, "purchase_status": "Draft", "tracking_status": "Pending", "description": "Draft PO created by the team"},
+    {"id": 0, "purchase_status": "Parked", "tracking_status": "Pending", "description": "Draft PO created by the team"},
+    {"id": 1, "purchase_status": "Placed", "tracking_status": "Pending", "description": "PO sent to supplier; no dispatch yet"},
+    {"id": 2, "purchase_status": "Placed", "tracking_status": "Shipped", "description": "PO sent; supplier has shipped goods"},
+    {"id": 3, "purchase_status": "Placed", "tracking_status": "Back Order", "description": "PO sent; item is on back-order"},
+    {"id": 4, "purchase_status": "Partially Delivered", "tracking_status": "Partially Delivered", "description": "Partial stock received"},
+    {"id": 5, "purchase_status": "Delivered", "tracking_status": "Delivered", "description": "All stock received"},
+    {"id": 6, "purchase_status": "Closed", "tracking_status": "Delivered", "description": "Fully locked and tracking must be Delivered"},
+    {"id": 7, "purchase_status": "Cancelled", "tracking_status": "N/A", "description": "Cancelled PO"}
+]
 #----------------------------------------------------------------------------------------#
 #--------------------------- Purchase Receive -------------------------------------------#
 #----------------------------------------------------------------------------------------#
 
-class PurchaseOrderTransactions(models.Model):
-    po_trans_id = models.AutoField(primary_key=True)
-    po_id = models.IntegerField()
-    prev_status = models.IntegerField(choices=POApprovalStatus.choices,
-        default=0,
-        blank=True,
-        null=True)
-    prev_updated_at = models.DateTimeField(auto_now_add=True)
-    prev_status_description = models.CharField(max_length=200)
-    current_status = models.IntegerField(choices=POApprovalStatus.choices,
-        default=0,
-        blank=True,
-        null=True)
-    current_status_description = models.CharField(max_length=200)
-    created_at = models.DateField(auto_now=True)
-    created_by = models.IntegerField()
 
 class PurchaseReceives(models.Model):
     po_receive_id       = models.AutoField(primary_key=True)
@@ -66,6 +68,10 @@ class PurchaseReceives(models.Model):
     updated_at          = models.DateTimeField(auto_now_add=True)
     created_by          = models.IntegerField(blank=True, null=True)
     updated_by          = models.IntegerField(blank=True, null=True)
+
+    summary_total = models.DecimalField(max_digits=10, decimal_places=4, default=0.0)
+    sub_total = models.DecimalField(max_digits=10, decimal_places=4, default=0.0)
+    tax_total = models.DecimalField(max_digits=10, decimal_places=4, default=0.0)
 
     is_billed           = models.IntegerField(default=0)
     is_completed        = models.IntegerField(default=0)
@@ -100,6 +106,30 @@ class PurchaseReceiveFiles(models.Model):
 #-------------------------------------------------------------------------------------------#
 #--------------------------- Purchase Order ------------------------------------------------#
 #-------------------------------------------------------------------------------------------#
+
+class PurchaseOrderPrimaryDetails(models.Model):
+    po_primary_id = models.AutoField(primary_key=True)
+    po_id = models.IntegerField()
+
+    po_status = models.IntegerField(choices=POStatus.choices,
+        default=0,
+        blank=True,
+        null=True)
+    shipping_status = models.IntegerField(choices=POShippingStatus.choices,
+                                         default=0,
+                                         blank=True,
+                                         null=True)
+    status_description = models.CharField(max_length=200,blank=True, null=True)
+    po_number = models.CharField(max_length=80, blank=True, null=True)
+    created_at = models.DateField(auto_now=True)
+    created_by = models.IntegerField()
+    is_primary = models.IntegerField()
+    total_ordered = models.IntegerField()
+    total_received = models.IntegerField()
+
+    class Meta:
+        db_table = 'store_admin_purchase_order_primary_details'
+
 #EOF Purchase order receives
 class PurchaseOrder(models.Model):
     po_id = models.AutoField(primary_key=True)
@@ -131,6 +161,11 @@ class PurchaseOrder(models.Model):
     status_id = models.IntegerField(
         choices=POStatus.choices,
         default=-1,
+        blank=True,
+        null=True
+    )
+    completion_status = models.IntegerField(
+        default=None,
         blank=True,
         null=True
     )
@@ -245,7 +280,7 @@ class PurchaseOrderVendor(models.Model):
     invoice_due_date = models.DateTimeField(blank=True, null= True)
     invoice_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
     delivery_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
-    invoice_status = models.CharField(max_length=60) #vendor_invoice_status
+    invoice_status = models.IntegerField(blank=True, null= True) #vendor_invoice_status
 
     created_by = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -256,6 +291,8 @@ class PurchaseOrderVendor(models.Model):
 class PurchaseOrderShipping(models.Model):
     po_shipping_id = models.AutoField(primary_key=True)
     po_id  = models.IntegerField()
+    po_item_id  = models.IntegerField() #po_receive item id - product id
+    receive_id  = models.IntegerField() #po_receive receive id
 
     provider = models.IntegerField(blank=True, null=True)
     website = models.CharField(max_length=180)
@@ -281,6 +318,24 @@ class PurchaseOrderFiles(models.Model):
 
     class Meta:
         db_table = 'store_admin_purchase_order_files'
+
+
+class PurchaseOrderInvoiceDetails(models.Model):
+    po_invoice_id = models.AutoField(primary_key=True)
+    po_id            = models.IntegerField()
+    po_item_id       = models.IntegerField()
+    receive_id       = models.IntegerField()
+    po_amount        = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    invoice_number = models.CharField(max_length=45, null=True, blank=True)
+    invoice_date     = models.DateField()
+    invoice_due_date = models.DateField()
+    invoice_payment_term_id = models.IntegerField(null=True)
+    invoice_status_id = models.IntegerField(null=True)
+    created_at       = models.DateTimeField(auto_now_add=True)
+    created_by       = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = 'store_admin_purchase_order_invoice_details'
 
 
 #--------------------------------------------------------------------------------------------------#
@@ -503,6 +558,4 @@ class VendorLedger(models.Model):
     class Meta:
         db_table = "store_admin_vendor_ledger"
 
-class LedgerEntryType(models.IntegerChoices):
-    DEBIT = 1, "Debit"
-    CREDIT = 2, "Credit"
+

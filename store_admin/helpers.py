@@ -6,6 +6,7 @@ from datetime import datetime, date, timedelta
 #from store_admin.models.product_model import PREP_TYPE_CHOICES
 from django.core.exceptions import ValidationError
 
+from store_admin.models import StoreUser
 from store_admin.models.po_models.po_models import PurchaseOrder
 
 
@@ -29,6 +30,9 @@ def safe_int(val, default=None):
         return int(float(s))
     except:
         return default
+
+def getUserName(user_id):
+    return StoreUser.objects.get(id=user_id).name
 
 def to_int_or_none(value):
     try:

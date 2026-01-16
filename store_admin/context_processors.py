@@ -13,7 +13,7 @@ def common_master_data(request):
 
     payment_terms = cache.get("payment_terms_list")
     if not payment_terms:
-        payment_terms = list(PaymentTerm.objects.filter())
+        payment_terms = list(PaymentTerm.objects.all())
         cache.set("payment_terms_list", payment_terms, 3600)
 
     warehouse_locations = cache.get("warehouse_locations")

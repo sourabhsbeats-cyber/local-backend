@@ -191,11 +191,10 @@
               <option value="">All</option>
               <option value="0">Parked</option>
                 <option value="1">Placed</option>
-                <option value="2">Partially Delivered</option>
                 <option value="4">Partially Delivered</option>
-                <option value="3">Delivered</option>
-                <option value="5">Closed</option>
-                <option value="6">Cancelled</option>
+                <option value="5">Delivered</option>
+                <option value="6">Closed</option>
+                <option disabled value="5">Cancelled</option>
                 <!-- <option value="6">Deleted</option>-->
             </select>
           </div>
@@ -232,10 +231,10 @@
           <div class="col-lg-4 col-md-6 col-12 mb-2">
             <label class="form-label" for="filter_warehouse">Warehouse</label>
             <select class="form-control form-control-sm" id="filter_warehouse">
-              <option value="">select</option>
-                {% for warehouse in WAREHOUSE_LOCATIONS %}
-                <option value="{{ warehouse.id }}">{{ warehouse.name }}</option>
-                {% endfor %}
+                    <option value="">select</option>
+                    {% for warehouse_details in WAREHOUSE_LOCATIONS %}
+                        <option value="{{ warehouse_details.id }}">{{ warehouse_details.name }}</option>
+                    {% endfor %}
             </select>
           </div>
 
@@ -257,17 +256,6 @@
                 <option value="2">Unpaid</option>
                 <option value="3">Cancelled</option>
                 <option value="4">On Hold</option>
-            </select>
-          </div>
-          <div class="col-lg-4 col-md-6 col-12 mb-2">
-            <label class="form-label" for="filter_shipping_status">Shipping Status</label>
-            <select id="filter_shipping_status" class="form-control-sm form-control">
-                <option value="">All</option>
-                <option value="1">Pending</option>
-                <option value="2">Shipped</option>
-                <option value="3">Back Order</option>
-                <option value="4">Partially Delivered</option>
-                <option value="4">Delivered</option>
             </select>
           </div>
 
@@ -319,6 +307,27 @@
 {% block footer_scripts %}
 <script>
 let table = null;
+function applyChildBorders(table) {
+    // 1. Clear all box-related classes first
+    document.querySelectorAll(".child-first, .child-last, .parent-expanded-box")
+        .forEach(el => el.classList.remove("child-first", "child-last", "parent-expanded-box"));
+
+    table.getRows().forEach(parentRow => {
+        const data = parentRow.getData();
+
+        // 2. Identify expanded parents and their children
+        if (data.sub_pos && data.sub_pos.length > 1 && parentRow.isTreeExpanded()) {
+            // Add class to the parent row to start the box top
+            parentRow.getElement().classList.add("parent-expanded-box");
+
+            const children = parentRow.getTreeChildren();
+            if (children.length) {
+                children[0].getElement().classList.add("child-first");
+                children[children.length - 1].getElement().classList.add("child-last");
+            }
+        }
+    });
+}
 function getFilterParams() {
     return {
         status: document.getElementById("filter_status").value,
@@ -382,327 +391,296 @@ document.addEventListener("DOMContentLoaded", function () {
     const getQueryParam = (name) => {
         return new URLSearchParams(window.location.search).get(name) || '';
     };
-        const searchInput = document.getElementById('searchInput');
+    const searchInput = document.getElementById('searchInput');
 
-        const table = new Tabulator("#tabuar-table", {
-            height:"400px",
-            layout: "fitColumns",
-              placeholder:"No Records found",
-              ajaxURL: "{% url 'all_purchases_json' %}",
-              ajaxConfig: "GET",
-              pagination: true,
-              paginationMode: "remote", movableColumns: true,
-              paginationSize: 20,
-              paginationCounter: "pages",
-              paginationSizeSelector: [20, 30, 40, 50], // max 50 allowed
-              sortMode: "local",
-              filterMode: "remote",
-              selectableRows: true,
-              ajaxParams: function(params){
-                    // Add the current 'q' value from the URL to the AJAX parameters
-                    return getFilterParams();
+    const table = new Tabulator("#tabuar-table", {
+        height:"400px",
+        layout:"fitColumns",
+        placeholder:"No Records found",
+
+        ajaxURL: "{% url 'all_purchases_json' %}",
+        ajaxConfig:"GET",
+
+        pagination:true,
+        paginationMode:"remote",
+        paginationSize:20,
+        paginationCounter:"pages",
+        paginationSizeSelector:[20,30,40,50],
+
+        movableColumns:true,
+        sortMode:"local",
+        filterMode:"remote",
+
+        // TREE MODE
+        dataTree:true,
+        dataTreeChildField:"sub_pos",
+        dataTreeStartExpanded:false,
+
+        ajaxParams:function(){
+            return getFilterParams();
+        },
+
+        ajaxResponse:function(url, params, response){
+            return {
+                data: response.data || [],
+                last_page: response.last_page,
+                row_count: response.total,
+            };
+        },
+
+        columns:[
+            { title:"ID", field:"po_id", visible:false },
+
+            //FIRST COLUMN : Parent = plus/minus | Child = checkbox
+            {
+                minWidth:40,
+                hozAlign:"center",
+                headerSort:false,
+                formatter:function(cell){
+                    const row = cell.getRow();
+                    const d = row.getData();
+
+                    // Parent with MORE than 1 child → plus/minus
+                    if (d.sub_pos && d.sub_pos.length > 1) {
+                        return row.isTreeExpanded()
+                            ? `<i class="fas fa-minus-square text-primary" style="cursor:pointer"></i>`
+                            : `<i class="fas fa-plus-square text-primary" style="cursor:pointer"></i>`;
+                    }
+
+                    // Normal row (single PO or child) → checkbox
+                    //return `<input type="checkbox" class="tabulator-select-row">`;
+                    return ``;
                 },
-              ajaxResponse:function(url, params, response){
-                  total = response.total;
-                  return {
-                      data: response.data|| [],        // row array
-                      last_page: response.last_page,  // total pages
-                      row_count: response.total,
-                  };
-              },
+                cellClick:function(e, cell){
+                    const row = cell.getRow();
+                    const d = row.getData();
 
-              columns: [
-                  { title: "ID", field: "po_id", visible: false },
-                  { formatter: "rowSelection", minWidth: 40, hozAlign: "center", headerSort: false },
-                  {
-                    title: "PO#",
-                    field: "po_number",
-                    minWidth: 110,
-                    headerHozAlign: "center",
-                    hozAlign: "center",
-                    formatter: function(cell) {
-                      const po_id = cell.getData().po_id;
-                      const po_number = cell.getValue();
-                      const url = "{% url 'view_po_order' 0 %}".replace("0", po_id);
-                      return `<a href="${url}" class="text-primary font-weight-bold">${po_number}</a>`;
+                    if (d.sub_pos && d.sub_pos.length > 1) {
+                        row.treeToggle();
+                        setTimeout(() => applyChildBorders(table), 0);
+                    } else {
+                        row.toggleSelect();
                     }
-                  },
-                  {
-                    title: "Order Date",
-                    field: "order_date",
-                    minWidth: 100,
-                    headerSort: false,
-                    formatter: function(cell) {
-                      return formattedDate(cell.getValue(), "/");
+                    e.stopPropagation();
+                }
+            },
+            // PO NUMBER : Parent = TEXT | Child = LINK
+            {
+                title:"PO#",
+                field:"po_number",
+                minWidth:110,
+                headerHozAlign:"center",
+                hozAlign:"left",
+                formatter:function(cell){
+                    const d = cell.getRow().getData();
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+                    // Parent with multiple children → text only
+                    if (d.sub_pos && d.sub_pos.length > 1) {
+                        return `<span class="font-weight-bold text-dark">${cell.getValue()}</span>`;
                     }
-                  },
 
-                  {
-                      title: "Delivery Date-ETA",
-                      field: "delivery_date",
-                      visible: true,
-                      hozAlign: "center",
-                      minWidth: 120,
-                      headerSort: false,
-                      formatter: function(cell) {
-                        const dateValue = cell.getValue();
-                        if (!dateValue) return "";
+                    // Single PO or child → clickable link
+                    const url = "{% url 'view_po_order' 0 %}".replace("0", d.po_id);
+                    return `<a href="${url}" class="text-primary font-weight-bold">${cell.getValue()}</a>`;
+                }
+            },
 
-                        const deliveryDate = new Date(dateValue);
-                        const today = new Date();
-                        // Reset hours to compare only the dates
-                        today.setHours(0, 0, 0, 0);
-                        const formatted = formattedDate(dateValue, "/");
-                        const status = cell.getData().status_id;
-                        // Logic: If date is passed AND status is not "Delivered" (4)
-                        if (deliveryDate < today && status < 4) {
-                          // Calculate how many days overdue
-                          const diffTime = Math.abs(today - deliveryDate);
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            {
+                title:"Order Date",
+                field:"order_date",
+                minWidth:100,
+                headerSort:false,
+                formatter:function(cell){ 
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+				return formattedDate(cell.getValue(),"/") }
+            },
 
-                          return `
-                            <div class="text-danger font-weight-bold help-text" title="Overdue by ${diffDays} days">
-                              ${formatted}
+            {
+                title:"Delivery Date-ETA",
+                field:"delivery_date",
+                visible:true,
+                hozAlign:"center",
+                minWidth:120,
+                headerSort:false,
+				formatter:function(cell){ 
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+				return formattedDate(cell.getValue(),"/") }
+				
+            },
 
-                            </div>`;
-                          /*<span class="badge badge-danger ml-1" style="font-size: 10px;">Overdue</span>*/
-                        }
+            {
+                title:"Vendor Name",
+                field:"vendor_name",
+                visible:getVisibility("vendor_name", true),
+                hozAlign:"center",
+                minWidth:220,
+                headerHozAlign:"center",
+                headerSort:false,
+				formatter:function(cell){ 
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+				return cell.getValue() }
+            },
 
-                        return formatted;
-                      },
-                      // Adding tooltip logic for the cell
-                      tooltip: function(e, cell, onRender) {
-                        // Tabulator tooltips often pass (e, cell, onRender) or just (cell)
-                        // We add a safety check to ensure cell exists
-                        if (!cell || typeof cell.getValue !== "function") return "";
+            {
+                title:"Vendor Order No",
+                field:"po_vendor_po_number",
+                visible:true,
+                hozAlign:"center",
+                minWidth:220,
+                headerHozAlign:"center",
+                headerSort:false,
+				formatter:function(cell){ 
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+				return cell.getValue() }
+            },
 
-                        const dateValue = cell.getValue();
-                        const data = cell.getData();
+            //  STATUS COLUMN (RESTORED)
+           {
+    title:"Tracking Status",
+    field:"status_id",
+    visible:true,
+    minWidth:170,
+    hozAlign:"center",
+    headerHozAlign:"center",
+    headerSort:false,
+    formatter:function(cell){
 
-                        if (!dateValue || data.status_id >= 4) return "";
+        const row = cell.getRow();              // ✅ FIX 1
+        const d = row.getData();
+        const status = cell.getValue();
 
-                        const deliveryDate = new Date(dateValue);
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
+        const statusMap = [
+            { id:-1, label:"Draft" },
+            { id:0, label:"Parked" },
+            { id:1, label:"Placed" },
+            { id:2, label:"Placed" },
+            { id:3, label:"Placed" },
+            { id:4, label:"Partially Delivered" },
+            { id:5, label:"Delivered" },
+            { id:6, label:"Closed" },
+            { id:7, label:"Cancelled" }
+        ];
 
-                        if (deliveryDate < today) {
-                          const diffTime = Math.abs(today - deliveryDate);
-                          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                          return `Overdue by ${diffDays} days`;
-                        }
+        const isChild = row.getTreeParent() !== false;
+
+        let statusText = statusMap.find(x => x.id === status)?.label || "Unknown";
+        let badgeClass = "badge-info";
+
+        // 🔥 OVERRIDE ONLY FOR CHILD + PARTIALLY DELIVERED + FULL QTY
+        if (
+            isChild &&
+            status === 4 &&
+            Number(d.total_order_qty) === Number(d.total_received_qty)
+        ) {
+            statusText = "Delivered";
+            badgeClass = "badge-success";
+        } else {
+            // normal coloring
+            if (status === 4) badgeClass = "badge-primary";
+            if (status === 3) badgeClass = "badge-success";
+            if (status === 6) badgeClass = "badge-secondary";
+            if (status === 0) badgeClass = "badge-warning";
+        }
+
+        return `<span class="badge badge-pill ${badgeClass}">${statusText}</span>`;
+    }
+},
+
+            {
+                title:"Warehouse",
+                field:"warehouse_name",
+                visible:getVisibility("warehouse_name", true),
+                hozAlign:"center",
+                width:150,
+                headerSort:false,
+				formatter:function(cell){ 
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+				return cell.getValue() }
+            },
+
+            {
+                title:"Currency",
+                field:"currency_code",
+                visible:getVisibility("currency_code", true),
+                hozAlign:"center",
+                width:90,
+                headerSort:false,
+				formatter:function(cell){ 
+					const row = cell.getRow();
+					if(row.isTreeExpanded())
+						return ``;
+				return cell.getValue() }
+            },
+
+            {
+                title:"Total",
+                field:"grand_total",
+                visible:getVisibility("grand_total", true),
+                hozAlign:"center",
+                width:120,
+                formatter:"money",
+                formatterParams:{ symbol:"$", precision:2 }
+            },
+
+            {
+                title:"Ordered QTY",
+                field:"total_order_qty",
+                visible:getVisibility("total_order_qty", true),
+                hozAlign:"center",
+                width:120
+            },
+
+            {
+                title:"Received QTY",
+                field:"total_received_qty",
+                visible:getVisibility("total_received_qty", true),
+                hozAlign:"center",
+                width:120
+            },
+
+            //  DELETE BUTTON COLUMN (RESTORED)
+            {
+                title:"",
+                width:70,
+                hozAlign:"center",
+                headerSort:false,
+                formatter:function(cell){
+                    const d = cell.getRow().getData();
+
+                    // Parent with multiple children → no delete
+                    if (d.sub_pos && d.sub_pos.length > 1) {
                         return "";
-                      }
-                    },
-                  {
-                    title: "Vendor Name",
-                    field: "vendor_name",
-                    visible: getVisibility("vendor_name", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Vendor Order No",
-                    field: "po_vendor_po_number",
-                    visible: true,
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Tracking Status",
-                    field: "status_id",
-                    visible: true,
-                    minWidth: 170,
-                    hozAlign: "center",
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: function(cell) {
-                      const status = cell.getValue();
-                      const statusMap = {
-                        0: "New",
-                        1: "Approved",
-                        2: "In-transit",
-                        3: "Delivered",
-                        4: "Partially Delivered",
-                        5: "Completed",
-                        6: "Deleted"
-                      };
-                      let badgeClass = (status === 4) ? "badge-primary" : "badge-info";
-                      if (status === 5) badgeClass = "badge-success";   // Red for Cancelled
-                      if (status === 6) badgeClass = "badge-secondary"; // Grey for Archived
-                      const statusText = statusMap[status] || "Unknown";
-                      return `<span class="badge badge-pill ${badgeClass}">${statusText}</span>`;
                     }
-                  },
-                  {
-                    title: "Vendor PO Order Date",
-                    field: "po_vendor_order_date",
-                    visible: getVisibility("po_vendor_order_date", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: function(cell) {
-                      return formattedDate(cell.getValue(), "/");
-                    }
-                  },
-                  {
-                    title: "Vendor Invoice No",
-                    field: "po_vendor_invoice_ref_number",
-                    visible: getVisibility("po_vendor_invoice_ref_number", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Vendor Delivery Ref",
-                    field: "po_vendor_delivery_ref_number",
-                    visible: getVisibility("po_vendor_delivery_ref_number", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Vendor Shipping Company",
-                    field: "vendor_shipping_company",
-                    visible: getVisibility("vendor_shipping_company", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Vendor Tracking No",
-                    field: "vendor_shipping_tracking_no",
-                    visible: getVisibility("vendor_shipping_tracking_no", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Vendor Tracking Link",
-                    field: "vendor_shipping_tracking_link",
-                    visible: getVisibility("vendor_shipping_tracking_link", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: function(cell) {
-                      const tracking_link = cell.getValue();
-                      return (tracking_link && tracking_link.length >= 3)
-                        ? `<a target="_blank" class="link text-primary text-underline" href="${tracking_link}">Track</a>`
-                        : "--";
-                    }
-                  },
-                  {
-                    title: "Vendor Shipping Date",
-                    field: "vendor_shipping_date",
-                    visible: getVisibility("vendor_shipping_date", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: function(cell) {
-                      return formattedDate(cell.getValue());
-                    }
-                  },
-                  {
-                    title: "Vendor Delivery Date",
-                    field: "vendor_delivery_date",
-                    visible: getVisibility("vendor_delivery_date", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: function(cell) {
-                      return formattedDate(cell.getValue());
-                    }
-                  },
-                  {
-                    title: "Vendor PO#",
-                    field: "po_vendor_ref",
-                    visible: getVisibility("po_vendor_ref", true),
-                    hozAlign: "center",
-                    minWidth: 220,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
-                  {
-                    title: "Reference",
-                    field: "vendor_reference",
-                    visible: getVisibility("vendor_reference", true),
-                    hozAlign: "center",
-                    minWidth: 110,
-                    headerHozAlign: "center",
-                    headerSort: false
-                  },
 
-                  {
-                    title: "Warehouse",
-                    field: "warehouse_name",
-                    visible: getVisibility("warehouse_name", true),
-                    headerSort: false,
-                    hozAlign: "center",
-                    width: 150,
-                    headerHozAlign: "center"
-                  },
-                  {
-                    title: "Currency",
-                    field: "currency_code",
-                    visible: getVisibility("currency_code", true),
-                    headerSort: false,
-                    hozAlign: "center",
-                    width: 90,
-                    headerHozAlign: "center"
-                  },
-                  {
-                    title: "Total",
-                    field: "grand_total",
-                    visible: getVisibility("grand_total", true),
-                    hozAlign: "center",
-                    width: 120,
-                    headerHozAlign: "center",
-                    formatter: "money",
-                    formatterParams: { symbol: "$", precision: 2 }
-                  },
-                  {
-                    title: "Ordered QTY",
-                    field: "total_order_qty",
-                    visible: getVisibility("total_order_qty", true),
-                    hozAlign: "center",
-                    width: 120,
-                    headerHozAlign: "right"
-                  },
-                  {
-                    title: "Received QTY",
-                    field: "total_received_qty",
-                    visible: getVisibility("total_received_qty", true),
-                    hozAlign: "center",
-                    width: 120,
-                    headerHozAlign: "right"
-                  },
-                  {
-                    title: "",
-                    width: 70,
-                    hozAlign: "center",
-                    headerHozAlign: "center",
-                    headerSort: false,
-                    formatter: (cell) => {
-                      const po_id = cell.getRow().getData().po_id;
-                      return `<button type="button" class="btn btn-sm btn-outline-danger" onclick="deletePO(${po_id},event)"><i class="fas fa-trash-alt"></i></button>`;
-                    },
-                    cellClick: function(e) {
-                      e.stopPropagation(); // Avoid row selection on delete
-                    }
-                  }
-              ]
-      });
+                    return `<button type="button"
+                                class="btn btn-sm btn-outline-danger"
+                                onclick="deletePO(${d.po_id}, event)">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>`;
+                },
+                cellClick:function(e){
+                    e.stopPropagation();
+                }
+            }
+        ]
+    });
+
+table.on("dataLoaded", function () {
+    applyChildBorders(table);
+});
+
         // 4. THE FILTER TRIGGER
     document.getElementById("filter_submit_btn").addEventListener("click", function(e) {
         e.preventDefault();
@@ -831,6 +809,55 @@ document.getElementById("main-action-btn").addEventListener("click", function(e)
 });
 
 </script>
+<style>
+/* --- 1. RESET DEFAULT BORDERS --- */
+.tabulator-row {
+    border-bottom: 1px solid #dee2e6 !important;
+    border-top: none !important;
+}
 
+/* --- 2. THE BOX CONTAINER (Hard Gray #666) --- */
+
+/* The expanded parent starts the top and sides of the box */
+.tabulator-row.parent-expanded-box {
+    border-top: 2px solid #666 !important;
+    border-left: 2px solid #666 !important;
+    border-right: 2px solid #666 !important;
+    border-bottom: none !important; /* Remove bottom so it flows into children */
+    background-color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* Child rows continue the sides of the box */
+.tabulator-row.tabulator-tree-level-1 {
+    background-color: #f9fafb !important;
+    border-left: 2px solid #666 !important;
+    border-right: 2px solid #666 !important;
+    border-bottom: 1px solid #eee !important; /* Light internal divider */
+}
+
+/* The last child closes the bottom of the box */
+.tabulator-row.child-last {
+    border-bottom: 2px solid #666 !important;
+}
+
+/* --- 3. REMOVE SELECTION BORDERS --- */
+.tabulator-row.tabulator-selected {
+    outline: none !important;
+    /* Maintain our custom box borders even when selected */
+    border-left-color: #666 !important;
+    border-right-color: #666 !important;
+}
+
+/* --- 4. INDENTATION & SPACING --- */
+.tabulator-row.tabulator-tree-level-1 .tabulator-cell:first-child {
+    padding-left: 32px !important;
+}
+
+/* Standard parent row when NOT expanded */
+.tabulator-row.tabulator-tree-level-0:not(.parent-expanded-box) {
+    border-bottom: 1px solid #dee2e6 !important;
+}
+</style>
 {% endblock %}
 {% endblock %}

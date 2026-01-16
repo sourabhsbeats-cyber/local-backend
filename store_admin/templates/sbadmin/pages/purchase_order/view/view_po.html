@@ -247,26 +247,28 @@ border-bottom:1px solid #007bff !important;
                     <div class="col-lg-9  float-left">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center">
-                                <button class="back-btn" onclick="window.history.back()">
+                                <a class="back-btn" href="{% url 'po_listing' %}">
                                     <i class="fa fa-chevron-left"></i>
-                                </button>
+                                </a>
                                 <h4 class="mb-0 font-weight-bold ml-2">Order # {{ po.po_number }}</h4>
                                 <span class="status-active ml-2">
-                                    
+
                                     <span class="badge badge-pill badge-info">
-                                        <i class="fa fa-bolt fa-small"></i> 
+                                        <i class="fa fa-bolt fa-small"></i>
                                         {% if po.status_id == 0 %}
-                                        New
+                                        Parked
                                         {% elif po.status_id == 1 %}
-                                        Approved
+                                        Placed
                                         {% elif po.status_id == 2 %}
-                                        In-transit
+                                        Placed
                                         {% elif po.status_id == 3 %}
-                                        Delivered
+                                        Placed
                                         {% elif po.status_id == 4 %}
                                         Partially Delivered
                                         {% elif po.status_id == 5 %}
-                                        Completed
+                                        Delivered
+                                        {% elif po.status_id == 6 %}
+                                        Closed
                                         {% endif %}
 
                                     </span>
@@ -284,15 +286,16 @@ border-bottom:1px solid #007bff !important;
                                 </span>
                             </div>
                             <div>
+
+                                <a title="Create Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-2">
+                                        <i class="fas fa-box mr-1"></i> Receive
+                                </a>
                                 {% if po_receive %}
-                                    <a id="btn_po_view" href="{% url 'edit_po_receive_order' po_receive_id=po_receive.po_receive_id %}" class="mr-1 btn btn-outline-info text-info" style="border-radius: 8px;">
-                                        <i class="fa fa-paper-plane mr-1"></i> View Receive
-                                    </a>
                                 {% endif %}
                                 {% if po.status_id == 0 %}
-                                    <a title="Approve and Create Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-2">
+                                   <!-- <a title="Approve and Create Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-2">
                                         <i class="fas fa-box mr-1"></i> Receive
-                                    </a>
+                                    </a>-->
                                 {% endif %}
                                 {% if is_all_received %}
                                    <!-- <button title="All Received, Click to Receive Complete"  type="button" class="help-text btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
@@ -319,8 +322,6 @@ border-bottom:1px solid #007bff !important;
                                         <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit </a>
                                         <a class="dropdown-item" onclick="deletePO('{{  po.po_id }}')" href="#">Delete</a>
                                       <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item" href="{% url 'create_order' %}">New PO</a>
-
                                     </div>
                                 </div>
 
@@ -330,11 +331,6 @@ border-bottom:1px solid #007bff !important;
                                     </button>
 
                                     <div class="dropdown-menu dropdown-menu-right">
-                                         {% if po_receive %}
-                                    <a title="View PO Receive" href="{% url 'edit_po_receive_order' po_receive_id=po_receive.po_receive_id %}" class="dropdown-item help-text mr-2">
-                                        <i class="fas fa-box mr-1"></i> View Receive
-                                    </a>
-                                {% endif %}
 
                                         <a class="dropdown-item"  href="{% url 'create_order' po.po_id %}">
                                             <i class="fas fa-print mr-1"></i> Print</a>
@@ -352,6 +348,10 @@ border-bottom:1px solid #007bff !important;
                         <div class="row mt-3">
                             <div class="col-sm-6">
                                 <div style="font-size:14px;">
+                                    {% if has_child_is_master %}
+                                        <span class="badge badge-warning ">Primary PO</span>
+                                    {% endif %}
+
                                     <span class="text-muted">Created by</span> {{ created_by }}
                                     <i class="fa fa-circle text-secondary ml-1" style="font-size:6px;"></i>
                                     <i class="fa fa-box ml-2 mr-1 text-secondary"></i> <span id="total_products"></span>
@@ -395,7 +395,7 @@ border-bottom:1px solid #007bff !important;
                                   <b>Order Date:</b> {{ po.order_date }}<br>
                                   <b>Expected Delivery Date:</b> {{ po.delivery_date }}<br>
                                 </div>
-                               
+
 
                                 <div class="col-md-4 p-2 float-left">
                                     <div class="invoice-col">
@@ -442,9 +442,10 @@ border-bottom:1px solid #007bff !important;
                                          <div class="">
                                             <strong><i class="fas fa-map-marker-alt mr-1"></i> Warehouse Location</strong>
                                             <p class="text-muted">
-                                                {% for warehouse in warehouses %}
-                                                    {% if po.warehouse_id == warehouse.warehouse_id %}
-                                                        {{ warehouse.warehouse_name }}
+                                                {% for warehouse in WAREHOUSE_LOCATIONS %}
+
+                                                    {% if po.warehouse_id == warehouse.id %}
+                                                        {{ warehouse.name }}
                                                     {% endif %}
                                                 {% endfor %}
                                             </p>
@@ -637,7 +638,7 @@ border-bottom:1px solid #007bff !important;
                                 </thead>
                                 <tbody id="product_line_item" class="border-bottom"></tbody>
                             </table>
-                            
+
                         </div>
 
                         <table class="summary-box float-right" style="width: 300px;">
@@ -657,10 +658,12 @@ border-bottom:1px solid #007bff !important;
     </div>
 </div>
  {% csrf_token %}
- 
+
 <script>
 
     {% if po.status_id == 0 %}
+	{% endif %}
+
     document.getElementById("btn_create_receive").addEventListener("click",function(e){
        e.stopPropagation();
        e.preventDefault();
@@ -696,7 +699,7 @@ border-bottom:1px solid #007bff !important;
                 console.error("Request failed", err);
               });
     });
-    {% endif %}
+
 function approvePO(poId){
     event.stopPropagation();
     event.preventDefault();
@@ -946,10 +949,10 @@ function updatePOTotals() {
     let qty_rate = 0;
     //const is_taxfree = item.row_item.is_taxfree;
     lineItems.forEach(item => {
-        
-        total_qty += item.qty || 0; 
+
+        total_qty += item.qty || 0;
         total_sub += item.sub_total || 0;
-       
+
         total_tax += item.tax_amount || 0;
         total_line += item.line_total || 0;
 
@@ -961,10 +964,10 @@ function updatePOTotals() {
     $("#sub_total_td").text(formatAUD(total_sub));
     $("#tax_total_td").text(formatAUD(total_tax));
     //$("#final_total_td").text(formatAUD(total_line));
-    
+
 
     $("#surcharge_total_excl_tax").text(formatAUD(surcharge_total.toFixed(2)));
-    
+
     const sur_ship_total = surcharge_total+shipping_total;
     const sur_ship_tax = sur_ship_total * (parseFloat("{{ po.tax_percentage }}") / 100);
     const tax_total = sur_ship_tax+total_tax;
@@ -976,13 +979,13 @@ function updatePOTotals() {
     $("#total_products").text(`${total_qty} Products`)
     $("#sub_total_excl_tax").text(formatAUD(total_sub.toFixed(2)));
     $("#shipping_charge_val").text(formatAUD(shipping_total.toFixed(2)));
-    
+
     $("#gst_total").text(formatAUD((tax_total).toFixed(2)));
-    
+
     $("#grand_total_incl_tax").text(formatAUD(grant_total.toFixed(2)));
     $("#po_out_standing").text(formatAUD(grant_total.toFixed(2)));
     $("#po_out_standing_invoice").text(formatAUD(grant_total.toFixed(2)));
-    
+
 
 }
 function formatAUD(value) {
@@ -1004,7 +1007,7 @@ function formatAUD(value) {
     let int = parts[0];
     let dec = parts[1];
 
-    int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ","); 
+    int = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
     // prepend minus sign BEFORE dollar symbol
     return (isNegative ? "-$" : "$") + int + "." + dec;

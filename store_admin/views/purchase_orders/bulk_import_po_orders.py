@@ -367,6 +367,10 @@ def preview_import(request, cleaned_filename, dup_option, uploaded_filename):
         return render(request, "sbadmin/pages/purchase_order/bulk_import/import_po_stage_2.html", {
         })
 
+def set_if_empty(target_dict, key, value):
+    if not target_dict.get(key) and value not in ("", None):
+        target_dict[key] = value
+
 @login_required
 def final_po_import(request):
     if request.method != "POST":
@@ -479,7 +483,7 @@ def final_po_import(request):
                     delivery_date=parse_date_or_none(row.get("Expected Delivery Date")),
                     shipping_charge=po_freight,
                     surcharge_total=po_surcharge,
-                    status_id=POStatus.NEW,
+                    status_id=POStatus.PARKED,
                     created_by=request.user.id,
                     created_at=timezone.now(),
                     comments=str(row.get("Comment"))
@@ -548,12 +552,17 @@ def final_po_import(request):
             # SAVE LAST PO TOTALS
             # -------------------------
         if current_po:
-
             if vendor_values:
                 PurchaseOrderVendor.objects.create(
                     po_id=current_po.po_id,
                     created_by=request.user.id,
-                    **vendor_values
+                    po_number=vendor_values.get("vendor_po_number"),
+                    invoice_ref_number=vendor_values.get("vendor_invoice_number"),
+                    delivery_ref_number=vendor_values.get("vendor_delivery_ref"),
+                    #invoice_status=vendor_values.get("vendor_invoice_status"),
+                    invoice_due_date=vendor_values.get("vendor_invoice_due_date"),
+                    order_date=vendor_values.get("vendor_po_order_date"),
+                    invoice_date=vendor_values.get("vendor_invoice_date")
                 )
 
             current_po.sub_total = po_sub_total
