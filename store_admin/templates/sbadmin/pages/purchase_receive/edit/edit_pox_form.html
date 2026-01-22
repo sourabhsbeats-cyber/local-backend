@@ -9,6 +9,7 @@
     vertical-align: middle;
     background-color: #e2e6ea;
 }
+
 </style>
 <section class="content-wrapper">
   <section class="content-header">
@@ -16,14 +17,6 @@
       <div class="d-flex align-items-center">
           <h4 class="mb-0 font-weight-bold ml-2">Purchase Order #{{ po.po_number }}</h4>
           <span class="status-active ml-2">
-              <span class="badge badge-pill badge-info">
-                  <i class="fa fa-bolt fa-small"></i>
-                {% if po.is_billed == 1 %}
-                  Billed
-                {% else %}
-                  Unbilled
-                {% endif %}
-              </span>
               {% if po_receive.is_completed == 1 %}
                 <span class="badge badge-pill badge-success">
                   <i class="fa fa-info-circle fa-small"></i> Completed </span>
@@ -47,13 +40,6 @@
         <!-- COnfirm -->
         <!-- only if all qties received then only show this button -->
 
-        <button {% if po_receive.is_completed == 1 %}disabled{% endif %} id="btn_po_receive_full" name="btn_po_receive_full" class="mr-1 btn btn-success border " style="border-radius: 8px;">
-             Save Receipt
-        </button>
-          <!-- only if all qties received then only show this button -->
-        <button {% if po_receive.is_completed == 1 %}disabled{% endif %} id="btn_po_receive_complete" name="btn_po_receive_complete" class="mr-1 btn btn-primary border " style="border-radius: 8px;">
-              Complete Receipt
-        </button>
         <!-- EOF COnfirm receipt -->
 
 
@@ -169,6 +155,11 @@
                         </span>
                     </div>
                 </div>
+
+
+
+
+
             </div>
         </div>
     </div>
@@ -183,16 +174,16 @@
             <tr>
                 <th style="width:30%" >ITEM DETAILS</th>
               <!--  <th style="width:10%" >WAREHOUSE DETAILS</th> -->
-                <th class="text-center" style="width:7%">RATE</th>
+                <th class="text-center" style="width:5%">RATE</th>
                 <!--<th class="text-center" style="width:8%">DISCOUNT</th>
                  <th class="text-center" style="width:8%">SUB TOTAL</th>
                 <th class="text-center" style="width:5%">TAX</th> -->
 
                 <th class="text-right" style="width:10%">TOTAL</th>
-				<th class="text-center" style="width:8%">Shipping</th>
-				<th class="text-center" style="width:8%">Tracking</th>
+				<!--<th class="text-center" style="width:10%">Shipping</th>
+				<th class="text-center" style="width:8%">Tracking</th>-->
                 <th class="text-center" style="width:6%">QUANTITY</th>
-                <th class="text-center" style="width:10%"  title="Click here to update the received quantity" >RECEIPT QTY <i class="fa fa-info-circle help-text text-white ml-1" title="" data-original-title=" To update the Received quantity click the values"></i></th>
+                <th class="text-center" style="width:8%"  title="Click here to update the received quantity" >RECEIPT QTY <i class="fa fa-info-circle help-text text-white ml-1" title="" data-original-title=" To update the Received quantity click the values"></i></th>
             </tr>
             </thead>
             <tbody id="product_line_item"></tbody>
@@ -276,506 +267,7 @@
     </div>
   </section>
  </section>
-<div class="modal fade" id="trackingModal" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
-    <div class="modal-content">
-      <div class="modal-header bg-light">
-        <h5 class="modal-title" id="modalTitle">Tracking Details</h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
-      </div>
 
-      <div class="modal-body">
-        <div class="form-row border-bottom mb-3 pb-2 d-none">
-            <div class="col-md-6">
-                <label>Ordered QTY:</label> <span class="font-weight-bold" id="orderedQtyDisp">0</span>
-            </div>
-            <div class="col-md-6 text-md-right">
-                <label>Received QTY:</label> <span class="font-weight-bold" id="receivedQtyDisp">0</span>
-            </div>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="mb-0 font-weight-bold">Invoice Entries</h6>
-            <button class="btn btn-outline-primary btn-sm" type="button" data-toggle="collapse" data-target="#formCollapse" id="btnToggleForm">
-                + Add New Invoice
-            </button>
-        </div>
-
-        <div class="collapse mb-4" id="formCollapse">
-            <div class="card card-body bg-light border-primary">
-                <form id="invoiceEntryForm">
-                    <input type="hidden" id="active_row_item_id">
-					<div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="invNumber">Vendor Invoice No</label>
-                            <input type="text" class="form-control" id="invNumber" required />
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="invAmount">Amount</label>
-                            <input type="number" step="0.01" class="form-control" id="invAmount" required />
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="invDate">Invoice Date</label>
-                            <input type="date" class="form-control" id="invDate" required />
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="dueDate">Due Date</label>
-                            <input type="date" class="form-control" id="dueDate" />
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="paymentTerm">Payment Term</label>
-                            <select class="form-control" id="paymentTermSelect">
-                                <option value="">Select</option>
-                                {% for payment_term in PAYMENT_TERMS_LIST %}
-                                    <option value="{{ payment_term.id }}">{{ payment_term.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="invStatus">Invoice Status</label>
-                            <select class="form-control" id="invStatus">
-                                <option value="">select</option>
-                                <option value="1">Paid</option>
-                                <option value="2">Not paid</option>
-                                <option value="3">Cancelled</option>
-                                <option value="4">On Hold</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="text-right mt-2">
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="resetAndCloseForm()">Cancel</button>
-                        <button type="button" class="btn btn-sm btn-success" id="btnSaveInvoice">Save Invoice Record</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <div class="table-responsive">
-            <table class="table table-sm table-hover border" id="invoiceDataTable">
-                <thead class="thead-light">
-                    <tr>
-                        <th>Invoice No</th>
-                        <th>Amount</th>
-                        <th>Date</th>
-                        <th>Due Date</th>
-                        <th>Term</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    </tbody>
-            </table>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-<script>
-const po_id = "{{ po.po_id }}"
-
-$(document).ready(function() {
-    // This event fires every time the modal is opened
-    $('#trackingModal').on('shown.bs.modal', function (e) {
-        // Get the PO ID from the button that triggered the modal
-        var button = $(e.relatedTarget);
-        var poId = button.data('po-id');
-        var poItemId = button.data('po-item-id');
-
-        // Store it globally for use in Save/Edit functions
-        window.current_po_id = poId;
-        window.current_po_item_id = poItemId;
-		$("#active_row_item_id").val(poItemId)
-        // Clear previous form data and hide the form section
-        resetAndCloseForm();
-
-        // Initial Ajax call to fetch data for the table
-        renderInvoiceTable(poId, poItemId);
-
-        // Optional: Fetch Ordered/Received QTYs for the labels
-        //fetchPoStats(poId);
-    });
-});
-
-// The AJAX Table Renderer
-function renderInvoiceTable(po_id, po_item_id) {
-    var tbody = $('#invoiceDataTable tbody');
-    tbody.html('<tr><td colspan="7" class="text-center"><div class="spinner-border spinner-border-sm text-primary"></div> Loading...</td></tr>');
-    $.ajax({
-        url: `/purchaseorder/api/purchase-order/${po_id}/${po_item_id}/{{ po_receive_id }}/invoices/`,
-        method: 'GET',
-        success: function(response) {
-            tbody.empty();
-            if (response.data && response.data.length > 0) {
-                response.data.forEach(item => {
-                    tbody.append(`
-                        <tr>
-                            <td>${item.invoice_number}</td>
-                            <td>${item.po_amount}</td>
-                            <td>${item.invoice_date}</td>
-                            <td>${item.invoice_due_date}</td>
-                            <td>${item.payment_term_name || 'N/A'}</td>
-                            <td><span class="badge badge-info">${item.status_display}</span></td>
-                            <td class="text-center">
-
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteInvoiceEntry(${item.po_invoice_id})">
-                                    <i class="fa fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `);
-                });
-            } else {
-                tbody.html('<tr><td colspan="7" class="text-center text-muted">No Records found</td></tr>');
-            }
-        },
-        error: function() {
-            tbody.html('<tr><td colspan="7" class="text-center text-danger">Error loading data.</td></tr>');
-        }
-    });
-}
-function deleteInvoiceEntry(invoiceId) {
-    Swal.fire({
-        title: "Are you sure?",
-        text: "This invoice record will be permanently deleted!",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonText: "Yes, delete it!",
-        cancelButtonText: "Cancel",
-        reverseButtons: true,
-        customClass: {
-            confirmButton: "btn btn-danger ml-2",
-            cancelButton: "btn btn-secondary"
-        },
-        buttonsStyling: false
-    }).then((result) => {
-        if (result.value) {
-            // Perform AJAX Delete
-            $.ajax({
-                url: '/purchaseorder/api/purchase-order/delete_invoice/',
-                method: 'POST',
-                data: {
-                    'po_invoice_id': invoiceId,
-                    'csrfmiddlewaretoken': '{{ csrf_token }}'
-                },
-                success: function(response) {
-                    if (response.status === 'success') {
-                        Swal.fire({
-                            icon: "success",
-                            title: "Deleted!",
-                            text: response.message || "Record has been deleted.",
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
-                        // Refresh the table
-                        renderInvoiceTable(window.current_po_id, window.current_po_item_id);
-                    } else {
-                        Swal.fire("Error", response.message || "Failed to delete record", "error");
-                    }
-                },
-                error: function(xhr) {
-                    let errorMsg = xhr.responseJSON ? xhr.responseJSON.message : "Network error";
-                    Swal.fire("Error", errorMsg, "error");
-                }
-            });
-        }
-    });
-}
-$('#btnSaveInvoice').on('click', function() {
-    // 1. Prepare the Data Object
-    let formData = {
-        po_id: po_id, // Variable stored when modal opened
-        po_item_id: window.current_po_item_id, // Variable stored when modal opened
-        invoice_number: $('#invNumber').val(),
-        receive_id: "{{ po_receive_id }}",
-        po_amount: $('#invAmount').val(),
-        invoice_date: $('#invDate').val(),
-        invoice_due_date: $('#dueDate').val(),
-        invoice_payment_term_id: $('#paymentTermSelect').val(),
-        invoice_status_id: $('#invStatus').val(),
-        csrfmiddlewaretoken: '{{ csrf_token }}' // Required for Django POST
-    };
-
-    // 2. Simple Validation
-    if (!formData.invoice_number || !formData.po_amount) {
-        alert("Please fill in Invoice Number and Amount");
-        return;
-    }
-
-    // 3. AJAX Post
-    $.ajax({
-        url: '/purchaseorder/api/purchase-order/save_purchase_invoice/',
-        method: 'POST',
-        data: formData,
-        success: function(response) {
-            if (response.status === 'success') {
-                Swal.fire({
-					icon: "success",
-					title: "Saved",
-					text: response.message,
-					timer: 1500,
-					showConfirmButton: false
-				});
-
-                // Reset form and collapse it
-                $('#invoiceEntryForm')[0].reset();
-                $('#hidden_invoice_id').val('');
-                $('#formCollapse').collapse('hide');
-
-                // Refresh the table to show the new entry
-                renderInvoiceTable(window.current_po_id, window.current_po_item_id);
-            }
-        },
-        error: function(xhr) {
-            let errorMsg = xhr.responseJSON ? xhr.responseJSON.message : "Server Error";
-            alert("Error: " + errorMsg);
-        }
-    });
-});
-
-// Helper to reset and close
-function resetAndCloseForm() {
-    $('#invoiceEntryForm')[0].reset();
-    $('#entry_id').val('');
-    $('#formCollapse').collapse('hide');
-}
-</script>
-
-
-<div class="modal fade" id="shippingDetailsModal" tabindex="-1" role="dialog" aria-labelledby="shippingTitle" aria-hidden="true">
-    <div class="modal-dialog modal-xl" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="shippingTitle">Item Shipping & Tracking</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3 text-right">
-                    <button class="btn btn-primary btn-sm" type="button" data-toggle="collapse" data-target="#addShippingCollapse">
-                        <i class="fas fa-plus mr-1"></i> Add Shipping Info
-                    </button>
-                </div>
-
-                <div class="collapse mb-4" id="addShippingCollapse">
-                    <div class="card card-body bg-light border-primary">
-                        <h6>New Shipment Entry</h6>
-                        <div class="col-12" id="shipping-container">
-                            <div class="row shipping-row align-items-center mb-2">
-							<input type="hidden" id="active_order_item_id">
-                                <div class="col-md-3 form-group">
-
-										<label class="small font-weight-bold">Provider</label>
-										<select class="form-control form-control-sm" id="ship_provider">
-											<option value="">Select</option>
-											{% for provider in shipping_providers %}
-												<option value="{{ provider.carrier_id }}">{{ provider.carrier_name }}</option>
-											{% endfor %}
-
-										</select>
-
-                                </div>
-                                <div class="col-md-4 form-group">
-                                    <label class="small font-weight-bold">Tracking Ref#</label>
-                                    <input type="text" id="ship_tracking" maxlength="80" class="form-control form-control-sm">
-                                </div>
-                                <div class="col-md-2 form-group">
-                                    <label class="small font-weight-bold">Shipped</label>
-                                    <input type="date" id="ship_shipped_date" class="form-control form-control-sm">
-                                </div>
-                                <div class="col-md-2 form-group">
-                                    <label class="small font-weight-bold">Expected Received</label>
-                                    <input type="date" id="ship_received_date" class="form-control form-control-sm">
-                                </div>
-
-
-
-                            </div>
-                        </div>
-                        <div class="mt-2">
-                            <div class="float-right">
-                                <button type="button" class="btn btn-secondary btn-sm" data-toggle="collapse" data-target="#addShippingCollapse">Cancel</button>
-                                <button type="button" class="btn btn-success btn-sm" onclick="saveItemShipping()">Save Shipping Info</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <h6 class="font-weight-bold border-bottom pb-2">Existing Shipments</h6>
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm table-striped" id="itemShippingTable">
-                        <thead class="thead-light">
-                            <tr>
-                                <th>Provider</th>
-                                <th>Tracking Number</th>
-                                <th>Shipped Date</th>
-                                <th>Received Date</th>
-                                <th class="text-center">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-<script>
-$(document).ready(function() {
-    // Event listener for the Shipping Modal
-    $('#shippingDetailsModal').on('shown.bs.modal', function (e) {
-        const button = $(e.relatedTarget); // The link that was clicked
-
-        // Capture the keys from data attributes
-        const poId = button.data('po-id');
-        const poReceiveItemId = button.data('po-item-id');
-
-        // Set values globally or in hidden fields for the Save function
-        window.current_shipping_po_id = poId;
-        $('#active_order_item_id').val(poReceiveItemId);
-
-        // Reset the entry form
-        resetShippingForm();
-
-        // Load existing records via AJAX
-        renderShippingTable(poId, poReceiveItemId);
-    });
-});
-function resetShippingForm() {
-    $('#ship_provider').val('');
-    $('#ship_tracking').val('');
-    $('#ship_shipped_date').val('');
-    $('#ship_received_date').val('');
-
-    // Clear the hidden ID to prevent data bleeding between items
-    //$('#active_order_item_id').val('');
-
-    // Close the collapse if it's open
-    $('#addShippingCollapse').collapse('hide');
-}
-function renderShippingTable(poId, poItemId) {
-    const tbody = $('#itemShippingTable tbody');
-    tbody.html('<tr><td colspan="5" class="text-center"><i class="fa fa-spinner fa-spin"></i> Loading...</td></tr>');
-
-    $.ajax({
-        url: `/purchaseorder/api/purchase-order/${poId}/${poItemId}/{{ po_receive_id }}/shipments/`,
-        method: 'GET',
-        success: function(response) {
-            tbody.empty();
-            if (response.data && response.data.length > 0) {
-                response.data.forEach(item => {
-                    tbody.append(`
-                        <tr>
-                            <td>${item.provider_name || 'Unknown'}</td>
-                            <td><b class="text-primary">${item.tracking_number}</b></td>
-                            <td>${item.shipped_date || '-'}</td>
-                            <td>${item.received_date || '-'}</td>
-                            <td class="text-center">
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteShipment(${item.po_shipping_id})">
-                                    <i class="fa fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                    `);
-                });
-            } else {
-                tbody.html('<tr><td colspan="5" class="text-center text-muted">No records found.</td></tr>');
-            }
-        }
-    });
-}
-function saveItemShipping() {
-    // 1. Collect values from the fixed form
-    const po_id = window.current_shipping_po_id;
-    const po_item_id = $('#active_order_item_id').val();
-
-    const tracking = $('#ship_tracking').val().trim();
-    const provider = $('#ship_provider').val();
-    const shipped = $('#ship_shipped_date').val();
-    const received = $('#ship_received_date').val();
-
-
-
-    const payload = {
-        po_id: po_id,
-        po_item_id: po_item_id,
-        receive_id:"{{ po_receive_id }}",
-        shipments: [{
-            provider: provider,
-            tracking_number: tracking,
-            shipped_date: shipped,
-            received_date: received
-        }]
-    };
-
-    // 3. AJAX Save
-    $.ajax({
-        url: "{% url 'save_item_shipping_details' %}",
-        method: "POST",
-        headers: { "X-CSRFToken": "{{ csrf_token }}" },
-        contentType: "application/json",
-        data: JSON.stringify(payload),
-        success: function(res) {
-            if (res.status === 'success') {
-                Swal.fire({
-					icon: 'success',
-					title: 'Saved',
-					text: res.message, // This displays the message from your Django JsonResponse
-					timer: 1500,
-					showConfirmButton: false
-				});
-                resetShippingForm();
-                // Clear form and refresh table
-                renderShippingTable(po_id, $('#active_order_item_id').val());
-            } else {
-                Swal.fire("Error", res.message, "error");
-            }
-        }
-    });
-}
-
-// Reset form and variables when modal closes
-$('#shippingDetailsModal').on('hidden.bs.modal', function () {
-    $('#singleShippingForm')[0].reset();
-    $('#active_order_item_id').val('');
-});
-
-
-function deleteShipment(id) {
-    Swal.fire({
-        title: "Delete Shipment?",
-        text: "This action cannot be undone.",
-        icon: "warning",
-        showCancelButton: true,
-        confirmButtonClass: "btn-danger",
-        confirmButtonText: "Yes, delete it!"
-    }).then((result) => {
-        if (result.value) {
-            $.ajax({
-                url: "/purchaseorder/api/purchase-order/delete_shipment/",
-                method: "POST",
-                data: {
-                    po_shipping_id: id,
-                    csrfmiddlewaretoken: "{{ csrf_token }}"
-                },
-                success: function(res) {
-                    if(res.status === 'success') {
-                        Swal.fire("Deleted!", res.message, "success");
-                        // Refresh table using the globally stored IDs
-                        renderShippingTable(window.current_shipping_po_id, $('#active_order_item_id').val());
-                    }
-                }
-            });
-        }
-    });
-}
-</script>
 
 
 <script>
@@ -901,19 +393,16 @@ function renderLineItems() {
 
             <td class="price align-middle text-right">${formatAUD(item.price)}</td>
             <td id="line_total_${index}" class="align-middle text-right">${formatAUD(item.line_total)}</td>
-			<td class="align-middle text-center"><a class='link pt-3 pb-2 cursor-pointer text-primary underline' data-toggle="modal" data-target="#shippingDetailsModal" data-po-id='${po_id}' data-po-receive-id="{{ po_receive_id }}" data-po-item-id='${item.row_item.id}'>Shipping Details</a></td>
-			<td class="align-middle text-center"><a class='link pt-3 pb-2 cursor-pointer text-primary underline' data-toggle="modal" data-target="#trackingModal" data-po-id='${po_id}' data-po-receive-id="{{ po_receive_id }}" data-po-item-id='${item.row_item.id}'>Track Invoices</a></td>
 
             <td class="qty align-middle text-right">Received: ${item.qty} </br>
             Pending: ${item.pending_qty}
-            <textarea>${JSON.stringify(item)}</textarea></td>
-            <td data-pending_qty="${item.pending_qty}"
-                data-received_qty="${item.received_qty}"
+            <textarea class="d-none">${JSON.stringify(item)}</textarea></td>
+            <td data-pending_qty="${item.qty}"
+                data-received_qty="${item.qty}"
                 id="line_pending_qty_${index}"
-                title="${item.pending_qty>=1?`Pending receivable ${item.pending_qty}`:"All Received"}"
-                class="help-text ${item.pending_qty>=1?"editable text-decoration-dotted":""} pending_qty align-middle text-right">
+                title="${item.qty>=1?`Max receivable ${item.qty}`:"All Received"}"
+                class="help-text ${item.qty>=1?"editable text-decoration-dotted":""} pending_qty align-middle text-right">
                 ${item.received_qty}
-
             </td>
         </tr>`;
         // ${item.pending_qty}
@@ -1182,15 +671,11 @@ document.addEventListener("DOMContentLoaded", function (){
         }
     });
 
-    if (hasPartial) {
-        // PARTIAL RECEIVE
-        $("#btn_po_receive_split, #btn_po_receive_split_complete").removeClass("d-none");
-        $("#btn_po_receive_full, #btn_po_receive_complete").addClass("d-none");
-    } else {
-        // FULL RECEIVE
-        $("#btn_po_receive_full, #btn_po_receive_complete").removeClass("d-none");
-        $("#btn_po_receive_split, #btn_po_receive_split_complete").addClass("d-none");
-    }
+
+    // PARTIAL RECEIVE
+    $("#btn_po_receive_split, #btn_po_receive_split_complete").removeClass("d-none");
+    $("#btn_po_receive_full, #btn_po_receive_complete").addClass("d-none");
+
 }
 $(document).ready(function () {
     toggleReceiveButtons();
@@ -1203,10 +688,11 @@ $("#btn_po_receive_split").click(function(e){
     const po_create = e.target;
     const payLoad = {
         po_id:'{{ po.po_id }}',
+        comments:$("#comments").val(),
         po_receive_id: '{{ po_receive.po_receive_id }}',
         lineItems
     }
-    console.log(payLoad);
+
     fetch("{% url 'save_po_receive_split' %}", {
         method: "POST",
         headers: {
@@ -1308,47 +794,6 @@ $("#btn_po_receive_complete").click(function (e) {
 </script>
 
 <script>
-//btn - Complete Receipt
-//Handle click received full
-$("#btn_po_receive_full").click(function(e){
-    //alert("Receipt full clicked");
-    const po_create = e.target;
-    const payLoad = {
-        po_id:'{{ po.po_id }}',
-        po_receive_id: '{{ po_receive.po_receive_id }}',
-        lineItems
-    }
-    console.log(payLoad);
-    fetch("{% url 'save_po_receive_full' %}", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-CSRFToken": getCSRFToken()
-        },
-        body: JSON.stringify(payLoad)
-    })
-    .then(response => {
-        return response.json().then(data => ({ status: response.status, body: data }));
-    })
-    .then(resp => {
-        const data = resp.body;
-
-        if(data.status){
-            po_create.setAttribute("disabled","true")
-            toastr.success(data?.message || "PO saved successfully!");
-                setTimeout(function(){
-                 // window.location.reload()
-                },800);
-        }else
-            toastr.error(data?.message || "Error saving PO");
-    })
-    .catch(error => {
-        toastr.error("A critical network error occurred.");
-        console.error("Fetch error:", error);
-    });
-});
-</script>
-<script>
 function checkCompletionStatus() {
 
     // Backend master/sub PO rule
@@ -1405,9 +850,7 @@ $(document).ready(function() {
 function showTrackingDetails(pending_qty, received_qty){
 	$("#orderedQty").text(pending_qty);
 	$("#receivedQty").text(received_qty);
-
 	$("#trackingModal").modal("show")
-
 }
 </script>
 

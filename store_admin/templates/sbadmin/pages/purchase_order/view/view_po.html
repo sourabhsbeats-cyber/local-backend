@@ -287,24 +287,14 @@ border-bottom:1px solid #007bff !important;
                             </div>
                             <div>
 
-                                <a title="Create Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-2">
-                                        <i class="fas fa-box mr-1"></i> Receive
-                                </a>
-                                {% if po_receive %}
+                                {% if po.status_id >= 1 %}
+                                <a title="View Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-1">
+                                        <i class="fa fa-paper-plane mr-1"></i> View Receive</a>
                                 {% endif %}
                                 {% if po.status_id == 0 %}
-                                   <!-- <a title="Approve and Create Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-2">
-                                        <i class="fas fa-box mr-1"></i> Receive
-                                    </a>-->
-                                {% endif %}
-                                {% if is_all_received %}
-                                   <!-- <button title="All Received, Click to Receive Complete"  type="button" class="help-text btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
-                                        Complete
-                                    </button> -->
-                                {% else %}
-                               <!-- <button disabled type="button" class="btn btn-light border" style="border:1px solid #fff;border-radius:8px;">
-                                        Complete
-                                    </button>-->
+                                     <button title="Place PO" id="btn_place_po" onclick="placePO()"  class="btn btn-light border cursor-pointer help-text mr-1">
+                                        <i class="fas fa-box mr-1"></i> Place PO
+                                    </button>
                                 {% endif %}
 
                                 <div class="vertical-divider mx-3 d-inline-block"></div>
@@ -321,7 +311,7 @@ border-bottom:1px solid #007bff !important;
                                     <div class="dropdown-menu">
                                         <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit </a>
                                         <a class="dropdown-item" onclick="deletePO('{{  po.po_id }}')" href="#">Delete</a>
-                                      <div class="dropdown-divider"></div>
+
                                     </div>
                                 </div>
 
@@ -331,16 +321,11 @@ border-bottom:1px solid #007bff !important;
                                     </button>
 
                                     <div class="dropdown-menu dropdown-menu-right">
-
                                         <a class="dropdown-item"  href="{% url 'create_order' po.po_id %}">
                                             <i class="fas fa-print mr-1"></i> Print</a>
                                         <a class="dropdown-item" id="btn_po_generate_pdf"
                                            href="">
                                             <i class="fa fa-download mr-1"></i>  Export</a>
-
-                                        <!-- <a class="dropdown-item" href="{% url 'create_po_order_receive' %}">New PO Receive</a>
-                                        <div class="dropdown-divider"></div>
-                                        <a class="dropdown-item" href="#">Separated link</a> -->
                                     </div>
                                 </div>
                             </div>
@@ -348,10 +333,6 @@ border-bottom:1px solid #007bff !important;
                         <div class="row mt-3">
                             <div class="col-sm-6">
                                 <div style="font-size:14px;">
-                                    {% if has_child_is_master %}
-                                        <span class="badge badge-warning ">Primary PO</span>
-                                    {% endif %}
-
                                     <span class="text-muted">Created by</span> {{ created_by }}
                                     <i class="fa fa-circle text-secondary ml-1" style="font-size:6px;"></i>
                                     <i class="fa fa-box ml-2 mr-1 text-secondary"></i> <span id="total_products"></span>
@@ -387,7 +368,7 @@ border-bottom:1px solid #007bff !important;
                             </div>
 
                             <div class="card-body">
-                                <div class="col-md-4 p-2 pl-0 float-left invoice-col">
+                                <div class="col-md-6 p-2 pl-0 float-left invoice-col">
                                   <b><span class="text-muted">Reference #</span> {{ po.vendor_reference }}</b><br>
                                   <b>Vendor Code:</b> {{ po.vendor_code }}<br>
                                   <b>Vendor Name:</b> {{ po.vendor_name }}<br>
@@ -397,43 +378,8 @@ border-bottom:1px solid #007bff !important;
                                 </div>
 
 
-                                <div class="col-md-4 p-2 float-left">
-                                    <div class="invoice-col">
-    <h6 class="text-muted"><b>Shipping Info</b></h6>
 
-    <b>Tracking :</b>
-
-    <div id="trackingRef">
-        {% for ship in shipping_joined %}
-            <div>
-                {% if ship.tracking_link %}
-                    <a class="link btn-link help-text"
-                       href="{{ ship.tracking_link }}"
-                       title="Shipped On:{{ ship.shipped_date|date:'Y-m-d' }}, Received On:{{ ship.received_date|date:'Y-m-d' }}"
-                       target="_blank">
-                        {{ ship.tracking_number }}
-                    </a>
-                {% else %}
-                    {{ ship.tracking_number }}
-                {% endif %}
-                –
-                <span class="text-muted">
-                    {{ ship.provider_name|default:"Provider not found" }}
-                </span>
-            </div>
-        {% empty %}
-            <span class="text-muted">No tracking available</span>
-        {% endfor %}
-    </div>
-</div>
-
-
-
-
-
-
-                                </div>
-                                <div class="col-md-4 p-2 pt-0 float-left">
+                                <div class="col-md-3 p-2 pt-0 float-left">
                                     <div class=" invoice-col">
                                         <div class=" ">
                                             <strong><i class="far fa-file-alt mr-1"></i> Tax:  <span class="text-muted">{{ po.tax_percentage }}%</span> </strong>
@@ -465,6 +411,40 @@ border-bottom:1px solid #007bff !important;
                                         </div>
                                     </div>
                                 </div>
+								
+								<div class="col-md-3 p-2 pt-0 float-left">
+                                    <div class=" invoice-col">
+                                        <div class=" ">
+                                            <strong> Vendor Order Number:  <span class="text-muted">{{ vendor_po.order_number }}</span> </strong>
+                                        </div>
+                              
+                                         <div class="">
+                                            <strong> Vendor Order Date</strong>
+                                            <p class="text-muted">
+                                                {{ vendor_po.order_date|date:'d-M-Y' }}
+                                            </p>
+                                        </div>
+
+                                        <div class="">
+                                            <strong><i class="far fa-file-alt mr-1"></i> Vendor Invoice Status</strong>
+                                            <p class="text-muted">
+												{% if vendor_po.invoice_status == 1 %}
+													Paid
+												{% elif vendor_po.invoice_status == 2 %}
+													Unpaid
+												{% elif vendor_po.invoice_status == 3 %}
+													Cancelled
+												{% elif vendor_po.invoice_status == 4 %}
+													On Hold
+												{% endif %}
+                                            </p>
+
+
+                                        </div>
+                                    </div>
+                                </div>
+								
+								
                             </div>
 
                             <div class="card-footer p-2 " >
@@ -542,54 +522,8 @@ border-bottom:1px solid #007bff !important;
                         <div class="invoice-col">
                             <hr/>
 
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor PO Order Date</span>
-                                <span class="text-muted">{{ vendor_po.order_date|date:'Y-m-d'|default:"--" }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor Order Number</span>
-                                <span class="text-muted">{{ vendor_po.order_number|default:"--" }}</span>
-                            </div>
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor PO#</span>
-                                <span class="text-muted">{{ vendor_po.po_number|hide_none|default:"--" }}</span>
-                            </div>
 
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor Invoice#</span>
-                                <span class="text-muted">{{ vendor_po.invoice_ref_number|hide_none|default:"--" }}</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor Delivery Ref#</span>
-                                <span class="text-muted">{{ vendor_po.delivery_ref_number|hide_none|default:"--" }}</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor Invoice Date</span>
-                                <span class="text-muted">{{ vendor_po.invoice_date|date:'Y-m-d'|default:"--" }}</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor Invoice Due Date</span>
-                                <span class="text-muted">{{ vendor_po.invoice_due_date|date:'Y-m-d'|default:"--" }}</span>
-                            </div>
-
-
-
-                            <div class="d-flex justify-content-between">
-                                <span class="font-weight-bold">Vendor Invoice Status</span>
-                                <span class="text-muted">
-                                    {% if vendor_po.invoice_status == None %}--
-                                    {% elif vendor_po.invoice_status == 1 %}Paid
-                                       {% elif vendor_po.invoice_status == 2 %}Unpaid
-                                       {% elif vendor_po.invoice_status == 3 %}Canceled
-                                       {% elif vendor_po.invoice_status == 4 %}On Hold{% endif %}
-                                </span>
-                            </div>
                         </div>
-
-
 
                         </div>
                         </div>
@@ -614,44 +548,66 @@ border-bottom:1px solid #007bff !important;
                 </div><!-- div row end -->
 
                 <div class="col-md-12 clearfix row">
-                    <div class="card-custom p-3">
-                        <h5 class="mb-3">Products ({{ line_items|length }} Rows)</h5>
-                        <div class="table-responsive">
-                            <table class=" table" style="table-layout: fixed;">
-                                <thead>
-                                    <tr class="text-muted small">
-                                        <th style="width:40%;">ITEM DETAILS</th>
-                                        <th style="width:10%;" class="text-center">ORDER TYPE</th>
-                                        <th style="width:100px;" class="text-center">ORDER REF</th>
+                    <div class="card-custom p-3" style="width:100%">
+                        <ul class="nav nav-tabs mb-2">
+                          <li class="nav-item"><a class="nav-link active" href="#product_lines" data-toggle="tab">Products ({{ line_items|length }} Rows) </a></li>
+                          <li class="nav-item"><a class="nav-link" href="#all_tracking_details" data-toggle="tab">Tracking Details</a></li>
+                           <li class="nav-item"><a class="nav-link" href="#all_invoice_details" data-toggle="tab">Invoice Details</a></li>
+                        </ul>
+                        <div class="tab-content">
+                            <div class="tab-pane fade active show" id="product_lines">
+                                <div class="table-responsive">
+                                    <table class=" table" style="table-layout: fixed;">
+                                        <thead>
+                                            <tr class="text-muted small">
+                                                <th style="width:40%;">ITEM DETAILS</th>
+                                                <th style="width:10%;" class="text-center">ORDER TYPE</th>
+                                                <th style="width:100px;" class="text-center">ORDER REF</th>
 
-                                        <th style="width:9%;" class="text-center">QUANTITY</th>
-                                           <!-- <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>-->
-                                        <th style="width:10%;" class="text-center">RATE</th>
-                                        <th style="width:10%;" class="text-center">TOTAL PRICE</th>
-                                        <th style="width:10%;" class="text-center">DISCOUNT</th>
-                                        <th style="width:10%;" class="text-center">SUB TOTAL</th>
-                                        <th style="width:10%;" class="text-center">TAX</th>
-                                        <th style="width:10%;" class="text-center">TAX TOTAL</th>
-                                        <th style="width:10%;" class="text-center">LANDED<br/> COST</th>
-                                        <th style="width:10%;" class="text-center"> TOTAL</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="product_line_item" class="border-bottom"></tbody>
-                            </table>
+                                                <th style="width:9%;" class="text-center">QUANTITY</th>
+                                                   <!-- <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>-->
+                                                <th style="width:10%;" class="text-center">RATE</th>
+                                                <th style="width:10%;" class="text-center">TOTAL PRICE</th>
+                                                <th style="width:10%;" class="text-center">DISCOUNT</th>
+                                                <th style="width:10%;" class="text-center">SUB TOTAL</th>
+                                                <th style="width:10%;" class="text-center">TAX</th>
+                                                <th style="width:10%;" class="text-center">TAX TOTAL</th>
+                                                <th style="width:10%;" class="text-center">LANDED<br/> COST</th>
+                                                <th style="width:10%;" class="text-center"> TOTAL</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="product_line_item" class="border-bottom"></tbody>
+                                    </table>
+
+                                </div>
+                                <table class="summary-box float-right" style="width: 300px;">
+                                        <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
+                                        <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
+                                        <tr><td>Surcharges</td><td class="text-right" id="surcharge_total_excl_tax">$0.00</td></tr>
+                                        <tr><td>GST Total</td><td class="text-right" id="gst_total">$0.00</td></tr>
+                                        <tr><td colspan="2" >&nbsp;</td></tr>
+                                        <tr><td class="text-success" >Grand Total (Incl. GST)</td><td class="text-right" id="grand_total_incl_tax">$0.00</td></tr>
+                                        <input type="hidden" id="surchase_total" value="{{ po.surcharge_total }}"/>
+                                        <input type="hidden" id="shipping_total" value="{{ po.shipping_charge }}"/>
+                                </table>
+                            </div>
+
+                            <div class="tab-pane fade" id="all_tracking_details">
+                            <div id="shippingDetails"></div>
+                            </div>
+
+
+
+                            <div class="tab-pane fade" id="all_invoice_details">
+                                <div id="section_all_invoice_details"></div>
+                            </div>
 
                         </div>
 
-                        <table class="summary-box float-right" style="width: 300px;">
-                                <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
-                                <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
-                                <tr><td>Surcharges</td><td class="text-right" id="surcharge_total_excl_tax">$0.00</td></tr>
-                                <tr><td>GST Total</td><td class="text-right" id="gst_total">$0.00</td></tr>
-                                <tr><td colspan="2" >&nbsp;</td></tr>
-                                <tr><td class="text-success" >Grand Total (Incl. GST)</td><td class="text-right" id="grand_total_incl_tax">$0.00</td></tr>
-                                <input type="hidden" id="surchase_total" value="{{ po.surcharge_total }}"/>
-                                <input type="hidden" id="shipping_total" value="{{ po.shipping_charge }}"/>
-                        </table>
                     </div>
+
+
+
                 </div>
             </div>
         </div>
@@ -661,10 +617,36 @@ border-bottom:1px solid #007bff !important;
 
 <script>
 
-    {% if po.status_id == 0 %}
-	{% endif %}
+function placePO(){
+        fetch("{% url 'place_po' %}", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCSRFToken()
+                },
+                body: JSON.stringify({"po_id":"{{ po.po_id }}"})
+            })
+            .then(response => {
+                return response.json().then(data => ({ status: response.status, body: data }));
+            })
+            .then(resp => {
+                // handle success / redirect here
+                const data = resp.body;
+                if(data.status){
+                    toastr.success(data.message);
+                    setTimeout(function(){
+                        window.location.reload();
+                    },800);
 
-    document.getElementById("btn_create_receive").addEventListener("click",function(e){
+                }else{
+                    toastr.error(data.message || "Error creating")
+                }
+              })
+              .catch(err => {
+                console.error("Request failed", err);
+              });
+    }
+document.getElementById("btn_create_receive").addEventListener("click",function(e){
        e.stopPropagation();
        e.preventDefault();
         e.target.disabled = true
@@ -1015,4 +997,722 @@ function formatAUD(value) {
 
 </script>
 
+<style>
+.nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.nav-tabs .nav-link {
+    border: 1px solid transparent;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;                 /* Bootstrap primary */
+    font-weight: 700;               /* bold text */
+    background-color: #fff;
+    border-color: #dee2e6 #dee2e6 #fff;
+    border-top: 3px solid #007bff;  /* primary top border */
+    border-radius: 0.25rem 0.25rem 0 0;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #0056b3;
+}
+
+
+</style>
+
+<div class="modal fade" id="shippingDetailsModal" tabindex="-1" role="dialog" aria-labelledby="shippingTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="shippingTitle">Item Shipping & Tracking</h5>
+                <button type="button" class="close text-lg btn btn-tool" data-dismiss="modal" aria-label="Close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class=" mb-4" id="addShippingCollapse">
+                    <div class="">
+                        <h6>New Shipment </h6>
+                        <div class="col-12" id="shipping-container">
+                            <div class="row shipping-row align-items-center mb-2">
+							<input type="hidden" id="received_item_id">
+							<input type="hidden" id="receive_id">
+							<input type="hidden" id="product_id">
+                                <div class="col-md-3 form-group">
+
+										<label class="small font-weight-bold">Provider
+                                        <span class="text-danger">*</span></label>
+										<select class="form-control form-control-sm" id="ship_provider">
+											<option value="">Select</option>
+											{% for provider in shipping_providers %}
+												<option value="{{ provider.carrier_id }}">{{ provider.carrier_name }}</option>
+											{% endfor %}
+
+										</select>
+
+                                </div>
+                                <div class="col-md-4 form-group">
+                                    <label class="small font-weight-bold">Tracking Ref#
+                                    <span class="text-danger">*</span></label>
+                                    <input type="text" id="ship_tracking" maxlength="80" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-md-2 form-group">
+                                    <label class="small font-weight-bold">Shipped</label>
+                                    <input type="date" id="ship_shipped_date" class="form-control form-control-sm">
+                                </div>
+                                <div class="col-md-2 form-group">
+                                    <label class="small font-weight-bold">Expected Received</label>
+                                    <input type="date" id="ship_received_date" class="form-control form-control-sm">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <div class="float-right">
+                                <button type="button" class="btn btn-success btn-sm"
+                                        onclick="saveItemShipping()">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+const po_id = "{{ po.po_id }}"
+function addNewShipping(product_id,receive_id , receive_item_id){
+    $("#received_item_id").val(receive_item_id);
+    $("#receive_id").val(receive_id);
+    $("#product_id").val(product_id);
+    $("#shippingDetailsModal").modal("show");
+}
+$(document).ready(function() {
+    renderShippingDetails(po_id);
+    renderInvoiceDetails(po_id)
+});
+
+function renderShippingDetails(poId) {
+
+    const container = $("#shippingDetails");
+
+    // Loading
+    container.html(`
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            Loading...
+        </div>
+    `);
+
+    $.ajax({
+        url: `/purchaseorder/api/purchase-order/${poId}/get_shipping_rows`,
+        method: "GET",
+
+        success: function (response) {
+
+            if (!response.data || response.data.length === 0) {
+                container.html(`
+                    <div class="text-center text-muted py-3">
+                        No Products found
+                    </div>
+                `);
+                return;
+            }
+
+            let html = "";
+
+            response.data.forEach(product => {
+
+                /* =========================
+                   1️⃣ PRODUCT HEADER
+                ========================= */
+                html += `
+                    <div class="mb-2 p-2 border rounded bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${product.product_name}</strong>
+                                <span class="text-muted ms-2">(${product.sku})</span>
+                                <div class="small text-muted">
+                                    Ordered Qty: ${product.ordered_qty} |
+                                    Price: ${product.price}
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-primary"
+                                onclick="addNewShipping(${product.product_id}, ${product.receive_item_id})">
+                                <i class="fa fa-plus"></i> Add Shipping
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                /* =========================
+                   2️⃣ SHIPPING TABLE (ONLY FOR THIS PRODUCT)
+                ========================= */
+                html += `
+                    <table class="table table-bordered table-sm mb-4">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Tracking No</th>
+                                <th>Carrier</th>
+                                <th>Shipped Date</th>
+                                <th>Expected Received Date</th>
+                                <th style="width:60px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                if (Array.isArray(product.shipping_details) && product.shipping_details.length > 0) {
+
+                    product.shipping_details.forEach(sh => {
+                        html += `
+                            <tr>
+                                <td>${sh.tracking_link || sh.tracking_number || "-"}</td>
+                                <td>${sh.carrier_name || "-"}</td>
+                                <td>${formattedDate(sh.shipping_date) || "-"}</td>
+                                <td>${formattedDate(sh.received_date) || "-"}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-danger"
+                                        onclick="deleteShipment(${sh.shipping_id})">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                } else {
+                    html += `
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-3">
+                                No shipping details available
+                            </td>
+                        </tr>
+                    `;
+                }
+
+                html += `
+                        </tbody>
+                    </table>
+                `;
+            });
+
+            container.html(html);
+        },
+
+        error: function () {
+            container.html(`
+                <div class="text-center text-danger py-3">
+                    Error loading data
+                </div>
+            `);
+        }
+    });
+}
+
+
+function deleteShipment(id) {
+    Swal.fire({
+        title: "Delete Shipment?",
+        text: "This action cannot be undone.",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonClass: "btn-danger",
+        confirmButtonText: "Yes, delete it!"
+    }).then((result) => {
+        if (result.value) {
+            $.ajax({
+                url: "/purchaseorder/api/purchase-order/delete_shipment/",
+                method: "POST",
+                data: {
+                    po_shipping_id: id,
+                    csrfmiddlewaretoken: "{{ csrf_token }}"
+                },
+                success: function(res) {
+                    if(res.status === 'success') {
+                        Swal.fire("Deleted!", res.message, "success");
+                        // Refresh table using the globally stored IDs
+                        renderShippingDetails({{ po.po_id }});
+                    }
+                }
+            });
+        }
+    });
+}
+
+function saveItemShipping() {
+    const po_id = '{{ po.po_id }}';
+    const po_item_id = $("#product_id").val(); //product_id
+    const receive_id = $("#receive_id").val(); //product_id
+    const received_item_id = $("#received_item_id").val(); //product_id
+
+
+    const tracking = $('#ship_tracking').val().trim();
+    const provider = $('#ship_provider').val();
+    const shipped = $('#ship_shipped_date').val();
+    const received = $('#ship_received_date').val();
+
+    if(tracking === ""){
+        toastr.error("Tracking Reference required.");
+        $('#ship_tracking').focus();
+        return;
+    }
+
+    if(provider === ""){
+        toastr.error("Provider required.");
+        $('#ship_provider').focus();
+        return;
+    }
+
+    const payload = {
+        po_id: po_id,
+        po_item_id: po_item_id,
+        receive_id:receive_id,
+        shipments: [{
+            provider: provider,
+            tracking_number: tracking,
+            shipped_date: shipped,
+            received_date: received
+        }]
+    };
+
+    // 3. AJAX Save
+    $.ajax({
+        url: "{% url 'save_item_shipping_details' %}",
+        method: "POST",
+        headers: { "X-CSRFToken": "{{ csrf_token }}" },
+        contentType: "application/json",
+        data: JSON.stringify(payload),
+        success: function(res) {
+            if (res.status) {
+                Swal.fire({
+					icon: 'success',
+					title: 'Saved',
+					text: res.message, // This displays the message from your Django JsonResponse
+					timer: 1500,
+					showConfirmButton: false
+				});
+                resetShippingForm();
+                renderShippingDetails({{ po.po_id }});
+                $("#shippingDetailsModal").modal("hide");
+            } else {
+                Swal.fire("Error", res.message, "error");
+            }
+        }
+    });
+}
+
+function resetShippingForm() {
+    $('#ship_provider').val('');
+    $('#ship_tracking').val('');
+    $('#ship_shipped_date').val('');
+    $('#ship_received_date').val('');
+    $('#received_item_id').val('');
+    $('#receive_id').val('');
+    $('#product_id').val('');
+}
+</script>
+<script>
+
+
+</script>
+<div class="modal fade" id="trackingModal" tabindex="-1" role="dialog" aria-labelledby="modalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title" id="modalTitle">Tracking Details</h5>
+        <button type="button" class="close text-lg btn btn-tool" data-dismiss="modal" aria-label="Close">
+            <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="mb-0 font-weight-bold">Invoice Entries</h6>
+        </div>
+		<form id="invoiceEntryForm">
+			<input type="hidden" id="inv_po_item_id">
+			<input type="hidden" id="inv_receive_id">
+
+			<h6 class="text-primary border-bottom pb-1 mb-3">Core Details</h6>
+			<div class="form-row">
+				<div class="form-group col-md-3">
+					<label for="invNumber">Vendor Invoice No <span class="text-danger">*</span></label>
+					<input type="text" class="form-control form-control-sm" id="invNumber" required />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invAmount">Invoice Amount <span class="text-danger">*</span></label>
+					<input type="number" step="0.01" class="form-control form-control-sm" id="invAmount" required />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="inv_received_qty">Received Qty</label>
+					<input type="number" class="form-control form-control-sm" id="inv_received_qty" />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invPaymentStatus">Payment Status <span class="text-danger">*</span></label>
+					<select class="form-control form-control-sm" id="invPaymentStatus" required>
+						<option value="">Select</option>
+						<option value="1">Paid</option>
+						<option value="2">Not paid</option>
+						<option value="4">On Hold</option>
+						<option value="3">Cancelled</option>
+					</select>
+				</div>
+			</div>
+			<h6 class="text-primary border-bottom pb-1 mb-3 mt-2">Reference Info</h6>
+			<div class="form-row">
+				<div class="form-group col-md-3">
+					<label for="invOrder_date">Order Date</label>
+					<input type="date" class="form-control form-control-sm" id="invOrder_date" />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invOrder_no">Order No<span class="text-danger">*</span></label>
+					<input type="text" class="form-control form-control-sm" id="invOrder_no" />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invVendor_ref_no">Vendor Ref No</label>
+					<input type="text" class="form-control form-control-sm" id="invVendor_ref_no" />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="inv_delivery_ref">Delivery Ref</label>
+					<input type="text" class="form-control form-control-sm" id="inv_delivery_ref" />
+				</div>
+			</div>
+
+			<h6 class="text-primary border-bottom pb-1 mb-3 mt-2">Timeline & Terms</h6>
+			<div class="form-row">
+				<div class="form-group col-md-3">
+					<label for="invDate">Invoice Date</label>
+					<input type="date" class="form-control form-control-sm" id="invDate" />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invPaymentTermSelect">Payment Term</label>
+					<select class="form-control form-control-sm" id="invPaymentTermSelect">
+						<option value="">Select</option>
+						{% for term in PAYMENT_TERMS_LIST %}
+							<option value="{{ term.id }}">{{ term.name }}</option>
+						{% endfor %}
+					</select>
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invDueDate">Due Date</label>
+					<input type="date" class="form-control form-control-sm" id="invDueDate" />
+				</div>
+				<div class="form-group col-md-3">
+					<label for="invDpaid_date">Paid Date</label>
+					<input type="date" class="form-control form-control-sm" id="invDpaid_date" />
+				</div>
+			</div>
+			<div class="text-right mt-3 border-top pt-3">
+				<button type="button" class="btn btn-sm btn-success px-3" onclick="saveInvoice()">
+					Save
+				</button>
+			</div>
+		</form>
+
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function addNewInvoice(product_id, receive_id){
+
+    $("#inv_po_item_id").val(product_id);
+    $("#inv_receive_id").val(receive_id);
+    $("#trackingModal").modal("show");
+}
+function saveInvoice(){
+   po_item_id = $("#inv_po_item_id").val()
+    receive_id = $("#inv_receive_id").val()
+
+    if($('#invStatus').val() === ""){
+        $('#invStatus').focus();
+        toastr.error("Payment status required");
+        return;
+    }
+    if($('#invNumber').val() === ""){
+        $('#invNumber').focus();
+        toastr.error("Invoice number required");
+        return;
+    }
+    if($('#invAmount').val() === ""){
+        $('#invAmount').focus();
+        toastr.error("Invoice amount required");
+        return;
+    }
+	if($('#order_no').val() === ""){
+        $('#order_no').focus();
+        toastr.error("Order No is required");
+        return;
+    }
+
+    // 1. Prepare the Data Object
+    let formData = {
+        po_id: '{{ po.po_id }}',
+        product_id: po_item_id,
+        receive_id: receive_id,
+		
+        invoice_number: $('#invNumber').val(),
+        po_amount: $('#invAmount').val(),
+		received_qty: $('#inv_received_qty').val() || null,
+		payment_status_id: $('#invPaymentStatus').val() || null,
+		
+		order_date: $('#invOrder_date').val() || null,
+		order_no: $('#invOrder_no').val() || null,
+		vendor_ref_no: $('#invVendor_ref_no').val() || null,
+		delivery_ref: $('#inv_delivery_ref').val() || null,
+		
+        invoice_date: $('#invDate').val() || null,
+		payment_term_id: $('#invPaymentTermSelect').val() || null,
+        due_date: $('#invDueDate').val() || null,
+        paid_date: $('#invDpaid_date').val() || null,
+        
+    };
+
+    // 2. Simple Validation
+    if (!formData.invoice_number || !formData.po_amount) {
+        alert("Please fill in Invoice Number and Amount");
+        return;
+    }
+
+    // 3. AJAX Post
+    $.ajax({
+        url: "{% url 'save_purchase_invoice' %}",
+        method: 'POST',
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCSRFToken()
+        },
+        data: JSON.stringify(formData),
+        success: function(response) {
+
+            if (response.status) {
+                Swal.fire({
+					icon: "success",
+					title: "Saved",
+					text: response.message,
+					timer: 1500,
+					showConfirmButton: false
+				});
+				$("#trackingModal").modal("hide");
+                renderInvoiceDetails({{ po.po_id }});
+
+            }
+        },
+        error: function(xhr) {
+            let errorMsg = xhr.responseJSON ? xhr.responseJSON.message : "Server Error";
+            alert("Error: " + errorMsg);
+        }
+    });
+    }
+
+function resetAndCloseForm() {
+    $('#invoiceEntryForm').reset();
+    $('#entry_id').val('');
+    $('#formCollapse').collapse('hide');
+}
+
+
+function deleteInvoiceEntry(invoiceId) {
+    Swal.fire({
+        title: "Are you sure?",
+        text: "This invoice record will be permanently deleted!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, delete it!",
+        cancelButtonText: "Cancel",
+        reverseButtons: true,
+        customClass: {
+            confirmButton: "btn btn-danger ml-2",
+            cancelButton: "btn btn-secondary"
+        },
+        buttonsStyling: false
+    }).then((result) => {
+        if (result.value) {
+            // Perform AJAX Delete
+            $.ajax({
+                url: '/purchaseorder/api/purchase-order/delete_invoice/',
+                method: 'POST',
+                data: {
+                    'po_invoice_id': invoiceId,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.status) {
+                        Swal.fire({
+                            icon: "success",
+                            title: "Deleted!",
+                            text: response.message || "Record has been deleted.",
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                        // Refresh the table
+                        renderInvoiceDetails({{ po.po_id }});
+                    } else {
+                        Swal.fire("Error", response.message || "Failed to delete record", "error");
+                    }
+                },
+                error: function(xhr) {
+                    let errorMsg = xhr.responseJSON ? xhr.responseJSON.message : "Network error";
+                    Swal.fire("Error", errorMsg, "error");
+                }
+            });
+        }
+    });
+}
+
+
+function renderInvoiceDetails(poId) {
+
+    const container = $("#section_all_invoice_details");
+
+    // Loading
+    container.html(`
+        <div class="text-center py-3">
+            <div class="spinner-border spinner-border-sm text-primary"></div>
+            Loading...
+        </div>
+    `);
+
+    $.ajax({
+        url: `/purchaseorder/api/purchase-order/${poId}/get_invoice_rows`,
+        method: "GET",
+
+        success: function (response) {
+
+            if (!response.data || response.data.length === 0) {
+                container.html(`
+                    <div class="text-center text-muted py-3">
+                        No Products found
+                    </div>
+                `);
+                return;
+            }
+
+            let html = "";
+
+            response.data.forEach(product => {
+
+                /* =========================
+                   1️⃣ PRODUCT HEADER
+                ========================= */
+                html += `
+                    <div class="mb-2 p-2 border rounded bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${product.product_name}</strong>
+                                <span class="text-muted ms-2">(${product.sku})</span>
+                                <div class="small text-muted">
+                                    Ordered Qty: ${product.ordered_qty} |
+                                    Price: ${product.price}
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-primary"
+                                onclick="addNewInvoice(${product.product_id}, ${product.receive_id})">
+                                <i class="fa fa-plus"></i> Add Invoice
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                /* =========================
+                   2️⃣ INVOICE TABLE (ONLY THIS PRODUCT)
+                ========================= */
+                html += `<div class="table-responsive">
+                    <table class="table table-bordered table-sm mb-4">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Vendor Invoice No</th>
+                                <th>Order No</th>
+                                <th>Received Qty</th>
+                                <th class="align-middle text-center">Amount</th>
+								<th class="align-middle text-center ">Order Date</th>
+                                <th class="align-middle text-center ">Vendor Ref#</th>
+                                <th class="align-middle text-center ">Delivery Ref</th>
+                                <th class="align-middle text-center ">Invoice Date</th>
+                                <th class="align-middle text-center ">Payment Term</th>
+                                <th class="align-middle text-center ">Due Date</th>
+                                <th class="align-middle text-center">Paid Date</th>
+                                <th class="align-middle text-center">Payment Status</th>
+                                <th style="width:60px"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                if (Array.isArray(product.invoice_details) && product.invoice_details.length > 0) {
+
+                    product.invoice_details.forEach(inv => {
+                        html += `
+                            <tr>
+                                <td>${inv.invoice_number || "-"}</td>
+                                <td>${inv.order_no || "-"}</td>
+                                <td>${inv.received_qty || 0}</td>
+                                <td>${inv.po_amount || "0.00"}</td>
+                                <td>${formattedDate(inv.order_date) || "-"} </td>
+                                <td>${inv.vendor_ref_no || "-"}</td>
+                                <td>${inv.delivery_ref || "-"}</td>
+                                <td>${formattedDate(inv.invoice_date) || "-"}</td>
+                                <td>${inv.payment_term_name || "-"}</td>
+                                <td>${formattedDate(inv.due_date) || "-"}</td>
+                                <td>${formattedDate(inv.paid_date) || "-"}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-${
+                                        inv.payment_status_id == 1 ? "success" :
+                                        inv.payment_status_id == 2 ? "warning" :
+                                        inv.payment_status_id == 4 ? "secondary" :
+                                        inv.payment_status_id == 3 ? "danger" :
+                                        "light"
+                                    }">
+                                        ${
+                                            inv.payment_status_id == 1 ? "Paid" :
+                                            inv.payment_status_id == 2 ? "Not Paid" :
+                                            inv.payment_status_id == 4 ? "On Hold" :
+                                            inv.payment_status_id == 3 ? "Cancelled" :
+                                            "Pending"
+                                        }
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-danger"
+                                        onclick="deleteInvoiceEntry(${inv.po_invoice_id})">
+                                        <i class="fa fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+
+                } else {
+                    html += `<tr>
+                            <td colspan="13" class="text-center text-muted py-3">
+                                No invoice details available
+                            </td>
+                        </tr>`;
+                }
+
+                html += `
+                        </tbody>
+                    </table></div>
+                `;
+            });
+
+            container.html(html);
+        },
+
+        error: function () {
+            container.html(`
+                <div class="text-center text-danger py-3">
+                    Error loading data
+                </div>
+            `);
+        }
+    });
+}
+
+</script>
 {% endblock %}

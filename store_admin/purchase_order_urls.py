@@ -43,10 +43,14 @@ urlpatterns = [
     path('api/allpurchases', purchase_orders_view.all_purchases, name='all_purchases_json'),
     path('api/allpurchasereceives', purchase_orders_view.all_purchase_receives, name='all_purchase_receives_json'),
     path('api/purchase-order/<int:po_id>/<int:product_id>/<int:receive_id>/invoices/', purchase_orders_view.all_po_invoices, name='all_purchase_receives_json1'),
+    path('api/purchase-order/<int:po_id>/shipping/alltracking', purchase_recieve_view.get_shipping_details, name='all_shipping_details'),
+    path('api/purchase-order/<int:po_id>/invoice/alltracking', purchase_recieve_view.get_po_invoice_details, name='all_invoice_details'),
+
+
+
     path('api/purchase-order/<int:po_id>/<int:product_id>/<int:receive_id>/shipments/', purchase_orders_view.all_po_shipments, name='all_po_shipments'),
-    path('api/purchase-order/save_purchase_invoice/', purchase_orders_view.save_purchase_invoice, name='all_purchase_receives_json2'),
-    path('api/purchase-order/save_item_shipping/', purchase_orders_view.save_shipping_details, name='save_item_shipping_details'),
-    path('api/purchase-order/delete_shipment/', purchase_orders_view.delete_po_shipment, name='delete_po_shipment'),
+    path('api/purchase-order/save_purchase_invoice/', purchase_orders_view.save_purchase_invoice, name='save_purchase_invoice'),
+    path('api/purchase-order/delete_invoice/', purchase_orders_view.delete_invoice, name='delete_invoice'),
     path("delete/<int:po_id>/", purchase_orders_view.delete_po, name="delete_po_single"),
 
     #api/purchase-order/313/invoices/
@@ -60,19 +64,32 @@ urlpatterns = [
     path('poreceives/save', purchase_recieve_view.save_po_order_receive, name='save_po_receive'),
 
     path('poreceives/create', purchase_recieve_view.create_po_order_receive, name='create_po_order_receive'),
+    path('poreceives/place_po', purchase_recieve_view.place_po, name='place_po'),
+
+
     path('poreceives/delete/<int:po_receive_id>', purchase_recieve_view.delete_po_receive, name='delete_po_receive'),
     path('api/ps_receives/listlineitems/<int:po_receive_id>', po_bills_view.list_ps_receive_line_items, name='list_ps_receive_line_items'),
 
     path('poreceives/save_split_receive', purchase_recieve_view.save_po_receive, name='save_po_receive_split'),
     path('poreceives/save_split_receive_complete', purchase_recieve_view.save_po_receive_split_complete, name='save_po_receive_split_complete'),
 
-    path('poreceives/save_po_receive_full', purchase_recieve_view.save_po_receive_full, name='save_po_receive_full'),
+    #path('poreceives/save_po_receive_full', purchase_recieve_view.save_po_receive_full, name='save_po_receive_full'),
 
     #PO Bills
     path('bills/delete/<int:bill_id>', purchase_recieve_view.delete_po_bill, name='delete_po_bill'),
     path('bills/listing', po_bills_view.bills_listing, name='po_bills_listing'),
+
+    path('intransit/listing', purchase_recieve_view.intransit_listing, name='po_intransit_listing'),
     #Table listing JSON
-    path('api/bills/listing_json', po_bills_view.bills_listing_json, name='po_bills_listing_json'),
+    path('api/intransit/listing_json', purchase_recieve_view.intransit_po_listing_json, name='po_intransit_api_listing'),
+    path('api/purchase-order/<int:po_id>/get_shipping_rows', purchase_orders_view.get_shipping_rows, name='get_shipping_rows'),
+    path('api/purchase-order/save_item_shipping/', purchase_orders_view.save_shipping_details,
+         name='save_item_shipping_details'),
+    path('api/purchase-order/delete_shipment/', purchase_orders_view.delete_po_shipment, name='delete_po_shipment'),
+
+    path('api/purchase-order/<int:po_id>/get_invoice_rows', purchase_orders_view.get_invoice_rows, name='get_invoice_rows'),
+
+    path('api/bills/listing_json', po_bills_view.po_invoice_listing_json, name='po_bills_listing_json'),
     path('bills/createnew', po_bills_view.create_po_bill, name='create_po_bill'),
     path('bills/savebill', po_bills_view.save_po_bill, name='save_po_bill'),
     path('api/list_vendors_ps_receives/<int:vendor_id>', po_bills_view.get_vendors_ps, name='api_get_vendors_ps_receives'),

@@ -21,23 +21,23 @@
                 //{ id: "order_date", label: "Order Date" },
                 //{ id: "delivery_date", label: "Delivery Date" },
                 { id: "vendor_name", label: "Vendor Name" },
-                { id: "vendor_delivery_date", label: "Vendor Delivery Date" },
-                { id: "po_vendor_ref", label: "Vendor PO#" },
-                { id: "vendor_reference", label: "Reference" },
+               // { id: "vendor_delivery_date", label: "Vendor Delivery Date" },
+               // { id: "po_vendor_ref", label: "Vendor PO#" },
+               // { id: "vendor_reference", label: "Reference" },
                // { id: "status_id", label: "Status" },
-                { id: "warehouse_name", label: "Warehouse" },
+              //  { id: "warehouse_name", label: "Warehouse" },
                 { id: "currency_code", label: "Currency" },
                 { id: "grand_total", label: "Total Amount" },
                 { id: "total_order_qty", label: "Ordered QTY" },
                 { id: "total_received_qty", label: "Received QTY" },
-                { id: "po_vendor_po_number", label: "Vendor Order No" },
-                { id: "po_vendor_order_date", label: "Vendor PO Order Date" },
-                { id: "po_vendor_invoice_ref_number", label: "Vendor Invoice No" },
-                { id: "vendor_shipping_tracking_no", label: "Tracking No" },
-                { id: "vendor_shipping_company", label: "Shipping Company" },
-                { id: "vendor_shipping_tracking_link", label: "Tracking Link" },
-                { id: "vendor_shipping_date", label: "Shipping Date" },
-                { id: "po_vendor_delivery_ref_number", label: "Vendor Delivery Ref" }
+               // { id: "po_vendor_po_number", label: "Vendor Order No" },
+               // { id: "po_vendor_order_date", label: "Vendor PO Order Date" },
+              //  { id: "po_vendor_invoice_ref_number", label: "Vendor Invoice No" },
+              //  { id: "vendor_shipping_tracking_no", label: "Tracking No" },
+              //  { id: "vendor_shipping_company", label: "Shipping Company" },
+              //  { id: "vendor_shipping_tracking_link", label: "Tracking Link" },
+              //  { id: "vendor_shipping_date", label: "Shipping Date" },
+              //  { id: "po_vendor_delivery_ref_number", label: "Vendor Delivery Ref" }
             ];
 
             let html = '<table class="table table-sm table-borderless">';
@@ -110,23 +110,23 @@
             //"order_date": document.getElementById("col_order_date").checked,
             //"delivery_date": document.getElementById("col_delivery_date").checked,
             "vendor_name": document.getElementById("col_vendor_name").checked,
-            "vendor_delivery_date": document.getElementById("col_vendor_delivery_date").checked,
-            "po_vendor_ref": document.getElementById("col_po_vendor_ref").checked,
-            "vendor_reference": document.getElementById("col_vendor_reference").checked,
+           // "vendor_delivery_date": document.getElementById("col_vendor_delivery_date").checked,
+           // "po_vendor_ref": document.getElementById("col_po_vendor_ref").checked,
+           // "vendor_reference": document.getElementById("col_vendor_reference").checked,
            // "status_id": document.getElementById("col_status_id").checked,
-            "warehouse_name": document.getElementById("col_warehouse_name").checked,
+           // "warehouse_name": document.getElementById("col_warehouse_name").checked,
             "currency_code": document.getElementById("col_currency_code").checked,
             "grand_total": document.getElementById("col_grand_total").checked,
             "total_order_qty": document.getElementById("col_total_order_qty").checked,
             "total_received_qty": document.getElementById("col_total_received_qty").checked,
             //"po_vendor_po_number": document.getElementById("col_po_vendor_po_number").checked,
-            "po_vendor_order_date": document.getElementById("col_po_vendor_order_date").checked,
-            "po_vendor_invoice_ref_number": document.getElementById("col_po_vendor_invoice_ref_number").checked,
-            "vendor_shipping_tracking_no": document.getElementById("col_vendor_shipping_tracking_no").checked,
-            "vendor_shipping_company": document.getElementById("col_vendor_shipping_company").checked,
-            "vendor_shipping_tracking_link": document.getElementById("col_vendor_shipping_tracking_link").checked,
-            "vendor_shipping_date": document.getElementById("col_vendor_shipping_date").checked,
-            "po_vendor_delivery_ref_number": document.getElementById("col_po_vendor_delivery_ref_number").checked
+           // "po_vendor_order_date": document.getElementById("col_po_vendor_order_date").checked,
+           // "po_vendor_invoice_ref_number": document.getElementById("col_po_vendor_invoice_ref_number").checked,
+           // "vendor_shipping_tracking_no": document.getElementById("col_vendor_shipping_tracking_no").checked,
+          //  "vendor_shipping_company": document.getElementById("col_vendor_shipping_company").checked,
+          //  "vendor_shipping_tracking_link": document.getElementById("col_vendor_shipping_tracking_link").checked,
+           // "vendor_shipping_date": document.getElementById("col_vendor_shipping_date").checked,
+          //  "po_vendor_delivery_ref_number": document.getElementById("col_po_vendor_delivery_ref_number").checked
         };
         localStorage.setItem("purchase_order_columns", JSON.stringify(columnPreferences));
 
@@ -154,9 +154,18 @@
         </div>
     </div>
 </div>
-
+<style>
+    .btn-intransit:hover{
+        color:#fff !important;
+    }
+    .btn-intransit{
+        color:#007bff !important;
+    }
+</style>
         <div class="col-sm-6">
             <div class="float-right">
+            <a href="{% url 'po_intransit_listing' %}"  class="btn mr-2 btn-intransit btn-outline-primary">
+                <i class="fas fa-truck fa-sm mr-1 text-sm"></i>In-transit</a>
 
              <div class="btn-group float-right">
 
@@ -239,9 +248,9 @@
           </div>
 
           <!-- Supplier Ref -->
-          <div class="col-lg-4 col-md-6 col-12 mb-2">
+          <div class="col-lg-4 col-md-6 d-none col-12 mb-2">
             <label class="form-label" for="filter_supplier_ref">Supplier Ref.</label>
-            <input type="text"
+            <input type="text" disabled
                    class="form-control form-control-sm"
                    id="filter_supplier_ref"
                    placeholder="Supplier Ref">
@@ -394,33 +403,28 @@ document.addEventListener("DOMContentLoaded", function () {
     const searchInput = document.getElementById('searchInput');
 
     const table = new Tabulator("#tabuar-table", {
-        height:"400px",
-        layout:"fitColumns",
-        placeholder:"No Records found",
+        height: "400px",
+        layout: "fitColumns",
+        placeholder: "No Records found",
 
         ajaxURL: "{% url 'all_purchases_json' %}",
-        ajaxConfig:"GET",
+        ajaxConfig: "GET",
 
-        pagination:true,
-        paginationMode:"remote",
-        paginationSize:20,
-        paginationCounter:"pages",
-        paginationSizeSelector:[20,30,40,50],
+        pagination: true,
+        paginationMode: "remote",
+        paginationSize: 20,
+        paginationCounter: "pages",
+        paginationSizeSelector: [20, 30, 40, 50],
 
-        movableColumns:true,
-        sortMode:"local",
-        filterMode:"remote",
+        movableColumns: true,
+        sortMode: "local",
+        filterMode: "remote",
 
-        // TREE MODE
-        dataTree:true,
-        dataTreeChildField:"sub_pos",
-        dataTreeStartExpanded:false,
-
-        ajaxParams:function(){
+        ajaxParams: function () {
             return getFilterParams();
         },
 
-        ajaxResponse:function(url, params, response){
+        ajaxResponse: function (url, params, response) {
             return {
                 data: response.data || [],
                 last_page: response.last_page,
@@ -428,258 +432,173 @@ document.addEventListener("DOMContentLoaded", function () {
             };
         },
 
-        columns:[
-            { title:"ID", field:"po_id", visible:false },
-
-            //FIRST COLUMN : Parent = plus/minus | Child = checkbox
+        columns: [
             {
-                minWidth:40,
-                hozAlign:"center",
-                headerSort:false,
-                formatter:function(cell){
-                    const row = cell.getRow();
-                    const d = row.getData();
-
-                    // Parent with MORE than 1 child → plus/minus
-                    if (d.sub_pos && d.sub_pos.length > 1) {
-                        return row.isTreeExpanded()
-                            ? `<i class="fas fa-minus-square text-primary" style="cursor:pointer"></i>`
-                            : `<i class="fas fa-plus-square text-primary" style="cursor:pointer"></i>`;
-                    }
-
-                    // Normal row (single PO or child) → checkbox
-                    //return `<input type="checkbox" class="tabulator-select-row">`;
-                    return ``;
-                },
-                cellClick:function(e, cell){
-                    const row = cell.getRow();
-                    const d = row.getData();
-
-                    if (d.sub_pos && d.sub_pos.length > 1) {
-                        row.treeToggle();
-                        setTimeout(() => applyChildBorders(table), 0);
-                    } else {
-                        row.toggleSelect();
-                    }
-                    e.stopPropagation();
-                }
-            },
-            // PO NUMBER : Parent = TEXT | Child = LINK
-            {
-                title:"PO#",
-                field:"po_number",
-                minWidth:110,
-                headerHozAlign:"center",
-                hozAlign:"left",
-                formatter:function(cell){
+                title: "PO#",
+                field: "po_number",
+                minWidth: 110,
+                headerHozAlign: "center",
+                hozAlign: "center",
+                formatter: function (cell) {
                     const d = cell.getRow().getData();
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-                    // Parent with multiple children → text only
-                    if (d.sub_pos && d.sub_pos.length > 1) {
-                        return `<span class="font-weight-bold text-dark">${cell.getValue()}</span>`;
-                    }
-
-                    // Single PO or child → clickable link
                     const url = "{% url 'view_po_order' 0 %}".replace("0", d.po_id);
                     return `<a href="${url}" class="text-primary font-weight-bold">${cell.getValue()}</a>`;
                 }
             },
-
             {
-                title:"Order Date",
-                field:"order_date",
-                minWidth:100,
-                headerSort:false,
-                formatter:function(cell){ 
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-				return formattedDate(cell.getValue(),"/") }
+                title: "Order Date",
+                field: "order_date",
+                minWidth: 100,
+                headerSort: false,
+                formatter: cell => formattedDate(cell.getValue(), "/")
+            },
+            {
+                title: "Vendor <br/>Order No",
+                field: "order_number",
+                minWidth: 100,
+                headerSort: false
+            },
+            {
+                title: "Vendor<br/> Order Date",
+                field: "master_invoice_order_date",
+                minWidth: 120,
+                headerSort: false,formatter: cell => formattedDate(cell.getValue(), "/")
             },
 
             {
-                title:"Delivery Date-ETA",
-                field:"delivery_date",
-                visible:true,
-                hozAlign:"center",
-                minWidth:120,
-                headerSort:false,
-				formatter:function(cell){ 
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-				return formattedDate(cell.getValue(),"/") }
-				
+                title: "Delivery Date-ETA",
+                field: "delivery_date",
+                hozAlign: "center",
+                minWidth: 120,
+                headerSort: false,
+                formatter: cell => formattedDate(cell.getValue(), "/")
             },
 
             {
-                title:"Vendor Name",
-                field:"vendor_name",
-                visible:getVisibility("vendor_name", true),
-                hozAlign:"center",
-                minWidth:220,
-                headerHozAlign:"center",
-                headerSort:false,
-				formatter:function(cell){ 
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-				return cell.getValue() }
+                title: "Vendor Name",
+                field: "vendor_name",
+                visible: getVisibility("vendor_name", true),
+                hozAlign: "center",
+                minWidth: 220,
+                headerHozAlign: "center",
+                headerSort: false
+            },
+
+            /*{
+                title: "Vendor Order No",
+                field: "po_vendor_po_number",
+                hozAlign: "center",
+                minWidth: 220,
+                headerHozAlign: "center",
+                headerSort: false
+            },*/
+
+            // STATUS COLUMN (FLAT)
+            {
+                title: "PO Status",
+                field: "status_id",
+                minWidth: 170,
+                hozAlign: "center",
+                headerHozAlign: "center",
+                headerSort: false,
+                formatter: function (cell) {
+                    const status = cell.getValue();
+                    let text = "Unknown";
+                    let badge = "badge-info";
+
+                    if (status === -1) { text = "Draft"; badge = "badge-secondary"; }
+                    else if (status === 0) { text = "Parked"; badge = "badge-warning"; }
+                    else if ([1, 2, 3].includes(status)) { text = "Placed"; badge = "badge-primary"; }
+                    else if (status === 4) { text = "Partially Delivered"; badge = "badge-info"; }
+                    else if (status === 5) { text = "Delivered"; badge = "badge-success"; }
+                    else if (status === 6) { text = "Closed"; badge = "badge-secondary"; }
+                    else if (status === 7) { text = "Cancelled"; badge = "badge-danger"; }
+
+                    return `<span class="badge badge-pill ${badge}">${text}</span>`;
+                }
+            },
+            {
+                title: "Shipping Status",
+                field: "shipping_status",
+                minWidth: 170,
+                hozAlign: "center",
+                headerHozAlign: "center",
+                headerSort: false,
+                formatter: function (cell) {
+                    const status = cell.getValue();
+                    let text = "Unknown";
+                    let badge = "badge-info";
+                    return `<span class="badge badge-pill ${badge}">${status}</span>`;
+                }
+            },
+            /*{
+                title: "Warehouse",
+                field: "warehouse_name",
+                visible: getVisibility("warehouse_name", true),
+                hozAlign: "center",
+                width: 150,
+                headerSort: false
+            },*/
+
+            {
+                title: "Currency",
+                field: "currency_code",
+                visible: getVisibility("currency_code", true),
+                hozAlign: "center",
+                width: 90,
+                headerSort: false
             },
 
             {
-                title:"Vendor Order No",
-                field:"po_vendor_po_number",
-                visible:true,
-                hozAlign:"center",
-                minWidth:220,
-                headerHozAlign:"center",
-                headerSort:false,
-				formatter:function(cell){ 
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-				return cell.getValue() }
-            },
-
-            //  STATUS COLUMN (RESTORED)
-           {
-    title:"Tracking Status",
-    field:"status_id",
-    visible:true,
-    minWidth:170,
-    hozAlign:"center",
-    headerHozAlign:"center",
-    headerSort:false,
-    formatter:function(cell){
-
-        const row = cell.getRow();              // ✅ FIX 1
-        const d = row.getData();
-        const status = cell.getValue();
-
-        const statusMap = [
-            { id:-1, label:"Draft" },
-            { id:0, label:"Parked" },
-            { id:1, label:"Placed" },
-            { id:2, label:"Placed" },
-            { id:3, label:"Placed" },
-            { id:4, label:"Partially Delivered" },
-            { id:5, label:"Delivered" },
-            { id:6, label:"Closed" },
-            { id:7, label:"Cancelled" }
-        ];
-
-        const isChild = row.getTreeParent() !== false;
-
-        let statusText = statusMap.find(x => x.id === status)?.label || "Unknown";
-        let badgeClass = "badge-info";
-
-        // 🔥 OVERRIDE ONLY FOR CHILD + PARTIALLY DELIVERED + FULL QTY
-        if (
-            isChild &&
-            status === 4 &&
-            Number(d.total_order_qty) === Number(d.total_received_qty)
-        ) {
-            statusText = "Delivered";
-            badgeClass = "badge-success";
-        } else {
-            // normal coloring
-            if (status === 4) badgeClass = "badge-primary";
-            if (status === 3) badgeClass = "badge-success";
-            if (status === 6) badgeClass = "badge-secondary";
-            if (status === 0) badgeClass = "badge-warning";
-        }
-
-        return `<span class="badge badge-pill ${badgeClass}">${statusText}</span>`;
-    }
-},
-
-            {
-                title:"Warehouse",
-                field:"warehouse_name",
-                visible:getVisibility("warehouse_name", true),
-                hozAlign:"center",
-                width:150,
-                headerSort:false,
-				formatter:function(cell){ 
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-				return cell.getValue() }
+                title: "Total",
+                field: "grand_total",
+                visible: getVisibility("grand_total", true),
+                hozAlign: "center",
+                width: 120,
+                formatter: "money",
+                formatterParams: { symbol: "$", precision: 2 }
             },
 
             {
-                title:"Currency",
-                field:"currency_code",
-                visible:getVisibility("currency_code", true),
-                hozAlign:"center",
-                width:90,
-                headerSort:false,
-				formatter:function(cell){ 
-					const row = cell.getRow();
-					if(row.isTreeExpanded())
-						return ``;
-				return cell.getValue() }
+                title: "Ordered QTY",
+                field: "total_order_qty",
+                visible: getVisibility("total_order_qty", true),
+                hozAlign: "center",
+                width: 120
             },
 
             {
-                title:"Total",
-                field:"grand_total",
-                visible:getVisibility("grand_total", true),
-                hozAlign:"center",
-                width:120,
-                formatter:"money",
-                formatterParams:{ symbol:"$", precision:2 }
+                title: "Received QTY",
+                field: "total_received_qty",
+                visible: getVisibility("total_received_qty", true),
+                hozAlign: "center",
+                width: 120
             },
 
+            // DELETE BUTTON (ALWAYS SHOWN)
             {
-                title:"Ordered QTY",
-                field:"total_order_qty",
-                visible:getVisibility("total_order_qty", true),
-                hozAlign:"center",
-                width:120
-            },
-
-            {
-                title:"Received QTY",
-                field:"total_received_qty",
-                visible:getVisibility("total_received_qty", true),
-                hozAlign:"center",
-                width:120
-            },
-
-            //  DELETE BUTTON COLUMN (RESTORED)
-            {
-                title:"",
-                width:70,
-                hozAlign:"center",
-                headerSort:false,
-                formatter:function(cell){
+                title: "",
+                width: 70,
+                hozAlign: "center",
+                headerSort: false,
+                formatter: function (cell) {
                     const d = cell.getRow().getData();
-
-                    // Parent with multiple children → no delete
-                    if (d.sub_pos && d.sub_pos.length > 1) {
-                        return "";
-                    }
-
-                    return `<button type="button"
+                    if ([ 0, -1].includes(d.status_id)) {
+                        return `
+                            <button type="button"
                                 class="btn btn-sm btn-outline-danger"
                                 onclick="deletePO(${d.po_id}, event)">
                                 <i class="fas fa-trash-alt"></i>
-                            </button>`;
+                            </button>
+                        `;
+                     }else
+                        return ``;
                 },
-                cellClick:function(e){
-                    e.stopPropagation();
-                }
+                cellClick: e => e.stopPropagation()
             }
         ]
     });
 
-table.on("dataLoaded", function () {
-    applyChildBorders(table);
-});
 
         // 4. THE FILTER TRIGGER
     document.getElementById("filter_submit_btn").addEventListener("click", function(e) {

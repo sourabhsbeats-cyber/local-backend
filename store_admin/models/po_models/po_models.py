@@ -322,21 +322,32 @@ class PurchaseOrderFiles(models.Model):
 
 class PurchaseOrderInvoiceDetails(models.Model):
     po_invoice_id = models.AutoField(primary_key=True)
-    po_id            = models.IntegerField()
-    po_item_id       = models.IntegerField()
-    receive_id       = models.IntegerField()
-    po_amount        = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    po_id = models.IntegerField()
+    product_id = models.IntegerField()
+    receive_id = models.IntegerField()  # Matches your payload receive_id
+
     invoice_number = models.CharField(max_length=45, null=True, blank=True)
-    invoice_date     = models.DateField()
-    invoice_due_date = models.DateField()
-    invoice_payment_term_id = models.IntegerField(null=True)
-    invoice_status_id = models.IntegerField(null=True)
-    created_at       = models.DateTimeField(auto_now_add=True)
-    created_by       = models.IntegerField(default=0)
+    po_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    received_qty = models.IntegerField()  # Matches your payload receive_id
+    payment_status_id = models.IntegerField(null=True, blank=True)
+
+    order_date = models.DateField(null=True, blank=True)
+    order_no = models.CharField(max_length=100, null=True, blank=True)
+    vendor_ref_no = models.CharField(max_length=100, null=True, blank=True)
+    delivery_ref = models.CharField(max_length=50, null=True, blank=True)
+
+    # Core Dates (Changed to null=True to prevent errors on empty form submit)
+    invoice_date = models.DateField(null=True, blank=True)
+    payment_term_id = models.IntegerField(null=True, blank=True)
+    due_date = models.DateField(null=True, blank=True)
+    paid_date = models.DateField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.IntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)  # Added for better tracking
 
     class Meta:
         db_table = 'store_admin_purchase_order_invoice_details'
-
 
 #--------------------------------------------------------------------------------------------------#
 #----------------------------------Purchase Bills--------------------------------------------------#

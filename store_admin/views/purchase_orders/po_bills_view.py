@@ -9,7 +9,7 @@ from django.shortcuts import render, redirect
 from store_admin.models.po_models.po_models import (
     PurchaseBills,
     PurchaseBillItems,
-    PurchaseBillFiles, PurchasePayments
+    PurchaseBillFiles, PurchasePayments, PurchaseOrderInvoiceDetails
 )
 
 from store_admin.models.po_models.po_models import PurchaseOrder, POBillingStatus, PurchaseOrderItem, PurchaseReceiveFiles, \
@@ -303,57 +303,73 @@ def listing_bill_line_items(request):
     return JsonResponse({"status": True, "line_items": ps_rx_items_data})
 
 @login_required
-def bills_listing_json(request):
-    vendor_id = request.GET.get("vendor_id")
-    bill_no = request.GET.get("bill_no")
+def po_invoice_listing_json(request):
+    po_id = request.GET.get("po_id")
+    invoice_number = request.GET.get("invoice_number")
 
-    qs = PurchaseBills.objects.all().order_by("-bill_id")
+    qs = PurchaseOrderInvoiceDetails.objects.all().order_by("-po_invoice_id")
 
-    if vendor_id:
-        qs = qs.filter(vendor_id=vendor_id)
+    if po_id:
+        qs = qs.filter(po_id=po_id)
 
-    if bill_no:
-        qs = qs.filter(bill_no__icontains=bill_no)
+    if invoice_number:
+        qs = qs.filter(invoice_number__icontains=invoice_number)
+
+    # -------------------------------------------------
+    # SUBQUERIES (because no FK relations)
+    # -------------------------------------------------
+    po_number_sq = PurchaseOrder.objects.filter(
+        po_id=OuterRef("po_id")
+    ).values("po_number")[:1]
+
+    vendor_id_sq = PurchaseOrder.objects.filter(
+        po_id=OuterRef("po_id")
+    ).values("vendor_id")[:1]
+
+    po_status_sq = PurchaseOrder.objects.filter(
+        po_id=OuterRef("po_id")
+    ).values("status_id")[:1]
+
+    vendor_name_sq = Vendor.objects.filter(
+        id=OuterRef("vendor_id")
+    ).values("display_name")[:1]
+
+    qs = qs.annotate(
+        po_number=Subquery(po_number_sq),
+        vendor_id=Subquery(vendor_id_sq),
+        po_status_id=Subquery(po_status_sq),
+        vendor_name=Subquery(vendor_name_sq),
+    )
 
     data = []
-
-    for bill in qs:
-        items_count = PurchaseBillItems.objects.filter(
-            purchase_bill_id=bill.bill_id
-        ).count()
-        vendor_det = Vendor.objects.filter(id=bill.vendor_id).first()
-        warehouse_det = Warehouse.objects.filter(warehouse_id=bill.location).first()
-
+    for inv in qs:
         data.append({
-            "bill_id": bill.bill_id,
-            "bill_no": bill.bill_no,
-            "bill_order_number": bill.bill_order_number,
-            "vendor_id": bill.vendor_id,
-            "vendor_name": vendor_det.company_name,
-            "vendor_display_name": vendor_det.display_name,
-            "warehouse_name": warehouse_det.warehouse_name if warehouse_det else "",
-            "vendor_abn": bill.vendor_abn,
-            "location": bill.location,
-            "bill_date": bill.bill_date,
-            "due_date": bill.due_date,
-            "status": bill.bill_status,
+            "po_invoice_id": inv.po_invoice_id,
+            "po_id": inv.po_id,
+            "po_number": inv.po_number,
+            "po_item_id": inv.po_item_id,
+            "receive_id": inv.receive_id,
 
-            "sub_total": float(bill.sub_total),
-            "tax_total": float(bill.tax_total),
-            "grand_total": float(bill.grand_total),
+            "invoice_number": inv.invoice_number,
+            "invoice_date": inv.invoice_date,
+            "invoice_due_date": inv.invoice_due_date,
+            "invoice_payment_term_id": inv.invoice_payment_term_id,
+            "invoice_status_id": inv.invoice_status_id,
 
-            "shipping_charge": 0, #float(bill.shipping_charge),
-            "surcharge_total": 0, #float(bill.surcharge_total),
+            "po_amount": float(inv.po_amount or 0),
 
-            "items_count": items_count,
-            "created_at": bill.created_at,
+            "vendor_id": inv.vendor_id,
+            "vendor_name": inv.vendor_name,
+            "po_status_id": inv.po_status_id,
+
+            "created_at": inv.created_at,
+            "created_by": inv.created_by,
         })
 
     return JsonResponse({
         "status": True,
         "data": data
     })
-
 
 #verified
 @login_required

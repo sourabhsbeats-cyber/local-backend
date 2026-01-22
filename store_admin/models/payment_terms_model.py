@@ -11,6 +11,7 @@ class PaymentTerm(models.Model):
 
     #id = models.PositiveIntegerField(primary_key=True)
     name = models.CharField(max_length=100, unique=True)
+
     frequency = models.PositiveIntegerField(help_text="Enter number of days (e.g., 30 = Net 30)")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     type = models.PositiveIntegerField( choices=PAYMENT_TYPES, default=1)
