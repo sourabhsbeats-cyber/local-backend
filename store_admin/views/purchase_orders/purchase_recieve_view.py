@@ -29,10 +29,10 @@ from django.contrib.auth.decorators import login_required
 
 from store_admin.models.po_models.po_models import PurchaseOrder, POStatus, PurchaseOrderItem, \
     PurchaseReceiveFiles, \
-    PurchaseReceivedItems, PurchaseReceives, PurchaseOrderShipping, PurchaseOrderVendor, PurchaseBills, \
+    PurchaseReceivedItems, PurchaseReceives, PurchaseOrderShipping, PurchaseOrderVendorDetails, PurchaseBills, \
     PurchaseBillItems, PurchaseBillFiles, PurchasePayments, PurchasePaymentItems, PurchasePaymentFiles, VendorPayments, \
     VendorPaymentAllocations, VendorCredits, VendorLedger, POShippingStatus, PurchaseOrderPrimaryDetails, \
-    PurchaseOrderInvoiceDetails
+    PurchaseOrderInvoiceDetails, PurchaseOrderVendorDetails
 from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails, \
     ProductStaticAttributes, ProductDynamicAttributes, ProductImages
 from store_admin.models.setting_model import Category, Brand, Manufacturer, AttributeDefinition, UnitOfMeasurements, \
@@ -134,16 +134,10 @@ def save_po_order_receive(request):
             po_vendor.invoice_due_date = parse_date_or_none(data.get("vendor_po_invoice_due_date"))
             po_vendor.save()
         else:
-            PurchaseOrderVendor.objects.create(
+            PurchaseOrderVendorDetails.objects.create(
                 po_id=po_id,
-                po_number=data.get("vendor_po_no"),
                 order_number=data.get("vendor_po_order_number"),
                 order_date=parse_date_or_none(data.get("vendor_po_order_date")),
-                invoice_ref_number=data.get("vendor_po_invoice_no"),
-                delivery_ref_number=data.get("vendor_po_delivery_ref_no"),
-                invoice_status=to_int_or_none(data.get("vendor_po_payment_status")),
-                invoice_date=parse_date_or_none(data.get("vendor_po_invoice_date")),
-                invoice_due_date=parse_date_or_none(data.get("vendor_po_invoice_due_date")),
                 created_by=user_id
             )
 
@@ -385,7 +379,7 @@ def edit_po_receive(request, po_receive_id):
     #po_line_items = get_po_line_items(po_order.po_id)
     po_line_items = get_po_line_received_items(po_order.po_id, po_receive_id)
 
-    vendor_po = PurchaseOrderVendor.objects.filter(po_id=po_order.po_id).first()
+    vendor_po = PurchaseOrderVendorDetails.objects.filter(po_id=po_order.po_id).first()
 
     tax_total = po_order.tax_total or 0
     surcharge = po_order.surcharge_total or 0
@@ -1389,6 +1383,18 @@ def intransit_listing(request):
     }
 
     return render(request, 'sbadmin/pages/bills/all_po_intransit_listing.html', context)
+
+@login_required
+def po_tracking_listing(request):
+    # ---- Context ----
+    all_vendors = Vendor.objects.all()
+
+    context = {
+        "vendors":all_vendors,
+        "user": request.user.id,
+    }
+
+    return render(request, 'sbadmin/pages/bills/all_po_tracking_listing.html', context)
 
 
 @login_required

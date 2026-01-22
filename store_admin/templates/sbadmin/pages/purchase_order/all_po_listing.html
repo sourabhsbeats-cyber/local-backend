@@ -210,11 +210,11 @@
 
           <!-- Order No -->
           <div class="col-lg-4 col-md-6 col-12 mb-2">
-            <label class="form-label" for="filter_order_no">Vendor PO Number</label>
+            <label class="form-label" for="filter_order_no">Order Number</label>
             <input type="text"
                    class="form-control form-control-sm"
                    id="filter_order_no"
-                   placeholder="Vendor PO Number">
+                   placeholder="Vendor Order# or PO# or Vendor Invoice#">
           </div>
 
           <!-- Vendor -->
@@ -230,10 +230,10 @@
 
           <!-- Vendor Reference -->
           <div class="col-lg-4 col-md-6 col-12 mb-2">
-            <label class="form-label" for="filter_vendor_ref">Vendor Reference</label>
-            <input type="text"
+            <label class="form-label" for="filter_vendor_ref">Delivery Ref</label>
+            <input type="text" placeholder="Delivery Ref"
                    class="form-control form-control-sm"
-                   id="filter_vendor_ref">
+                   id="filter_delivery_ref">
           </div>
 
           <!-- Warehouse -->
@@ -342,7 +342,7 @@ function getFilterParams() {
         status: document.getElementById("filter_status").value,
         order_no: document.getElementById("filter_order_no").value.trim(),
         vendor_id: document.getElementById("filter_vendor").value,
-        vendor_ref: document.getElementById("filter_vendor_ref").value.trim(),
+        delivery_ref: document.getElementById("filter_delivery_ref").value.trim(),
         warehouse: document.getElementById("filter_warehouse").value,
         supplier_ref: document.getElementById("filter_supplier_ref").value.trim(),
         vendor_payment_status: document.getElementById("filter_vendor_payment_status").value.trim(),
@@ -402,7 +402,78 @@ document.addEventListener("DOMContentLoaded", function () {
     };
     const searchInput = document.getElementById('searchInput');
 
+
+
+    var orderDatesPopup = function (e, row, onRendered) {
+        const data = row.getData();
+        if (!data.master_invoice_order_dates) return;
+
+        const arr = data.master_invoice_order_dates.split(", ");
+        const container = document.createElement("div");
+
+        let html = "<strong style='font-size:1.1em;'>Order Dates</strong>";
+        html += "<ul style='padding-left:15px;margin-top:8px;margin-bottom:0;'>";
+
+        for (let i = 0; i < arr.length; i++) {
+            html += `<li>${formattedDate(arr[i].slice(0, 10), "/")}</li>`;
+        }
+
+        html += "</ul>";
+        container.innerHTML = html;
+
+        return container;
+    };
+    var orderNumbersPopup = function (e, row) {
+        const data = row.getData();
+        if (!data.master_invoice_order_numbers) return false;
+
+        const arr = data.master_invoice_order_numbers.split(", ");
+        const container = document.createElement("div");
+
+        let html = "<strong style='font-size:1.1em;'>Vendor Order Numbers</strong>";
+        html += "<ul style='padding-left:15px;margin-top:8px;margin-bottom:0;'>";
+
+        for (let i = 0; i < arr.length; i++) {
+            html += `<li>${arr[i]}</li>`;
+        }
+
+        html += "</ul>";
+        container.innerHTML = html;
+
+        return container;
+    };
+
     const table = new Tabulator("#tabuar-table", {
+        rowClickPopup: function (e, row) {
+            if (e.target.closest("a")) {
+                const link = e.target.closest("a");
+                const href = link.getAttribute("href");
+                if (href) {
+                    window.location.href = href;   // redirect
+                }
+                return false; // stop Tabulator popup
+            }
+
+            // Detect which cell was clicked
+            const cells = row.getCells();
+            let clickedCell = null;
+
+            for (let i = 0; i < cells.length; i++) {
+                if (cells[i].getElement().contains(e.target)) {
+                    clickedCell = cells[i];
+                    break;
+                }
+            }
+
+            if (!clickedCell) return "";
+            if (clickedCell.getField() === "master_invoice_order_dates") {
+                return orderDatesPopup(e, row);
+            }
+            if (clickedCell.getField() === "master_invoice_order_numbers") {
+                return orderNumbersPopup(e, row);
+            }
+            return null;
+        },
         height: "400px",
         layout: "fitColumns",
         placeholder: "No Records found",
@@ -419,7 +490,7 @@ document.addEventListener("DOMContentLoaded", function () {
         movableColumns: true,
         sortMode: "local",
         filterMode: "remote",
-
+        selectable: false,
         ajaxParams: function () {
             return getFilterParams();
         },
@@ -454,15 +525,31 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             {
                 title: "Vendor <br/>Order No",
-                field: "order_number",
+                field: "master_invoice_order_numbers",
                 minWidth: 100,
-                headerSort: false
+                headerSort: false,formatter: (cell) => {
+                    const v = cell.getValue();
+                    if (!v) return "";
+                    return `<span class="text-primary" style="cursor:pointer">${v}</span>`;
+                }
             },
             {
                 title: "Vendor<br/> Order Date",
-                field: "master_invoice_order_date",
+                field: "master_invoice_order_dates",
                 minWidth: 120,
-                headerSort: false,formatter: cell => formattedDate(cell.getValue(), "/")
+                headerSort: false,formatter: (cell) => {
+                    const v = cell.getValue();
+                    if (!v) return "";
+
+                    const date_arr = v.split(", ");
+                    let out = "";
+
+                    for (let i = 0; i < date_arr.length; i++) {
+                        out += formattedDate(date_arr[i].slice(0, 10), "/");
+                        if (i < date_arr.length - 1) out += ", ";
+                    }
+                    return `<span class="text-primary" style="cursor:pointer">${out}</span>`;
+                }
             },
 
             {
@@ -551,7 +638,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             {
                 title: "Total",
-                field: "grand_total",
+                field: "total_val",
                 visible: getVisibility("grand_total", true),
                 hozAlign: "center",
                 width: 120,

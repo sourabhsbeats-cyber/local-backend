@@ -107,11 +107,11 @@ def get_user_navigations(request):
                     "url": reverse("po_listing"),
                     "match": "/purchaseorder/",
                 },
-               # {
-               #     "label": "Purchase Receives",
-               #     "url": reverse("po_order_receives"),
-               #     "match": "/purchaseorder/poreceives/",
-                #},
+               {
+                   "label": "Track Status",
+                    "url": reverse("po_intransit_listing"),
+                   "match": "/purchaseorder/listing/",
+               },
                 {
                     "label": "Invoices",
                     "url": reverse("po_bills_listing"),

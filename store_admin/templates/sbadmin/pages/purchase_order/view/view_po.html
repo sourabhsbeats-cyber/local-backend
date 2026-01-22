@@ -243,8 +243,8 @@ border-bottom:1px solid #007bff !important;
     <div class="content-header">
         <div class="container-fluid">
             <div class="page-wrapper">
-                <div class="col-md-12 p-0 m-0  clearfix">
-                    <div class="col-lg-9  float-left">
+                <div class="col-md-12 p-0 m-0 clearfix">
+                    <div class="col-md-9 float-left">
                         <div class="d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center">
                                 <a class="back-btn" href="{% url 'po_listing' %}">
@@ -252,47 +252,37 @@ border-bottom:1px solid #007bff !important;
                                 </a>
                                 <h4 class="mb-0 font-weight-bold ml-2">Order # {{ po.po_number }}</h4>
                                 <span class="status-active ml-2">
-
                                     <span class="badge badge-pill badge-info">
                                         <i class="fa fa-bolt fa-small"></i>
-                                        {% if po.status_id == 0 %}
-                                        Parked
-                                        {% elif po.status_id == 1 %}
-                                        Placed
-                                        {% elif po.status_id == 2 %}
-                                        Placed
-                                        {% elif po.status_id == 3 %}
-                                        Placed
-                                        {% elif po.status_id == 4 %}
-                                        Partially Delivered
-                                        {% elif po.status_id == 5 %}
-                                        Delivered
-                                        {% elif po.status_id == 6 %}
-                                        Closed
+                                        {% if po.status_id == 0 %} Parked
+                                        {% elif po.status_id == 1 or po.status_id == 2 or po.status_id == 3 %} Placed
+                                        {% elif po.status_id == 4 %} Partially Delivered
+                                        {% elif po.status_id == 5 %} Delivered
+                                        {% elif po.status_id == 6 %} Closed
                                         {% endif %}
-
                                     </span>
 
                                     {% if is_all_received %}
-                                        <span class="badge badge-pill badge-success">
-                                        <i class="fa fa-bolt fa-small"></i> All Received </span>
+                                        <span class="badge badge-pill badge-success ml-1">
+                                            <i class="fa fa-bolt fa-small"></i> All Received
+                                        </span>
                                     {% elif is_all_received == None %}
-                                        <span class="badge badge-pill badge-info">
-                                        <i class="fa fa-bolt fa-small"></i> Not Received </span>
-                                    {% else %}
-                                       <!-- <span class="badge badge-pill badge-info">
-                                        <i class="fa fa-bolt fa-small"></i> Received Partial </span>-->
+                                        <span class="badge badge-pill badge-info ml-1">
+                                            <i class="fa fa-bolt fa-small"></i> Not Received
+                                        </span>
                                     {% endif %}
                                 </span>
                             </div>
-                            <div>
 
+                            <div class="d-flex align-items-center">
                                 {% if po.status_id >= 1 %}
-                                <a title="View Receive" id="btn_create_receive"  class="btn btn-light border cursor-pointer help-text mr-1">
-                                        <i class="fa fa-paper-plane mr-1"></i> View Receive</a>
+                                    <a title="View Receive" id="btn_create_receive" class="btn btn-light border cursor-pointer help-text mr-1">
+                                        <i class="fa fa-paper-plane mr-1"></i> View Receive
+                                    </a>
                                 {% endif %}
+                                
                                 {% if po.status_id == 0 %}
-                                     <button title="Place PO" id="btn_place_po" onclick="placePO()"  class="btn btn-light border cursor-pointer help-text mr-1">
+                                    <button title="Place PO" id="btn_place_po" onclick="placePO()" class="btn btn-light border cursor-pointer help-text mr-1">
                                         <i class="fas fa-box mr-1"></i> Place PO
                                     </button>
                                 {% endif %}
@@ -300,18 +290,11 @@ border-bottom:1px solid #007bff !important;
                                 <div class="vertical-divider mx-3 d-inline-block"></div>
 
                                 <div class="btn-group mr-2">
-                                    <button type="button" class="btn btn-dark" style="border:1px solid #fff;border-radius:8px 0 0 8px;">
-                                        Action
-                                    </button>
-                                    <button type="button" class="btn btn-dark dropdown-toggle dropdown-icon"
-                                            data-toggle="dropdown"
-                                            style="border-radius:0 8px 8px 0;border:1px solid #fff">
-                                    </button>
-
+                                    <button type="button" class="btn btn-dark" style="border:1px solid #fff; border-radius:8px 0 0 8px;">Action</button>
+                                    <button type="button" class="btn btn-dark dropdown-toggle dropdown-icon" data-toggle="dropdown" style="border-radius:0 8px 8px 0; border:1px solid #fff"></button>
                                     <div class="dropdown-menu">
-                                        <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit </a>
-                                        <a class="dropdown-item" onclick="deletePO('{{  po.po_id }}')" href="#">Delete</a>
-
+                                        <a class="dropdown-item" href="{% url 'create_order' po.po_id %}">Edit</a>
+                                        <a class="dropdown-item" onclick="deletePO('{{ po.po_id }}')" href="#">Delete</a>
                                     </div>
                                 </div>
 
@@ -319,17 +302,14 @@ border-bottom:1px solid #007bff !important;
                                     <button class="more-btn" data-toggle="dropdown">
                                         <i class="fa fa-ellipsis-h text-muted"></i>
                                     </button>
-
                                     <div class="dropdown-menu dropdown-menu-right">
-                                        <a class="dropdown-item"  href="{% url 'create_order' po.po_id %}">
-                                            <i class="fas fa-print mr-1"></i> Print</a>
-                                        <a class="dropdown-item" id="btn_po_generate_pdf"
-                                           href="">
-                                            <i class="fa fa-download mr-1"></i>  Export</a>
+                                        <a class="dropdown-item" href="{% url 'create_order' po.po_id %}"><i class="fas fa-print mr-1"></i> Print</a>
+                                        <a class="dropdown-item" id="btn_po_generate_pdf" href="#"><i class="fa fa-download mr-1"></i> Export</a>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
                         <div class="row mt-3">
                             <div class="col-sm-6">
                                 <div style="font-size:14px;">
@@ -338,126 +318,110 @@ border-bottom:1px solid #007bff !important;
                                     <i class="fa fa-box ml-2 mr-1 text-secondary"></i> <span id="total_products"></span>
                                 </div>
                             </div>
-
                             <div class="col-sm-6 text-right">
                                 <div style="font-size:14px;">
                                     <span class="text-muted">Order created</span> {{ po.created_at }}
                                 </div>
                             </div>
                         </div>
-                         <div class="card-custom pt-2 mt-3 ">
+
+                        <div class="card-custom pt-2 mt-3">
                             <div class="card-header p-2 clearfix">
                                 <div class="user-block float-left help-text" title="Vendor Details">
-                                     <div id="avatarBox" class="avatar-circle user-avatar"></div>
+                                    <div id="avatarBox" class="avatar-circle user-avatar"></div>
                                     <span class="username"><a href="#">{{ vendor.vendor_code }}</a></span>
                                     <span class="description">{{ po.vendor_name }}</span>
                                 </div>
                                 <div class="btn-soft-wrap float-right">
                                     <button class="btn-soft btn-light btn"><i class="fa fa-paperclip"></i> (0) Attachments</button>
-                                   <button {% if vendor.email_address %}
-                                            onclick="window.location='mailto:{{ vendor.email_address }}?subject=PO%20Request'"
-                                        {% else %} disabled {% endif %} class="btn-soft btn-light btn">
+                                    <button {% if vendor.email_address %} onclick="window.location='mailto:{{ vendor.email_address }}?subject=PO%20Request'" {% else %} disabled {% endif %} class="btn-soft btn-light btn">
                                         <i class="fa fa-envelope"></i> Send Email
                                     </button>
-                                    <button  {% if vendor.mobile_number %} onclick="window.location='tel:{{ vendor.mobile_number }}'"
-                                        {% else %}  disabled {% endif %} class="btn-soft btn-light btn" >
+                                    <button {% if vendor.mobile_number %} onclick="window.location='tel:{{ vendor.mobile_number }}'" {% else %} disabled {% endif %} class="btn-soft btn-light btn">
                                         <i class="fa fa-phone"></i> {{ vendor.mobile_number|default:"No Phone" }}
                                     </button>
                                 </div>
-
                             </div>
 
                             <div class="card-body">
-                                <div class="col-md-6 p-2 pl-0 float-left invoice-col">
-                                  <b><span class="text-muted">Reference #</span> {{ po.vendor_reference }}</b><br>
-                                  <b>Vendor Code:</b> {{ po.vendor_code }}<br>
-                                  <b>Vendor Name:</b> {{ po.vendor_name }}<br>
-                                  <b>Currency Code:</b> {{ po.currency_code }}<br>
-                                  <b>Order Date:</b> {{ po.order_date }}<br>
-                                  <b>Expected Delivery Date:</b> {{ po.delivery_date }}<br>
-                                </div>
-
-
-
-                                <div class="col-md-3 p-2 pt-0 float-left">
-                                    <div class=" invoice-col">
-                                        <div class=" ">
-                                            <strong><i class="far fa-file-alt mr-1"></i> Tax:  <span class="text-muted">{{ po.tax_percentage }}%</span> </strong>
-                                        </div>
+                                <div class="row">
+                                    <div class="col-md-6 invoice-col">
+                                        <b><span class="text-muted">Reference #</span> {{ po.vendor_reference }}</b><br>
+                                        <b>Vendor Code:</b> {{ po.vendor_code }}<br>
+                                        <b>Vendor Name:</b> {{ po.vendor_name }}<br>
+                                        <b>Currency Code:</b> {{ po.currency_code }}<br>
+                                        <b>Order Date:</b> {{ po.order_date }}<br>
+                                        <b>Expected Delivery:</b> {{ po.delivery_date }}<br>
+                                    </div>
+                                    <div class="col-md-3 invoice-col">
+                                        <strong><i class="far fa-file-alt mr-1"></i> Tax: <span class="text-muted">{{ po.tax_percentage }}%</span></strong>
                                         <hr/>
-                                         <div class="">
-                                            <strong><i class="fas fa-map-marker-alt mr-1"></i> Warehouse Location</strong>
-                                            <p class="text-muted">
-                                                {% for warehouse in WAREHOUSE_LOCATIONS %}
-
-                                                    {% if po.warehouse_id == warehouse.id %}
-                                                        {{ warehouse.name }}
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </p>
-                                        </div>
-
-                                        <div class="">
-                                            <strong><i class="far fa-file-alt mr-1"></i> Payment Terms</strong>
-                                            <p class="text-muted">
-                                                {% for payment_term in payment_terms %}
-                                                    {% if po.payment_term_id == payment_term.id %}
-                                                        {{ payment_term.name }}
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </p>
-
-
-                                        </div>
+                                        <strong><i class="fas fa-map-marker-alt mr-1"></i> Warehouse</strong>
+                                        <p class="text-muted">
+                                            {% for warehouse in WAREHOUSE_LOCATIONS %}
+                                                {% if po.warehouse_id == warehouse.id %}{{ warehouse.name }}{% endif %}
+                                            {% endfor %}
+                                        </p>
+                                        <strong><i class="far fa-file-alt mr-1"></i> Payment Terms</strong>
+                                        <p class="text-muted">
+                                            {% for term in payment_terms %}
+                                                {% if po.payment_term_id == term.id %}{{ term.name }}{% endif %}
+                                            {% endfor %}
+                                        </p>
                                     </div>
+                                    <div class="col-md-3 invoice-col">
+    <table class="table table-sm table-borderless" style="font-size: 13px;">
+        <thead>
+            <tr class="border-bottom">
+                <th class="text-muted small text-uppercase pl-0">Order No</th>
+                <th class="text-muted small text-uppercase">PO#</th>
+                <th class="text-muted small text-uppercase text-right pr-0">Order Date</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for vendorpo in vendor_po %}
+                <tr class="{% if not forloop.last %}border-bottom{% endif %}">
+                    <td class="py-2 pl-0">
+                        <span class="font-weight-bold text-dark">{{ vendorpo.order_number }}</span>
+                    </td>
+                    
+                    <td class="py-2">
+                        <span class="text-muted">{{ vendorpo.vendor_po_number|default:"--" }}</span>
+                    </td>
+                    
+                    <td class="py-2 text-right pr-0">
+                        <span class="text-muted">{{ vendorpo.order_date|date:'d-M-y' }}</span>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3" class="text-muted small text-center py-3">No PO details.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
                                 </div>
-								
-								<div class="col-md-3 p-2 pt-0 float-left">
-                                    <div class=" invoice-col">
-                                        <div class=" ">
-                                            <strong> Vendor Order Number:  <span class="text-muted">{{ vendor_po.order_number }}</span> </strong>
-                                        </div>
-                              
-                                         <div class="">
-                                            <strong> Vendor Order Date</strong>
-                                            <p class="text-muted">
-                                                {{ vendor_po.order_date|date:'d-M-Y' }}
-                                            </p>
-                                        </div>
-
-                                        <div class="">
-                                            <strong><i class="far fa-file-alt mr-1"></i> Vendor Invoice Status</strong>
-                                            <p class="text-muted">
-												{% if vendor_po.invoice_status == 1 %}
-													Paid
-												{% elif vendor_po.invoice_status == 2 %}
-													Unpaid
-												{% elif vendor_po.invoice_status == 3 %}
-													Cancelled
-												{% elif vendor_po.invoice_status == 4 %}
-													On Hold
-												{% endif %}
-                                            </p>
-
-
-                                        </div>
-                                    </div>
-                                </div>
+								<div class="row">
 								
 								
+								
+	
+	
+								</div>
                             </div>
 
-                            <div class="card-footer p-2 " >
+                            <div class="card-footer p-2">
                                 <div class="user-block d-flex align-items-center help-text" title="Deliver To">
                                     <div class="icon-circle mr-2">
                                         <i class="fa fa-map-marker-alt"></i>
                                     </div>
                                     <div>
                                         <span class="font-weight-bold">{{ po.delivery_name }}</span><br>
-                                        <span class="text-muted">{{ po.address_line1 }} {{ po.address_line2 }},
-                                            {{ po.state }}, {{ po.city }} - {{ po.post_code }},
+                                        <span class="text-muted">
+                                            {{ po.address_line1 }} {{ po.address_line2 }}, {{ po.state }}, {{ po.city }} - {{ po.post_code }},
                                             {% for country in country_list %}
-                                                {% if po.country_id == country.id %}{{ country.name }} {% endif %}
+                                                {% if po.country_id == country.id %}{{ country.name }}{% endif %}
                                             {% endfor %}
                                         </span>
                                     </div>
@@ -465,154 +429,102 @@ border-bottom:1px solid #007bff !important;
                             </div>
                         </div>
                     </div>
-                    <div class="col-lg-3  float-left">
+
+                    <div class="col-md-3 float-left">
                         <div class="card">
-                          <div class="card-header p-2">
-                            <ul class="nav nav-pills">
-                              <li class="nav-item"><a class="nav-link active" href="#activity" data-toggle="tab">Payments</a></li>
-                              <li class="nav-item"><a class="nav-link" href="#timeline" data-toggle="tab">Notes</a></li>
-							  <li class="nav-item"><a class="nav-link" href="#pologs" data-toggle="tab">Logs</a></li>
-                            </ul>
-                          </div><!-- /.card-header -->
-                          <div class="card-body">
-                            <div class="tab-content">
-                              <div class="tab-pane active" id="activity">
-                                <!-- Post -->
-                                <div class="post">
-                                  <div class="user-block">
-                                    <div class=" " >
-
-                        <!-- STATUS -->
-                        <div class="mb-3">
-                            <small class="text-muted font-weight-bold">STATUS:</small>
-                            <span class="badge badge-pill status-pill ml-1">Unpaid</span>
-                        </div>
-                        <!-- INVOICE -->
-                        <!--
-                        <div class="mb-3 pb-3 border-bottom">
-                        <div class="d-flex align-items-center mb-2">
-                                <i class="fa fa-wallet text-secondary mr-2"></i>
-                                <span class="font-weight-bold">Payment Receive</span>
-                                <span class="badge badge-light ml-2">1</span>
+                            <div class="card-header p-2">
+                                <ul class="nav nav-pills">
+                                    <li class="nav-item"><a class="nav-link active" href="#activity" data-toggle="tab">Payments</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="#timeline" data-toggle="tab">Notes</a></li>
+                                    <li class="nav-item"><a class="nav-link" href="#pologs" data-toggle="tab">Logs</a></li>
+                                </ul>
                             </div>
-                            <div class="d-flex justify-content-between mb-1">
-                                <div>
-                                    <span class="font-weight-bold">#1</span>
-                                    <span class="ml-2">6 Nov 2022</span><br>
-                                    <small class="text-muted">Bank transfer</small>
-                                </div>
-                                <span class="text-success font-weight-bold">+ $200.00</span>
-                            </div>
-                        </div>-->
-                        <!-- PAYMENT SUMMARY -->
-                        <div class="mb-3">
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">Paid</span>
-                                <span class="font-weight-bold">0.00</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between">
-                                <span class="text-muted">Outstanding</span>
-                                <span class="font-weight-bold" id="po_out_standing">$400.00</span>
-                            </div>
-                        </div>
-                        <!-- BUTTON -->
-                        <div >
-
-                        <div class="invoice-col">
-                            <hr/>
-
-
-                        </div>
-
-                        </div>
-                        </div>
-                        </div>
-                        </div>
-                        </div>
-
-
-                        <div class="tab-pane" id="timeline">
-                            {{ po.comments|default:"--" }}
-                        </div>
-						 <div class="tab-pane " id="pologs">
-                                <!-- Post -->
-                        {{ po_logs|safe }}
-
-                        </div>
+                            <div class="card-body">
+                                <div class="tab-content">
+                                    <div class="tab-pane active" id="activity">
+                                        <div class="mb-3">
+                                            <small class="text-muted font-weight-bold">STATUS:</small>
+                                            <span class="badge badge-pill status-pill ml-1">Unpaid</span>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Paid</span>
+                                                <span class="font-weight-bold">0.00</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between">
+                                                <span class="text-muted">Outstanding</span>
+                                                <span class="font-weight-bold" id="po_out_standing">$400.00</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="tab-pane" id="timeline">
+                                        {{ po.comments|default:"--" }}
+                                    </div>
+                                    <div class="tab-pane" id="pologs">
+                                        {{ po_logs|safe }}
+                                    </div>
                                 </div>
                             </div>
-
-                        </div><!-- /.card-body -->
+                        </div>
                     </div>
-                </div><!-- div row end -->
+                </div>
 
-                <div class="col-md-12 clearfix row">
-                    <div class="card-custom p-3" style="width:100%">
+                <div class="col-md-12 mt-3">
+                    <div class="card-custom p-3">
                         <ul class="nav nav-tabs mb-2">
-                          <li class="nav-item"><a class="nav-link active" href="#product_lines" data-toggle="tab">Products ({{ line_items|length }} Rows) </a></li>
-                          <li class="nav-item"><a class="nav-link" href="#all_tracking_details" data-toggle="tab">Tracking Details</a></li>
-                           <li class="nav-item"><a class="nav-link" href="#all_invoice_details" data-toggle="tab">Invoice Details</a></li>
+                            <li class="nav-item"><a class="nav-link active" href="#product_lines" data-toggle="tab">Products ({{ line_items|length }} Rows)</a></li>
+                            <li class="nav-item"><a class="nav-link" href="#all_tracking_details" data-toggle="tab">Tracking Details</a></li>
+                            <li class="nav-item"><a class="nav-link" href="#all_invoice_details" data-toggle="tab">Invoice Details</a></li>
                         </ul>
                         <div class="tab-content">
                             <div class="tab-pane fade active show" id="product_lines">
                                 <div class="table-responsive">
-                                    <table class=" table" style="table-layout: fixed;">
+                                    <table class="table" style="table-layout: fixed;">
                                         <thead>
                                             <tr class="text-muted small">
                                                 <th style="width:40%;">ITEM DETAILS</th>
                                                 <th style="width:10%;" class="text-center">ORDER TYPE</th>
                                                 <th style="width:100px;" class="text-center">ORDER REF</th>
-
-                                                <th style="width:9%;" class="text-center">QUANTITY</th>
-                                                   <!-- <th style="width:10%;" class="text-center">BARCODE LABEL TYPE</th>-->
+                                                <th style="width:9%;" class="text-center">QTY</th>
                                                 <th style="width:10%;" class="text-center">RATE</th>
-                                                <th style="width:10%;" class="text-center">TOTAL PRICE</th>
+                                                <th style="width:10%;" class="text-center">TOTAL</th>
                                                 <th style="width:10%;" class="text-center">DISCOUNT</th>
-                                                <th style="width:10%;" class="text-center">SUB TOTAL</th>
+                                                <th style="width:10%;" class="text-center">SUBTOTAL</th>
                                                 <th style="width:10%;" class="text-center">TAX</th>
                                                 <th style="width:10%;" class="text-center">TAX TOTAL</th>
-                                                <th style="width:10%;" class="text-center">LANDED<br/> COST</th>
-                                                <th style="width:10%;" class="text-center"> TOTAL</th>
+                                                <th style="width:10%;" class="text-center">LANDED COST</th>
+                                                <th style="width:10%;" class="text-center">TOTAL</th>
                                             </tr>
                                         </thead>
                                         <tbody id="product_line_item" class="border-bottom"></tbody>
                                     </table>
-
                                 </div>
-                                <table class="summary-box float-right" style="width: 300px;">
+                                <div class="clearfix mt-3">
+                                    <table class="summary-box float-right" style="width: 300px;">
                                         <tr><td>Subtotal (Excl. GST)</td><td class="text-right" id="sub_total_excl_tax">$0.00</td></tr>
                                         <tr><td>Shipping Charges</td><td class="text-right" id="shipping_charge_val">$0.00</td></tr>
                                         <tr><td>Surcharges</td><td class="text-right" id="surcharge_total_excl_tax">$0.00</td></tr>
                                         <tr><td>GST Total</td><td class="text-right" id="gst_total">$0.00</td></tr>
-                                        <tr><td colspan="2" >&nbsp;</td></tr>
-                                        <tr><td class="text-success" >Grand Total (Incl. GST)</td><td class="text-right" id="grand_total_incl_tax">$0.00</td></tr>
-                                        <input type="hidden" id="surchase_total" value="{{ po.surcharge_total }}"/>
-                                        <input type="hidden" id="shipping_total" value="{{ po.shipping_charge }}"/>
-                                </table>
+                                        <tr><td colspan="2"><hr></td></tr>
+                                        <tr><td class="text-success font-weight-bold">Grand Total (Incl. GST)</td><td class="text-right font-weight-bold" id="grand_total_incl_tax">$0.00</td></tr>
+                                    </table>
+                                    <input type="hidden" id="surchase_total" value="{{ po.surcharge_total }}"/>
+                                    <input type="hidden" id="shipping_total" value="{{ po.shipping_charge }}"/>
+                                </div>
                             </div>
-
                             <div class="tab-pane fade" id="all_tracking_details">
-                            <div id="shippingDetails"></div>
+                                <div id="shippingDetails"></div>
                             </div>
-
-
-
                             <div class="tab-pane fade" id="all_invoice_details">
                                 <div id="section_all_invoice_details"></div>
                             </div>
-
                         </div>
-
                     </div>
-
-
-
+                </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
  {% csrf_token %}
 
 <script>
@@ -1500,7 +1412,7 @@ function saveInvoice(){
 				});
 				$("#trackingModal").modal("hide");
                 renderInvoiceDetails({{ po.po_id }});
-
+				resetInvForm();
             }
         },
         error: function(xhr) {
@@ -1510,10 +1422,9 @@ function saveInvoice(){
     });
     }
 
-function resetAndCloseForm() {
-    $('#invoiceEntryForm').reset();
-    $('#entry_id').val('');
-    $('#formCollapse').collapse('hide');
+function resetInvForm() {
+    $('#invoiceEntryForm')[0].reset();
+	$('#inv_po_item_id, #inv_receive_id').val('');
 }
 
 

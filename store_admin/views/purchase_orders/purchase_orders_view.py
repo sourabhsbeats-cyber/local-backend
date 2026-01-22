@@ -15,14 +15,14 @@ from django.db import transaction
 from django.shortcuts import render, redirect
 from store_admin.models.po_models.po_models import (PurchaseOrder, PurchaseOrderItem,
                                                     PurchaseOrderShipping, \
-                                                    PurchaseOrderVendor, PurchaseReceives, PurchaseReceivedItems,
+                                                    PurchaseOrderVendorDetails, PurchaseReceives, PurchaseReceivedItems,
                                                     PurchaseBills, PurchaseBillItems, PurchasePayments, POStatus,
                                                     PurchaseOrderFiles, POShippingStatus, PurchaseOrderPrimaryDetails,
                                                     PurchaseOrderInvoiceDetails, po_status_list)
 from store_admin.models.product_model import Product, ProductImages
 from store_admin.models.setting_model import UnitOfMeasurements, ShippingProviders
 from store_admin.models.vendor_models import Vendor, VendorAddress
-from django.db.models import Min, Sum, F, Max, IntegerField, Exists
+from django.db.models import Min, Sum, F, Max, IntegerField, Exists, CharField, Aggregate, Func
 from store_admin.models import Country, StoreUser
 from store_admin.models.warehouse_setting_model import Warehouse
 from django.templatetags.static import static
@@ -40,7 +40,7 @@ from django.template.loader import render_to_string
 from django.http import HttpResponse
 from weasyprint import HTML
 from django.db.models import OuterRef, Subquery, Value, TextField, DecimalField
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, Concat
 from decimal import ROUND_HALF_UP
 from store_admin.views.libs.common import clean_percent
 from store_admin.views.serializers.product_serializers import ProductImageSerializer
@@ -117,7 +117,7 @@ def create_order(request, po_id=None):
     payment_terms = PaymentTerm.objects.all()
 
     shipping_details = PurchaseOrderShipping.objects.filter(po_id=po.po_id).all()
-    vendor_po = PurchaseOrderVendor.objects.filter(po_id=po_id).first()
+    po_vendor_details = PurchaseOrderVendorDetails.objects.filter(po_id=po_id).all()
     shipping_providers = ShippingProviders.objects.filter(is_archived=0, status=1).all()
     #warehouse locations
     #warehouse_locations = OrganizationInventoryLocation.objects.filter(organization_id=1).all()
@@ -125,7 +125,7 @@ def create_order(request, po_id=None):
         'po_id': po_id,
         'po': po,
        # 'warehouse_locations': warehouse_locations,
-        "vendor_po": vendor_po,
+        "po_vendor_details": po_vendor_details,
         "shipping_providers": shipping_providers,
         'shipping': shipping_details,
         'can_pdf_generate': can_pdf_generate,
@@ -165,50 +165,40 @@ def r4(v):
 #verified
 @api_view(["POST"])
 def save_po(request):
+
     data = request.data  # RAW JSON is captured here
-
-    vendor_reference = data.get("vendor_reference")
-    po_number = data.get("po_number")
-
-    # Extract required fields
-    vendor_id = data.get("vendor_id")
+    # Basic Info
     po_id = data.get("po_id")
+    po_number = data.get("po_number")
+    vendor_id = data.get("vendor_id")
     vendor_name = data.get("vendor_name")
-    currency_code = data.get("currency_code")
     vendor_reference = data.get("vendor_reference")
-    invoice_date = data.get("invoice_date")
-    warehouse = data.get("warehouse")
+
+    # Dates & Logistics
     order_date = data.get("order_date")
     delivery_date = data.get("delivery_date")
+    warehouse = data.get("warehouse")
+    currency_code = data.get("currency_code")
     payment_term_id = data.get("payment_term_id")
+
+    # Address Info
     delivery_name = data.get("delivery_name")
     address_line1 = data.get("address_line1")
     address_line2 = data.get("address_line2")
-    suburb = data.get("suburb")
-    state = data.get("state")
     city = data.get("city")
-    comments = data.get("comments")
+    state = data.get("state")
     post_code = data.get("post_code")
-    surcharge_total = data.get("surcharge_total", "0.00")
-    shipping_total = data.get("shipping_charge", "0.00")
     country = data.get("country")
+
+    # Financials
     tax_percentage = data.get("tax_percentage")
+    surcharge_total = data.get("surcharge_total", "0.00")
+    shipping_total = data.get("shipping_charge", "0.00")  # Payload-ல் shipping_charge என உள்ளது
+    comments = data.get("comments")
 
+    # Lists (Nested Data)
     line_items = data.get("lineItems", [])
-    shipping = data.get("shipping", [])
-
-    # vendor PO details
-    vendor_po_number = data.get("vendor_po_number")
-    vendor_order_number = data.get("vendor_order_number")
-    vendor_order_date = data.get("vendor_order_date")
-    vendor_invoice_ref_number = data.get("vendor_invoice_ref_number")
-    vendor_delivery_ref = data.get("vendor_delivery_ref")
-    vendor_invoice_date = data.get("vendor_invoice_date")
-    vendor_invoice_status = data.get("vendor_invoice_status")
-    vendor_invoice_due_date = data.get("vendor_invoice_due_date")
-    payment_status_id = data.get("payment_status_id")
-    #po_status = data.get("po_status") POPaymentStatus
-    #po_status = data.get("po_status")
+    vendor_po_details = data.get("vendor_po_details", [])  # இது ஒரு list ஆக வரும்
 
     # Simple validation
     if not vendor_id or not po_id:
@@ -236,14 +226,14 @@ def save_po(request):
         po.vendor_name = vendor_name
         po.vendor_reference = vendor_reference
         po.currency_code = currency_code
-        po.invoice_date = invoice_date
+        #po.invoice_date = invoice_date
         po.warehouse_id = warehouse
         po.order_date = order_date
         po.payment_term_id = payment_term_id
         po.delivery_name = delivery_name
         po.address_line1 = address_line1
         po.address_line2 = address_line2
-        po.suburb = suburb
+       # po.suburb = suburb
         po.delivery_date = delivery_date
         po.state = state
         po.post_code = post_code
@@ -381,8 +371,9 @@ def save_po(request):
        #     shipping_po.delete()
 
         # 1. delete all existing records
-        PurchaseOrderShipping.objects.filter(po_id=po_id).delete()
+        #PurchaseOrderShipping.objects.filter(po_id=po_id).delete()
         # 2. prepare new records
+        '''
         shipping_objs = [
             PurchaseOrderShipping(
                 po_id=po_id,
@@ -394,30 +385,35 @@ def save_po(request):
             )
             for item  in shipping
             if item.get('provider')
-        ]
+        ]'''
 
         # 3. bulk insert
-        PurchaseOrderShipping.objects.bulk_create(shipping_objs)
+       # PurchaseOrderShipping.objects.bulk_create(shipping_objs)
+        incoming_po_vendor_ids = []
+        for vendor_po_detail in vendor_po_details:
+            vendor_po_number = vendor_po_detail["vendor_po_number"]
+            order_number = vendor_po_detail["order_number"]
+            order_date = vendor_po_detail["order_date"]
+            po_vendor_id = vendor_po_detail["po_vendor_id"]
 
-        po_vendor_details = PurchaseOrderVendor.objects.filter(po_id=po.po_id).first()
-
-        if po_vendor_details:
-            po_vendor_details.delete()
-
-        PurchaseOrderVendor.objects.create(
-            po_id=po.po_id,
-            po_number=vendor_po_number,
-            order_number=vendor_order_number,
-            order_date=vendor_order_date,  #
-            invoice_ref_number=vendor_invoice_ref_number,  #
-            delivery_ref_number=vendor_delivery_ref,  #
-            invoice_date=vendor_invoice_date,  #
-            invoice_due_date=vendor_invoice_due_date,  #
-            invoice_status=payment_status_id,  #
-            created_by=request.user.id
-        )
-        #create PO transaction
-
+            if po_vendor_id:
+                incoming_po_vendor_ids.append(po_vendor_id)
+                ex_po = PurchaseOrderVendorDetails.objects.filter(po_vendor_id=po_vendor_id, po_id=po_id).first()
+                ex_po.vendor_po_number = vendor_po_number
+                ex_po.order_number = order_number
+                ex_po.order_date = order_date
+                ex_po.save(update_fields=["order_number", "vendor_po_number", "order_date"])
+            else:
+                PurchaseOrderVendorDetails.objects.create(
+                    po_id=po_id,
+                    vendor_po_number=vendor_po_number,
+                    order_number=order_number,
+                    order_date=order_date,
+                    created_by=request.user.id
+                )
+        #return JsonResponse({"error": "Invalid Operation"}, status=400)
+        if incoming_po_vendor_ids:
+            PurchaseOrderVendorDetails.objects.filter(po_id=po_id).exclude(po_vendor_id__in=incoming_po_vendor_ids).delete()
 
     return Response({"status": True, "message": "PO updated successfully"})
 
@@ -1060,14 +1056,15 @@ def save_shipping_details(request):
 
         po_id = data.get('po_id')
         po_item_id = data.get('po_item_id') #product_id
-
         receive_id = data.get('receive_id')  # po_receive_id
-
-
-
         shipments = data.get('shipments', [])
-
         user_id = request.user.id if request.user.is_authenticated else None
+
+        po_receive = PurchaseReceives.objects.filter(po_id=po_id).first()
+        if not po_receive:
+            return JsonResponse({"status":False, "message":"Invalid Receive ID."}, status=400)
+
+        receive_id = po_receive.po_receive_id
 
         created_count = 0
         for ship in shipments:
@@ -1084,6 +1081,8 @@ def save_shipping_details(request):
                     "status": False,
                     "message": f"Tracking number '{ship.get('tracking_number')}' already exists for this product."
                 }, status=200)
+
+
             PurchaseOrderShipping.objects.create(
                 po_id=po_id,
                 po_item_id=po_item_id,
@@ -1096,9 +1095,12 @@ def save_shipping_details(request):
             )
             created_count += 1
 
-        po_receive_item = PurchaseReceivedItems.objects.filter(product_id=po_item_id, po_receive_id=receive_id).first()
+        po_receive_item = PurchaseReceivedItems.objects.filter(product_id=po_item_id,
+                                                               po_receive_id=receive_id).first()
+        print("Updating shipping status")
         if po_receive_item:
             po_receive_item.status_id = POShippingStatus.SHIPPED
+            print("Updated shipping status")
             po_receive_item.save(update_fields=["status_id"])
 
         po_details = PurchaseOrder.objects.filter(po_id=po_id).first()
@@ -1181,7 +1183,7 @@ def all_po_invoices(request, po_id, product_id, receive_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
-def all_po_shipments(request, po_id,product_id,receive_id  ):
+def all_po_shipments(request, po_id, product_id, receive_id  ):
     # Subquery to fetch the carrier name from ShippingProviders
     provider_name_sub = ShippingProviders.objects.filter(
         carrier_id=OuterRef("provider")
@@ -1189,6 +1191,12 @@ def all_po_shipments(request, po_id,product_id,receive_id  ):
     provider_tracking_url_sub = ShippingProviders.objects.filter(
         carrier_id=OuterRef("provider")
     ).values("tracking_url")[:1]
+
+
+    if not PurchaseReceives.objects.filter(po_receive_id=receive_id).exists():
+        po_receive = PurchaseReceives.objects.filter(po_id=po_id).first()
+        receive_id = po_receive.po_receive_id
+
 
     # Filter shipments by po_id and the specific line item (po_item_id)
     qs = PurchaseOrderShipping.objects.filter(
@@ -1377,7 +1385,7 @@ def delete_po(request, po_id):
         po_details = PurchaseOrder.objects.get(po_id=po_id)
         if po_details.status_id in [POStatus.DRAFT__PENDING, POStatus.PARKED__PENDING]:
             PurchaseOrder.objects.filter(po_id=po_id).delete()
-            PurchaseOrderVendor.objects.filter(po_id=po_id).delete()
+            PurchaseOrderVendorDetails.objects.filter(po_id=po_id).delete()
             PurchaseOrderShipping.objects.filter(po_id=po_id).delete()
             PurchaseOrderItem.objects.filter(po_id=po_id).delete()
             PurchaseOrderFiles.objects.filter(po_id=po_id).delete()
@@ -1419,6 +1427,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
+class GroupConcat(Aggregate):
+    function = "GROUP_CONCAT"
+    template = "%(function)s(%(expressions)s SEPARATOR ', ')"
+    output_field = CharField()
 
 def d(v):
     return Decimal(str(v or 0))
@@ -1453,17 +1465,14 @@ def all_purchases(request):
         .values("vendor_ref_no")[:1]
     )
 
-    po_invoice_status_sub = (
-        PurchaseOrderInvoiceDetails.objects
-        .filter(po_id=OuterRef("po_id"))
-        .order_by("-po_invoice_id")  # or -created_at
-        .values("payment_status_id")[:1]
-    )
-
     po_master_vendor_sub = (
-        PurchaseOrderVendor.objects
+        PurchaseOrderVendorDetails.objects
         .filter(po_id=OuterRef("po_id"))
-        .order_by("po_vendor_id")
+        .values("po_id")
+        .annotate(
+            order_numbers=GroupConcat("order_number"),
+            order_dates=GroupConcat("order_date"),
+        )
     )
     # -------------------------------
     # BASE QUERY
@@ -1473,29 +1482,19 @@ def all_purchases(request):
         vendor_id__isnull=False,
         vendor_code__isnull=False
     ).annotate(
-        order_number=Coalesce(
-            Subquery(po_master_vendor_sub.values("order_number")[:1]),
+        master_invoice_order_numbers=Coalesce(
+            Subquery(po_master_vendor_sub.values("order_numbers")),
             Value(""),
             output_field=TextField()
         ),
-        master_invoice_order_date=Coalesce(
-            Subquery(po_master_vendor_sub.values("order_date")[:1]),
-            Value(""),
-            output_field=TextField()
-        ),
-        master_invoice_status=Coalesce(
-            Subquery(po_master_vendor_sub.values("invoice_status")[:1]),
+        master_invoice_order_dates=Coalesce(
+            Subquery(po_master_vendor_sub.values("order_dates")),
             Value(""),
             output_field=TextField()
         ),
         warehouse_name=Coalesce(Subquery(warehouse_sub), Value(""), output_field=TextField()),
         vendor_name_val=Coalesce(Subquery(vendor_sub), Value(""), output_field=TextField()),
         po_vendor_ref=Coalesce(Subquery(po_vendor_sub), Value(""), output_field=TextField()),
-        invoice_status_val=Coalesce(
-            Subquery(po_invoice_status_sub),
-            Value(0),
-            output_field=IntegerField()
-        ),
         subtotal_val=Coalesce("sub_total", Value(0, DecimalField())),
         tax_val=Coalesce("tax_total", Value(0, DecimalField())),
         total_val=Coalesce("summary_total", Value(0, DecimalField())),
@@ -1524,12 +1523,19 @@ def all_purchases(request):
     order_no = request.GET.get("order_no")
     if order_no:
         filtered_qs = filtered_qs.filter(
-            Q(po_number__icontains=order_no) |
-            Q(order_number__icontains=order_no) |
+            Q(po_number__icontains=order_no)
+            |
             Exists(
                 PurchaseOrderInvoiceDetails.objects.filter(
                     po_id=OuterRef("po_id"),
                     vendor_ref_no__icontains=order_no
+                )
+            )
+            |
+            Exists(
+                PurchaseOrderVendorDetails.objects.filter(
+                    po_id=OuterRef("po_id"),
+                    order_number__icontains=order_no
                 )
             )
         )
@@ -1550,13 +1556,13 @@ def all_purchases(request):
     if vendor_id:
         filtered_qs = filtered_qs.filter(vendor_id=vendor_id)
 
-    vendor_ref = request.GET.get("vendor_ref")
-    if vendor_ref:
+    delivery_ref = request.GET.get("delivery_ref")
+    if delivery_ref:
         filtered_qs = filtered_qs.filter(
             Exists(
                 PurchaseOrderInvoiceDetails.objects.filter(
                     po_id=OuterRef("po_id"),
-                    invoice_number__icontains=vendor_ref
+                    delivery_ref__icontains=delivery_ref
                 )
             )
         )
@@ -1590,9 +1596,8 @@ def all_purchases(request):
         "vendor_code",
         "vendor_name",
         "currency_code",
-        "order_number",
-        "master_invoice_status",
-        "master_invoice_order_date",
+        "master_invoice_order_numbers",
+        "master_invoice_order_dates",
         "vendor_reference",
         "order_date",
         "delivery_date",
@@ -1620,7 +1625,7 @@ def all_purchases(request):
 
     vendor_map = {
         v.po_id: v
-        for v in PurchaseOrderVendor.objects.filter(po_id__in=po_ids)
+        for v in PurchaseOrderVendorDetails.objects.filter(po_id__in=po_ids)
     }
 
     shipping_map = {
@@ -1656,12 +1661,7 @@ def all_purchases(request):
         shipping = shipping_map.get(po_id)
         qty = qty_map.get(po_id, {})
 
-        po["po_vendor_po_number"] = vendor.po_number if vendor else ""
         po["po_vendor_order_date"] = vendor.order_date if vendor else ""
-        po["po_vendor_invoice_date"] = vendor.invoice_date if vendor else ""
-        po["po_vendor_invoice_due_date"] = vendor.invoice_due_date if vendor else ""
-        po["po_vendor_invoice_ref_number"] = vendor.invoice_ref_number if vendor else ""
-        po["po_vendor_delivery_ref_number"] = vendor.delivery_ref_number if vendor else ""
 
         provider = provider_map.get(shipping.provider) if shipping else None
 
@@ -1895,7 +1895,7 @@ def view_po_order(request, po_id):
     # print(shipping_joined)
     created_by = getUserName(po.created_by)
     po_receive = PurchaseReceives.objects.filter(po_id=po_id).first()
-    vendor_po = PurchaseOrderVendor.objects.filter(po_id=po_id).first()
+    vendor_po = PurchaseOrderVendorDetails.objects.filter(po_id=po_id).all()
 
     has_child_is_master = False
     if po.parent_po_id in ("", None, 0):

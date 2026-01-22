@@ -1,6 +1,6 @@
 from django.utils import timezone
 
-from store_admin.models.po_models.po_models import PurchaseOrderVendor, PurchaseOrder, POStatus, PurchaseOrderItem
+from store_admin.models.po_models.po_models import PurchaseOrderVendorDetails, PurchaseOrder, POStatus, PurchaseOrderItem
 from store_admin.models.setting_model import Brand, Manufacturer
 from store_admin.models.product_model import Product, ProductPriceDetails, ProductStaticAttributes, \
     ProductShippingDetails

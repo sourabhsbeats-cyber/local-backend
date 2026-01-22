@@ -270,17 +270,13 @@ class PurchaseOrderItem(models.Model):
     class Meta:
         db_table = 'store_admin_purchase_order_items'
 
-class PurchaseOrderVendor(models.Model):
+class PurchaseOrderVendorDetails(models.Model):
     po_vendor_id = models.AutoField(primary_key=True)
     po_id  = models.IntegerField()
-    po_number = models.CharField(max_length=80)
+
+    vendor_po_number = models.CharField(max_length=80)
     order_number = models.CharField(max_length=80)
-    order_date = models.DateTimeField(blank=True, null= True)
-    invoice_date = models.DateTimeField(blank=True, null= True)
-    invoice_due_date = models.DateTimeField(blank=True, null= True)
-    invoice_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
-    delivery_ref_number = models.CharField(max_length=80) #vendor_invoice_ref_number
-    invoice_status = models.IntegerField(blank=True, null= True) #vendor_invoice_status
+    order_date = models.DateField(blank=True, null= True)
 
     created_by = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)

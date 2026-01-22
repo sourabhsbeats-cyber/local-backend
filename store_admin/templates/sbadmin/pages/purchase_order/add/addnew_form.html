@@ -50,7 +50,7 @@
             <div class="col-md-12">
                 <div class="card-section">
                     <div class="row">
-                        <div class="col-sm-8 float-left">
+                        <div class="col-sm-7 float-left">
 							<div class="section-title">Order Information</div>
                             <div class="col-sm-6 float-left p-1">
                                 <div class="form-group row">
@@ -187,62 +187,94 @@
                                 </div>
                             </div>
 						</div>
-						<div class="col-sm-4 pl-4 float-left p-1">
-							<div class="section-title pb-1"> Reference Details </div>
-							<div class="form-group d-none row">
-								<label class="col-sm-5 col-form-label">Vendor PO#<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor's Own Reference number"></i></label>
-								<div class="col-sm-6">
-								<input type="text" name="vendor_po_number" placeholder="Vendor PO#"  value="{{ vendor_po.po_number|hide_none }}"  id="vendor_po_number" class="form-control form-control-sm" >
-								</div>
-							</div>
-							<div class="form-group row">
-								<label class="col-sm-5 col-form-label">Vendor Order Number</label>
-								<div class="col-sm-6">
-								<input type="text" placeholder="" title="Vendor PO Order Number"  value="{{ vendor_po.order_number|hide_none }}" name="vendor_order_number" id="vendor_order_number" class="w-75 form-control form-control-sm " >
-								</div>
-							</div>
-							<div class="form-group row">
-								<label class="col-sm-5 col-form-label">Vendor Order Date<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Date when PO is created"></i></label>
-								<div class="col-sm-6">
-								<input type="date" placeholder="PO Date" title="Date when PO is created"  value="{{ vendor_po.order_date|date:'Y-m-d' }}" name="vendor_order_date" id="vendor_order_date" class="w-75 form-control form-control-sm " >
-								</div>
-							</div>
-							<div class="form-group d-none row">
-								<label class="col-sm-5 col-form-label">Vendor Invoice#<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor Invoice ref"></i></label>
-								<div class="col-sm-6">
-								<input type="text" name="vendor_po_invoice_ref" placeholder="Invoice Ref" title="Vendor Invoice ref"  value="{{ vendor_po.invoice_ref_number|hide_none }}"  id="vendor_po_invoice_ref" class="form-control form-control-sm" >
-								</div>
-							</div>
-							<div class="form-group d-none row">
-								<label class="col-sm-5 col-form-label">Vendor Delivery Ref#<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Internal warehouse Invoice ref"></i></label>
-								<div class="col-sm-6">
-								<input type="text" name="vendor_po_delivery_ref" placeholder="Delivery Ref"  value="{{ vendor_po.delivery_ref_number|hide_none }}"  id="vendor_po_delivery_ref" class="form-control form-control-sm" >
-								</div>
-							</div>
-							<div class="form-group d-none row">
-								<label class="col-sm-5 col-form-label">Vendor Invoice Date<i class="fa fa-info-circle help-text text-secondary ml-1" data-toggle="tooltip" data-placement="top" title="" data-original-title="Vendor Invoice Date"></i></label>
-								<div class="col-sm-6">
-								<input type="date" title="Vendor Invoice Date" value="{{ vendor_po.invoice_date|date:'Y-m-d' }}" name="vendor_po_invoice_date" id="vendor_po_invoice_date" class="w-75 form-control form-control-sm " >
-								</div>
-							</div>
-							<div class="form-group d-none row">
-								<label class="col-sm-5 col-form-label">Vendor Invoice Due Date </label>
-								<div class="col-sm-6">
-								<input type="date" title="Vendor Invoice Due Date" value="{{ vendor_po.invoice_due_date|date:'Y-m-d' }}" name="vendor_po_invoice_due_date" id="vendor_po_invoice_due_date" class="w-75 form-control form-control-sm " >
-								</div>
-							</div>
-							<div class="form-group row ">
-									<label class="col-sm-5 col-form-label">Vendor Invoice Status</label>
-									<div class="col-sm-7">
-										<select id="payment_status_id" class="w-75 form-control-sm form-control">
-											<option value="">select</option>
-											<option {% if vendor_po.invoice_status == 1 %}selected{% endif %} value="1">Paid</option>
-											<option {% if vendor_po.invoice_status == 2 %}selected{% endif %} value="2">Unpaid</option>
-											<option {% if vendor_po.invoice_status == 3 %}selected{% endif %} value="3">Cancelled</option>
-											<option {% if vendor_po.invoice_status == 4 %}selected{% endif %} value="4">On Hold</option>
-										</select>
-									</div>
-								</div>
+						<div class="col-sm-5 pl-4 float-left p-1">
+                            <div class="container mt-4">
+                            <div class="section-title pb-1">Vendor Reference Details </div>
+
+                            <table class="table table-sm" id="vendor-table">
+                                <thead>
+                                    <tr>
+                                        <th>PO Number</th>
+                                        <th>Order Number</th>
+                                        <th>Order Date</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="record-container">
+                                    {% if po_vendor_details %}
+                                        {% for po_vendor_detail in po_vendor_details %}
+                                        <tr class="record-row">
+											<td>
+                                                <input type="text" name="vendor_po_number[]" value="{{ po_vendor_detail.vendor_po_number|hide_none }}" class="form-control form-control-sm">
+                                            </td>
+                                            <td>
+                                                <input type="text" name="vendor_order_number[]" value="{{ po_vendor_detail.order_number|hide_none }}" class="form-control form-control-sm">
+                                            </td>
+                                            <td >
+                                                <input style="width:107px;" type="date" name="vendor_order_date[]" value="{{ po_vendor_detail.order_date|date:'Y-m-d' }}" class="form-control form-control-sm">
+												<input type="hidden" name="po_vendor_id[]" value="{{ po_vendor_detail.po_vendor_id }}" class="form-control form-control-sm">
+                                            </td>
+                                            <td>
+                                                <button type="button" class="btn btn-danger btn-sm remove-row"> <i class="fa fa-trash"></i></button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr class="record-row">
+										<td><input type="text" name="vendor_po_number[]" class="form-control form-control-sm" placeholder="Vendor PO No"></td>
+										
+                                            <td><input type="text" name="vendor_order_number[]" class="form-control form-control-sm" placeholder="Vendor Order No"></td>
+                                            <td ><input style="width:107px;" type="date" name="vendor_order_date[]" class="form-control form-control-sm"></td>
+                                            <td class="text-center"><button
+                                                    type="button"
+                                                    class="btn btn-danger btn-sm remove-row">
+                                                <i class="fa fa-trash"></i></button><input type="hidden" name="po_vendor_id[]" value="" class="form-control form-control-sm"></td>
+											
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+
+                            <button type="button" class="btn btn-primary btn-sm" id="add-more">
+                                <i class="fa fa-plus"></i> Add More
+                            </button>
+                        </div>
+
+                        <script type="text/template" id="row-template">
+                            <tr class="record-row" style="display:none;">
+								 <td><input type="text"  placeholder="Vendor PO No" name="vendor_po_number[]" class="form-control form-control-sm"></td>
+                                <td><input type="text"  placeholder="Vendor Order No" name="vendor_order_number[]" class="form-control form-control-sm"></td>
+                                <td ><input style="width:107px;" type="date" name="vendor_order_date[]" title="Vendor PO Order Date" class="form-control form-control-sm"></td>
+                                <td class="text-center"><input type="hidden" name="po_vendor_id[]" value="" class="form-control form-control-sm">
+                                    <button type="button" class="btn btn-danger btn-sm remove-row"> <i class="fa fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        </script>
+                        <script type="text/javascript">
+                            $(document).ready(function() {
+                            // 1. ADD NEW RECORD
+                            $('#add-more').click(function() {
+                                // Clone the template content
+                                var newRow = $($('#row-template').html());
+
+                                // Append to table and slide down
+                                $('#record-container').append(newRow);
+                                newRow.fadeIn('slow');
+                            });
+
+                            // 2. DELETE RECORD
+                            // We use delegation $(document).on because rows are added dynamically
+                            $(document).on('click', '.remove-row', function() {
+                                var row = $(this).closest('tr');
+
+                                // Slide up effect before removing from DOM
+                                row.fadeOut('fast', function() {
+                                    $(this).remove();
+                                });
+                            });
+                        });
+                        </script>
+
 						</div>
                     </div>
                 </div>
@@ -318,28 +350,20 @@
         <div class="table-responsive">
 
             <table class="table border tbl-line-item table-striped w-100">
-              <thead class="thead-dark">
+              <thead class="thead-dark thead-item-details">
                 <tr>
-                    <th style="width:30%" >ITEM DETAILS</th>
-                    <th style="width:10%" >WAREHOUSE DETAILS</th>
-                    <!-- <th class="text-center" style="width:12%;">
-                        BARCODE LABEL TYPE
-                        <i class="fa fa-info-circle text-secondary ml-1"
-                           data-toggle="tooltip"
-                           data-placement="top"
-                           title="Manufacture or Amazon"></i>
-                    </th>-->
-                    <th class="text-center" style="width:6%">QUANTITY</th>
-                    <th class="text-center" style="width:7%">RATE</th>
-                    <th class="text-center" style="width:8%">DISCOUNT</th>
-                     <th class="text-center" style="width:8%">SUB TOTAL</th>
+                    <th class="align-middle" style="width:30%" >Item Details</th>
+                    <th style="width:10%" >Warehouse Details</th>
 
-                    <th class="text-center" style="width:5%">TAX</th>
-                    <th class="text-center" style="width:8%">TAX TOTAL</th>
+                    <th class="align-middle text-center" style="width:6%">Qty Ordered</th>
+                    <th class="align-middle text-center" style="width:7%">Unit Price (Ex GST)</th>
+                    <th class="align-middle text-center" style="width:8%">Dist (%)</th>
+                     <th class="align-middle text-center" style="width:8%">Sub Total <br/>(Ex GST)</th>
 
+                    <th class="text-center" style="width:6%">GST Rate (%)</th>
+                    <th class="text-center" style="width:8%">Sub Total GST Amount</th>
 
-
-                    <th class="text-right" style="width:10%">TOTAL</th>
+                    <th class="align-middle text-right" style="width:10%">Total</th>
                     <th class="text-center" style="width:5%"></th>
                 </tr>
                 </thead>
@@ -378,7 +402,7 @@
                     </tr>
                     <tr>
                         <th class="text-right pb-0 align-middle">
-                            Shipping
+                            Freight (Ex GST)
                             <i class="fa fa-info-circle help-text text-secondary ml-1"
                             data-toggle="tooltip"
                             title="Shipping charge."></i>
@@ -413,7 +437,7 @@
 
                     <tr>
                         <th class="text-right pb-0 align-middle">
-                            Surcharges
+                            Surcharge(Ex GST)
                             <i class="fa fa-info-circle help-text text-secondary ml-1"
                             title="Additional charge (+) or deduction (-)."></i>
                         </th>
@@ -445,7 +469,7 @@
 
                     </tr>
                     <tr>
-                        <th class="text-right  pb-0">Tax Total<i class="fa fa-info-circle text-secondary ml-1"
+                        <th class="text-right  pb-0">Total GST Amount<i class="fa fa-info-circle text-secondary ml-1"
                             id="total_smmary_tooltip"></i></th>
                         <td class="text-right  pb-0" id="po_tax_total">0.00</td>
                     </tr>
@@ -468,6 +492,9 @@
       </div>
  </div>
  <style>
+  .thead-item-details{
+    border:1px solid black;
+  }
   .po-tiny-label {
         text-align:left;
         font-size: 12px;
@@ -517,7 +544,7 @@
     box-shadow: inset 0 -3px 5px rgba(0,0,0,0.2);
     border-bottom: 1px solid #333;
 }
-     .thead-dark{
+.thead-dark{
     box-shadow: 0 4px 5px rgba(0,0,0,0.1);
 }
 </style>
@@ -543,7 +570,7 @@ $(document).on("click", ".delete-shipping", function () {
 });
 </script>
 <script>
-    {% if po.status_id == 0 %}
+    {% if po.status_id == 1 %}
     document.getElementById("btn_create_receive").addEventListener("click",function(e){
        e.stopPropagation();
        e.preventDefault();
@@ -1248,7 +1275,29 @@ function buildPOFormData(){
             shipped_date: $(this).find("input[name='shipping_shipped_date[]']").val(),
         });
     });
+	
+	const vendor_po_details = [];
 
+	// Loop through each table row
+	$(".record-row").each(function() {
+		const row = $(this);
+		
+		// Extract values from the inputs inside this specific row
+		const vendor_po_number = row.find("input[name='vendor_po_number[]']").val();
+		const order_number = row.find("input[name='vendor_order_number[]']").val();
+		const order_date = row.find("input[name='vendor_order_date[]']").val();
+		const po_vendor_id = row.find("input[name='po_vendor_id[]']").val() || null;
+
+		// Only push if the order number isn't empty (optional validation)
+		if (order_number) {
+			vendor_po_details.push({
+				vendor_po_number: vendor_po_number,
+				order_number: order_number,
+				order_date: order_date,
+				po_vendor_id: po_vendor_id
+			});
+		}
+	});
 
     return {
         "po_id": "{{ po_id }}",
@@ -1257,38 +1306,40 @@ function buildPOFormData(){
         "vendor_name": $("#vendor_name").val(),
         "currency_code": $("#currency_code").val(),
         "vendor_reference": $("#vendor_reference").val(),
-        "invoice_date": $("#invoice_date").val(),
+		"order_date": $("#order_date").val(),
+		"delivery_date": $("#delivery_date").val(),
+		"payment_term_id": $("#payment_term_id").val(),
+		"tax_percentage": $("#tax_percentage").val(),
+		
+       // "invoice_date": $("#invoice_date").val(), delivery_date
         "warehouse": $("#warehouse").val(),
-        "order_date": $("#order_date").val(),
-        "delivery_date": $("#delivery_date").val(),
-        "payment_term_id": $("#payment_term_id").val(),
         "delivery_name": $("#delivery_name").val(),
         "address_line1": $("#address_line1").val(),
         "address_line2": $("#address_line2").val(),
-        "suburb": $("#suburb").val(),
+        //"suburb": $("#suburb").val(),
         "city": $("#city").val(),
         "state": $("#state").val(),
         "post_code": $("#post_code").val(),
         "country": $("#country_id").val(),
-        "tax_percentage": $("#tax_percentage").val(),
         "comments": $("#comments").val(),
         "lineItems": lineItems,
 
-        "shipping": shipping_details,
-
+        //"shipping": shipping_details,
         //"shipping_provider": $("#shipping_provider").val(),
+		
         "surcharge_total": $("#surcharge_value").val(),
         "shipping_charge": $("#shipping_value").val(),
+		"vendor_po_details": vendor_po_details,
         //"po_status": $("#po_status").val(),
         //Buil PO Form Details
-        "vendor_po_number": $("#vendor_po_number").val(),
+        /*"vendor_po_number": $("#vendor_po_number").val(),
         "vendor_order_number": $("#vendor_order_number").val(),
         "vendor_order_date": $("#vendor_order_date").val() || null,
         "vendor_invoice_ref_number": $("#vendor_po_invoice_ref").val() || null,
         "vendor_delivery_ref": $("#vendor_po_delivery_ref").val() || null,
         "vendor_invoice_date": $("#vendor_po_invoice_date").val() || null,
         "vendor_invoice_due_date": $("#vendor_po_invoice_due_date").val() || null,
-        "payment_status_id": $("#payment_status_id").val() || null
+        "payment_status_id": $("#payment_status_id").val() || null*/
 
     };
     const valOrNull = (v) => v && v.trim() !== "" ? v : null;
@@ -1396,7 +1447,6 @@ document.addEventListener("DOMContentLoaded", function () {
         e.stopPropagation();
         if(validatePOForm()){
             let jsonData = buildPOFormData();
-
             fetch("{% url 'save_po_order' %}", {
                 method: "POST",
                 headers: {

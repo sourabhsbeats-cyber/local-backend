@@ -13,7 +13,7 @@ from store_admin.models.po_models.po_models import (
 )
 
 from store_admin.models.po_models.po_models import PurchaseOrder, POBillingStatus, PurchaseOrderItem, PurchaseReceiveFiles, \
-    PurchaseReceivedItems, PurchaseReceives, PurchaseOrderShipping, PurchaseOrderVendor
+    PurchaseReceivedItems, PurchaseReceives, PurchaseOrderShipping, PurchaseOrderVendorDetails
 from store_admin.models.product_model import Product, ProductShippingDetails, ProductPriceDetails, \
     ProductStaticAttributes, ProductDynamicAttributes, ProductImages
 from store_admin.models.setting_model import Category, Brand, Manufacturer, AttributeDefinition, UnitOfMeasurements
@@ -347,20 +347,16 @@ def po_invoice_listing_json(request):
             "po_invoice_id": inv.po_invoice_id,
             "po_id": inv.po_id,
             "po_number": inv.po_number,
-            "po_item_id": inv.po_item_id,
+            "po_item_id": inv.product_id,
             "receive_id": inv.receive_id,
-
+            "vendor_name": inv.vendor_name,
             "invoice_number": inv.invoice_number,
             "invoice_date": inv.invoice_date,
-            "invoice_due_date": inv.invoice_due_date,
-            "invoice_payment_term_id": inv.invoice_payment_term_id,
-            "invoice_status_id": inv.invoice_status_id,
+            "invoice_due_date": inv.due_date,
+            "invoice_payment_term_id": inv.payment_term_id,
+            "invoice_status_id": inv.payment_status_id,
 
             "po_amount": float(inv.po_amount or 0),
-
-            "vendor_id": inv.vendor_id,
-            "vendor_name": inv.vendor_name,
-            "po_status_id": inv.po_status_id,
 
             "created_at": inv.created_at,
             "created_by": inv.created_by,
