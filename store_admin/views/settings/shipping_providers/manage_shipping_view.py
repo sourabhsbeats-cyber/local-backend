@@ -1,125 +1,111 @@
-from django.shortcuts import render, redirect
-from django.http import HttpResponse
-from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from store_admin.models.geo_models import Country, State
-from django.core.paginator import Paginator
-from django.db import models
-from django.db.models import Count, Q
-from django.shortcuts import render, get_object_or_404, redirect
+from rest_framework.decorators import api_view, renderer_classes
+from rest_framework.renderers import JSONRenderer
+from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
-
 from store_admin.models.setting_model import ShippingProviders
-from store_admin.templates.sbadmin.pages.settings.shipping_providers.add.add_new_shipping_form import \
-    ShippingProviderForm
 
-# Create your views here.
+@api_view(["GET"])
+@renderer_classes([JSONRenderer])
 @login_required
-def listing(request):
-    search_query = request.GET.get("q", "").strip()
-    providers = ShippingProviders.objects.filter(is_archived=0).all().order_by("carrier_name")
-    if search_query:
-        providers = providers.filter(
-            Q(carrier_name__icontains=search_query)
-            | Q(carrier_code__icontains=search_query)
-            | Q(class_code__icontains=search_query)
-        )
-
-    paginator = Paginator(providers, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "sbadmin/pages/settings/shipping_providers/listings/listing.html",
-        {
-            "providers": page_obj,
-            "page_obj": page_obj,
-            "search_query": search_query,
-        },
+def api_all_shipping_providers(request):
+    shipping_providers = ShippingProviders.objects.filter(is_archived=0).values(
+        "carrier_name",
+        "carrier_id",
+        "carrier_code",
+        "class_code",
+        "tracking_url",
+        "status",
+        "is_archived",
     )
+    return JsonResponse({
+        "status": True,
+        "data": list(shipping_providers),
+        "message": ""
+    })
 
-# Create your views here.
-@login_required
-def create(request):
-    return render(
-        request,
-        "sbadmin/pages/settings/shipping_providers/add/add_new_shipping_carrier.html",
-        { 'form' : ShippingProviderForm()},
-    )
+@api_view(["PUT"])
+def save_shipping_details(request, carrier_id):
+    data = request.data
+    try:
+        provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
+        provider.carrier_name = data.get("carrier_name")
+        provider.carrier_code = data.get("carrier_code")
+        provider.class_code = data.get("class_code")
+        provider.tracking_url = data.get("tracking_url")
 
-@login_required
-def edit_form(request, carrier_id):
-    provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
+        provider.save()
+        return JsonResponse({
+            "status": True,
+            "message": "Shipping provider updated successfully"
+        })
 
-    if request.method == "POST":
-        # CRITICAL: instance=provider tells the form "I am editing THIS row"
-        form = ShippingProviderForm(request.POST, instance=provider)
-        if form.is_valid():
-            form.save()
-            messages.success(request, f"{provider.carrier_name} updated successfully!")
-            return redirect('manage_shipping_providers_listing')
-    else:
-        form = ShippingProviderForm(instance=provider)
+    except Exception as e:
+        return JsonResponse({
+            "status": False,
+            "message": "Error saving shipping provider details"
+        })
 
-    return render(request, "sbadmin/pages/settings/shipping_providers/add/add_new_shipping_carrier.html", {'form': form, 'is_edit': True})
+@api_view(["POST"])
+def toggle_shipping_status(request, carrier_id):
+    data = request.data
+    try:
+        provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
+        provider.status = 0 if provider.status == 1 else 1
+        status_text = "activated" if provider.status == 1 else "deactivated"
+        provider.save(update_fields=["status"])
 
-@login_required
-def save_shipping_details(request):
+        provider.save(update_fields=["status"])
+        return JsonResponse({
+            "status": True,
+            "message": f"Shipping provider {provider.carrier_name} has been {status_text} successfully."
+        })
 
-    if request.method == "POST":
-        # Bind the form to the POST data
-        form = ShippingProviderForm(request.POST)
+    except Exception as e:
+        return JsonResponse({
+            "status": False,
+            "message": "Error updating shipping provider details"
+        })
 
-        if form.is_valid():
-            # Save the new shipping provider to MySQL
-            shipping_instance = form.save(commit=False)
-            shipping_instance.created_by = request.user.id
-            shipping_instance.save()
-            # Add a success message
-            messages.success(request, "Shipping carrier added successfully!")
-            return redirect('manage_shipping_providers_listing')
-        else:
-            # If the form is invalid, it will fall through to the render at the bottom
-            # and show validation errors in the template
-            messages.error(request, "Please correct the errors below.")
-    else:
-        # Provide a blank form for GET requests
-        form = ShippingProviderForm()
+@api_view(["POST"])
+def add_new_shipping_providers(request):
+    data = request.data
+    try:
+        ex_provider = ShippingProviders.objects.filter(carrier_name=data.get("carrier_name")).exists()
 
-    return render(
-        request,
-        "sbadmin/pages/settings/shipping_providers/add/add_new_shipping_carrier.html",
-        {'form': form},
-    )
-
-@login_required
-def manage_shipping_details(request, carrier_id):
-    """
-    Edit a country's details and manage its states.
-    """
-    provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
-
-    # Handle Add/Edit/Delete for States
-    if request.method == "POST":
-        action = request.POST.get("action")
-        if action == "delete_shipping_carrier":
-            name = provider.carrier_name
-            provider.is_archived = 1
-            provider.save(update_fields=["is_archived"])
-            messages.warning(request, f"Shipping Provider '{name}' has been deleted successfully.")
-            return JsonResponse({"status":True, "message":"Shipping Provider '{name}' has been deleted successfully."})
-
-        # Update country details
-        elif action == "toggle_status":
-            name = provider.carrier_name
-            provider.status = 0 if provider.status == 1 else 1
-            provider.save(update_fields=["status"])
-            status_text = "activated" if provider.status == 1 else "deactivated"
+        if ex_provider:
             return JsonResponse({
-                'status': 'success',
-                'message': f"Shipping Provider '{name}' has been {status_text} successfully."
+                "status": False,
+                "message": "Shipping provider code already exists"
             })
 
-    return redirect("manage_shipping_providers_listing")
+        provider = ShippingProviders()
+        provider.carrier_name = data.get("carrier_name")
+        provider.carrier_code = data.get("carrier_code")
+        provider.class_code = data.get("class_code")
+        provider.tracking_url = data.get("tracking_url")
+        provider.created_by = request.user.id
+        provider.save()
+
+        return JsonResponse({
+            "status": True,
+            "message": "Shipping provider created successfully"
+        })
+
+
+    except Exception as e:
+        return JsonResponse({
+            "status": False,
+            "message": "Error saving shipping provider details"
+        })
+
+
+@api_view(["DELETE"])
+def delete_shipping_details(request, carrier_id):
+    provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
+    name = provider.carrier_name
+    provider.is_archived = 1
+    provider.save(update_fields=["is_archived"])
+    messages.warning(request, f"Shipping Provider '{name}' has been deleted successfully.")
+    return JsonResponse({"status": True, "message": "Shipping Provider '{name}' has been deleted successfully."})

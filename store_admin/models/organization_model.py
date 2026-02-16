@@ -21,13 +21,15 @@ class Organization(models.Model):
         return self.company_name
 
     class Meta:
-        managed = False  # 🔥 IMPORTANT
+        managed = False  #  IMPORTANT
         db_table = 'store_admin_organization_settings'
 
 class OrganizationInventoryLocation(models.Model):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name='locations')
     name = models.CharField(max_length=255)
     parent_location_id = models.IntegerField(default=0) # Stored as text
+    country_id = models.IntegerField(default=0, null=True, blank=True) # Stored as text
+    state_id = models.IntegerField(default=0, null=True, blank=True) # Stored as text
 
     # Address Fields as plain text
     attention = models.CharField(max_length=255, null=True, blank=True)

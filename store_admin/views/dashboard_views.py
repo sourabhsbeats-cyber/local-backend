@@ -4,8 +4,3 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
-
-@login_required
-def dashboard(request):
-    return render(request, 'sbadmin/pages/dashboard.html', {'user': request.user})
-

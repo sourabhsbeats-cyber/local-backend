@@ -39,3 +39,11 @@ class StoreUser(AbstractBaseUser, PermissionsMixin):
         db_table = "store_admin_user"
         managed = False
 # Register your models here.
+
+
+class StoreAdminSession(models.Model):
+    user_id = models.IntegerField(unique=True)
+    last_logout_at = models.DateTimeField(null=True, blank=True)
+    class Meta:
+        db_table = "store_admin_session"
+        managed = False

@@ -237,7 +237,7 @@ def email_validator(value):
         raise ValidationError("Enter a valid email address.")
 
 
-MOBILE_RE = re.compile(r"^[6-9]\d{9}$")
+MOBILE_RE = re.compile(r"^[0-9]\d{9}$")
 
 
 def mobile_validator(value):
@@ -300,20 +300,20 @@ def format_tax_percentage(value):
 def validate_purchase_order_model(po, line_items):
     rules = [
         ("vendor_id",       "Vendor is required"),
-        ("vendor_name",     "Vendor Name is required"),
+        #("vendor_name",     "Vendor Name is required"),
         ("po_number",       "PO Number is required."),
         ("currency_code",   "Currency Code is required"),
         #("vendor_reference","Vendor Reference is required"),
         ("warehouse_id",    "Warehouse is required"),
         ("order_date",      "Order Date is required"),
-        ("delivery_date",   "Delivery Date is required"),
-        ("payment_term_id", "Payment Term is required"),
-        ("delivery_name",   "Delivery Name is required"),
+        #("delivery_date",   "Delivery Date is required"),
+        #("payment_term_id", "Payment Term is required"),
+       # ("delivery_name",   "Delivery Name is required"),
         ("address_line1",   "Address Line 1 is required"),
         ("state",           "State is required"),
         ("post_code",       "Postcode is required"),
         ("country_id",      "Country is required"),
-        ("tax_percentage",  "Tax Percentage is required"),
+       # ("tax_percentage",  "Tax Percentage is required"),
     ]
 
     # Loop the model fields
@@ -332,7 +332,7 @@ def validate_purchase_order_model(po, line_items):
     if PurchaseOrder.objects.filter(po_number=po.po_number).exclude(po_id=po.po_id).exists():
         return False, "Can not duplicate Purchase Order Number."
 
-    if len(po.vendor_reference) >= 1:
+    if po.vendor_reference and len(po.vendor_reference) >= 1:
         if len(po.vendor_reference) < 4:
             return False, "Invalid Vendor Reference1."
     #try:

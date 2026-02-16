@@ -3,6 +3,8 @@ from django.http import HttpResponse
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from rest_framework.decorators import api_view
+
 from store_admin.models.geo_models import Country, State
 from django.core.paginator import Paginator
 from django.db import models
@@ -11,42 +13,145 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
 
 # Create your views here.
-@login_required
-def all_listings(request):
+@api_view(["GET"])
+def api_all_listings(request):
+    # 1. Get Pagination Parameters from Tabulator
+    page_number = request.GET.get("page", 1)
+    page_size = request.GET.get("size", 10) # 'size' is the default Tabulator param
     search_query = request.GET.get("q", "").strip()
 
+    # 2. Base Query
     countries = Country.objects.all().order_by("name")
-
-    if search_query:
-        countries = countries.filter(
-            Q(name__icontains=search_query)
-            | Q(iso2__icontains=search_query)
-            | Q(iso3__icontains=search_query)
-        )
-
-    paginator = Paginator(countries, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
     state_counts = dict(
         State.objects.values_list("country_id")
         .annotate(count=Count("id"))
-        .values_list("country_id", "count")
     )
+    # 3. Filtering
+    if search_query:
+        countries = countries.filter(Q(name__icontains=search_query))
 
-    return render(
-        request,
-        "sbadmin/pages/settings/countries/listing.html",
-        {
-            "countries": page_obj,
-            "page_obj": page_obj,
-            "search_query": search_query,
-            "state_counts": state_counts,
-        },
+    # 4. Django Paginator
+    paginator = Paginator(countries, page_size)
+    page_obj = paginator.get_page(page_number)
+
+    # 5. Serialize Data
+    data_list = []
+    for c in page_obj:
+        data_list.append({
+            "id": c.id,
+            "name": c.name,
+            "iso2": c.iso2,
+            "iso3": c.iso3,
+            "num_states": state_counts.get(c.id, 0) # Or your optimized annotation
+        })
+
+    # 6. Response matching your JSON structure
+    return JsonResponse({
+        "status": True,
+        "data": data_list,
+        "last_page": paginator.num_pages,
+        "total_record": paginator.count
+    })
+
+
+@api_view(["GET"])
+def get_country_details(request, country_id):
+    # 1. Fetch the Country or return 404
+    country = get_object_or_404(Country, id=country_id)
+
+    # 2. Setup States filtering
+    search_query = request.GET.get("q", "").strip()
+    page_number = request.GET.get("page", 1)
+    page_size = request.GET.get("size", 10)
+
+    states_queryset = State.objects.filter(country=country).order_by("name")
+
+    if search_query:
+        states_queryset = states_queryset.filter(
+            Q(name__icontains=search_query) |
+            Q(iso2__icontains=search_query)
+        )
+
+    # 3. Paginate States
+    paginator = Paginator(states_queryset, page_size)
+    page_obj = paginator.get_page(page_number)
+
+    # 4. Serialize Country Data
+    country_data = {
+        "id": country.id,
+        "name": country.name,
+        "iso2": country.iso2,
+        "iso3": country.iso3,
+        "currency": getattr(country, 'currency', ''),
+        "currency_name": getattr(country, 'currency_name', ''),
+        "symbol": getattr(country, 'currency_symbol', ''),
+    }
+
+    # 5. Serialize Paginated States Data
+    states_list = []
+    for s in page_obj:
+        states_list.append({
+            "id": s.id,
+            "name": s.name,
+            "iso2": s.iso2,
+        })
+    # 6. Return Response
+    return JsonResponse({
+        "status": True,
+        "country": country_data,
+        "states": {
+            "data": states_list,
+            "last_page": paginator.num_pages,
+            "total_record": paginator.count,
+            "current_page": page_obj.number
+        }
+    })
+
+@api_view(["PUT"])
+def update_country_details(request, country_id):
+    country = get_object_or_404(Country, id=country_id)
+    data = request.data
+
+    country.name = data.get("name")
+    country.iso2 = data.get("iso2")
+    country.iso3 = data.get("iso3")
+    country.currency = data.get("currency")
+    country.currency_name = data.get("currency_name")
+    country.currency_symbol = data.get("symbol")
+    country.save()
+
+    return JsonResponse({"status": True, "message": "Country details updated successfully."})
+
+@api_view(["PUT"])
+def update_state_details(request, state_id):
+    state = get_object_or_404(State, id=state_id)
+    data = request.data
+    state.name = data.get("name")
+    state.iso2 = data.get("iso2")
+    state.save()
+    return JsonResponse({"status": True, "message": f"State '{state.name}' updated successfully."})
+
+@api_view(["DELETE"])
+def delete_state_details(request, state_id):
+    state = get_object_or_404(State, id=state_id)
+    state.delete()
+    return JsonResponse({"status": True, "message": f"State '{state.name}' deleted successfully."})
+
+
+@api_view(["POST"])
+def create_state_details(request, country_id):
+    data = request.data
+    country = Country.objects.get(id=country_id)
+    State.objects.create(
+        name=data.get("name"),
+        iso2=data.get("iso2"),
+        country=country,
     )
+    return JsonResponse({"status": True,
+                         "message": f"State '{data.get('name')}' added successfully."})
 
 #country select 2 js json format render
-@login_required
+@api_view(["GET"])
 def get_countries(request):
     q = request.GET.get("q", "").strip()
 
@@ -55,16 +160,15 @@ def get_countries(request):
     if q:
         countries = countries.filter(name__icontains=q)
 
-    countries = countries[:20]  # limit 20 results
-
     data = [
-        {"id": c.id, "text": c.name}
+        {"id": c.id, "text": c.name, "currency": c.currency, "currency_name": c.currency_name}
         for c in countries
     ]
 
     return JsonResponse({"results": data})
+
 #state select 2 js json format render
-@login_required
+@api_view(["GET"])
 def get_states_by_country(request):
     country_id = request.GET.get("country_id")
     q = request.GET.get("q", "").strip()
@@ -88,130 +192,7 @@ def get_states_by_country(request):
     return JsonResponse({"results": results})
 
 
-
-
-
-
-@login_required
+@api_view(["GET"])
 def get_states(request, country_id):
     states = State.objects.filter(country_id=country_id).values("id", "name")
     return JsonResponse({"states": list(states)})
-
-@login_required
-def edit_country(request, country_id):
-    """
-    Edit a country's details and manage its states.
-    """
-    country = get_object_or_404(Country, id=country_id)
-
-    # Handle Add/Edit/Delete for States
-    if request.method == "POST":
-        action = request.POST.get("action")
-        if action == "delete_country":
-            name = country.name
-            country.delete()
-            messages.warning(request, f"Country '{name}' has been deleted successfully.")
-            return redirect("all_countries")
-
-        # Add new state
-        if action == "add_state":
-            State.objects.create(
-                name=request.POST.get("name"),
-                iso2=request.POST.get("iso2"),
-                country=country
-            )
-            messages.success(request, f"State '{request.POST.get('name')}' added successfully.")
-            return redirect("edit_country", country_id=country.id)
-
-        # Edit existing state
-        elif action == "edit_state":
-            state_id = request.POST.get("state_id")
-            state = get_object_or_404(State, id=state_id, country=country)
-            state.name = request.POST.get("name")
-            state.iso2 = request.POST.get("iso2")
-            state.save()
-            messages.success(request, f"State '{state.name}' updated successfully.")
-            return redirect("edit_country", country_id=country.id)
-
-        # Delete state
-        elif action == "delete_state":
-            state_id = request.POST.get("state_id")
-            state = get_object_or_404(State, id=state_id, country=country)
-            state.delete()
-            messages.warning(request, f"State '{state.name}' deleted successfully.")
-            return redirect("edit_country", country_id=country.id)
-
-        # Update country details
-        elif action == "update_country":
-            country.name = request.POST.get("name")
-            country.iso2 = request.POST.get("iso2")
-            country.iso3 = request.POST.get("iso3")
-            country.currency = request.POST.get("currency")
-            country.currency_name = request.POST.get("currency_name")
-            country.currency_symbol = request.POST.get("currency_symbol")
-            country.phonecode = request.POST.get("phonecode")
-            country.capital = request.POST.get("capital")
-            country.region = request.POST.get("region")
-            country.subregion = request.POST.get("subregion")
-            country.save()
-            messages.success(request, "Country details updated successfully.")
-            return redirect("edit_country", country_id=country.id)
-
-    # Search and paginate states
-    search_query = request.GET.get("q", "").strip()
-    states = State.objects.filter(country=country).order_by("name")
-
-    if search_query:
-        states = states.filter(
-            Q(name__icontains=search_query)
-            | Q(iso2__icontains=search_query)
-            | Q(fips_code__icontains=search_query)
-        )
-
-    paginator = Paginator(states, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    return render(
-        request,
-        "sbadmin/pages/settings/countries/edit_country.html",
-        {
-            "country": country,
-            "states": page_obj,
-            "page_obj": page_obj,
-            "search_query": search_query,
-        },
-    )
-
-@login_required
-def state_list(request, country_id):
-    """
-    Shows a paginated list of states belonging to a given country.
-    """
-    search_query = request.GET.get("q", "").strip()
-    country = get_object_or_404(Country, id=country_id)
-
-    # Filter states for the selected country
-    states = State.objects.filter(country=country).order_by("name")
-
-    # Optional: Add search filter
-    if search_query:
-        states = states.filter(
-            Q(name__icontains=search_query)
-            | Q(iso2__icontains=search_query)
-            | Q(fips_code__icontains=search_query)
-        )
-
-    # Paginate results (10 per page)
-    paginator = Paginator(states, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-
-    context = {
-        "country": country,
-        "states": page_obj,
-        "page_obj": page_obj,
-        "search_query": search_query,
-    }
-
-    return render(request, "sbadmin/pages/settings/countries/states.html", context)

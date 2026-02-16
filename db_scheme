@@ -739,3 +739,29 @@ ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_purchase_orders`
 ADD COLUMN `parent_po_id` INT NULL DEFAULT NULL AFTER `payment_status_id`;
 
 
+use sb_commerce_b2b_dev;
+CREATE TABLE store_admin_session (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL UNIQUE,
+    last_logout_at DATETIME NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX idx_user_id (user_id),
+    INDEX idx_last_logout_at (last_logout_at)
+);
+
+
+use sb_commerce_b2b_dev;
+use sb_commerce_b2b_dev;
+CREATE TABLE store_admin_user_preference (
+    id SERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL UNIQUE, -- No REFERENCES key here
+    settings JSON NOT NULL,        -- MySQL-na JSON-nu mathikonga
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+ALTER TABLE `sb_commerce_b2b_dev`.`store_admin_vendor`
+ADD COLUMN `company_abn` VARCHAR(15) NULL DEFAULT NULL AFTER `reminder`,
+ADD COLUMN `company_acn` VARCHAR(15) NULL DEFAULT NULL AFTER `company_abn`;

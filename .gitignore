@@ -1,3 +1,5 @@
 /myenv/
 /__pycache__/
 /.idea/
+.env
+/media

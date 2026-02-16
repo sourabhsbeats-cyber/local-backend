@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import dashboard_views, auth_views
-from .views.vendors import vendor_views, bulk_import_view
+from .views.vendors import vendor_views, bulk_import_view, pre_import_vendor, confirm_import_vendor
 from .views.settings.countries import countries_view
 from .views.settings.payment_terms import payment_terms
 from .views.settings.users import user_management
@@ -11,17 +11,28 @@ from .views.settings.product_settings import product_settings
 
 urlpatterns = [
     #vendor management
-    path('vendors/', vendor_views.all_vendors, name='vendor_listing'),
-    path('api/getsingle_vendor/<int:vendor_id>', vendor_views.api_get_vendor_by_id, name='get_single_vendor'),
+    path('vendors_list', vendor_views.all_vendors),
+    #path('api/getsingle_vendor/<int:vendor_id>', vendor_views.api_get_vendor_by_id, name='get_single_vendor'),
+    # path('savevendor/', vendor_views.save_vendor, name='save_vendor'),
+
     path('api/vendorsearch', vendor_views.api_vendor_search, name='api_vendor_search'),
-   
-    path('addvendor/', vendor_views.add_new_vendor, name='add_new_vendor'),
-    path('editvendor/<int:vendor_id>', vendor_views.edit_vendor, name='edit_vendor'),
-    path('<int:vendor_id>/view', vendor_views.view_vendor, name='view_vendor'),
-    path("delete/<int:vendor_id>/", vendor_views.delete_vendor, name="delete_vendor_contact"),
-    path('savevendor/', vendor_views.save_vendor, name='save_vendor'),
-    #stage 1
+    path('api/addvendor/', vendor_views.api_add_new_vendor, name='api_add_new_vendor'),
+    path("api/delete/<int:vendor_id>", vendor_views.delete_vendor),
+    path('api/save_vendor_details', vendor_views.api_save_vendor, name='api_save_vendor'),
+    path('api/vendor_warehouse/get_all/<int:vendor_id>', vendor_views.api_vendor_warehouses),
+    path('api/vendor_warehouse/addNew/<int:vendor_id>', vendor_views.WarehouseDetailManager.as_view()),
+    path('api/vendor_warehouse/update/<int:warehouse_id>', vendor_views.WarehouseDetailManager.as_view()),
+    path('api/vendor_warehouse/delete/<int:warehouse_id>/<int:vendor_id>', vendor_views.WarehouseDetailManager.as_view()),
+
+    path('api/pre-import-check', pre_import_vendor.pre_import_check),
+    path('api/download-template', vendor_views.download_import_template),
+    path('api/export-vendors', vendor_views.download_export_vendors),
+    path('api/confirm-import/', confirm_import_vendor.confirm_import_vendor),
+
+    path('api/delete-document/<int:file_id>/', vendor_views.delete_vendor_document),
+    path('api/upload-document/', vendor_views.upload_vendor_files),
     path('import_vendor/', bulk_import_view.import_vendor, name='import_vendor'),
+
     #stage2
     path('import_vendor/validate',bulk_import_view.import_vendor_validate, name='import_vendor_file_upload'),
     #stage3
@@ -33,16 +44,17 @@ urlpatterns = [
     path('import_vendor/importvendor_/', bulk_import_view.final_vendor_import, name='final_vendor_import'),
     path("delete_bulk/", vendor_views.delete_vendors_bulk, name="delete_vendors_bulk"),
 
+    #API Details
     path("contact/delete/<int:contact_id>/<int:vendor_id>", vendor_views.delete_vendor_contact, name="delete_vendor_contact"),
-    path("contact/addNew/<int:vendor_id>/", vendor_views.add_newvendor_contact, name="add_newvendor_contact"),
-    path("contact/getall/<int:vendor_id>/", vendor_views.get_all_vendor_contacts, name="get_all_vendor_contacts"),
-    path("contact/getsingle/<int:vendor_id>/<int:contact_id>/", vendor_views.get_single_vendor_contact, name="get_single_vendor_contact"),
-    path("contact/update/<int:contact_id>/", vendor_views.update_vendor_contact, name="update_newvendor_contact"),
+    path("contact/addNew/<int:vendor_id>", vendor_views.add_newvendor_contact, name="add_newvendor_contact"),
+    path("contact/getall/<int:vendor_id>", vendor_views.get_all_vendor_contacts, name="get_all_vendor_contacts"),
+    path("contact/getsingle/<int:vendor_id>/<int:contact_id>", vendor_views.get_single_vendor_contact, name="get_single_vendor_contact"),
+    path("contact/update/<int:contact_id>", vendor_views.update_vendor_contact, name="update_newvendor_contact"),
 
-    path("bank/getall/<int:vendor_id>/", vendor_views.get_all_vendor_banks, name="get_all_vendor_banks"),
-    path("bank/addNew/<int:vendor_id>/", vendor_views.add_new_vendor_bank, name="add_new_vendor_bank"),
-    path("bank/getsingle/<int:vendor_id>/<int:bank_id>/", vendor_views.get_single_vendor_bank,name="get_single_vendor_bank"),
-    path("bank/update/<int:bank_id>/", vendor_views.update_vendor_bank, name="update_vendor_bank"),
+    path("bank/getall/<int:vendor_id>", vendor_views.get_all_vendor_banks, name="get_all_vendor_banks"),
+    path("bank/addNew/<int:vendor_id>", vendor_views.add_new_vendor_bank, name="add_new_vendor_bank"),
+    path("bank/getsingle/<int:vendor_id>/<int:bank_id>", vendor_views.get_single_vendor_bank,name="get_single_vendor_bank"),
+    path("bank/update/<int:bank_id>", vendor_views.update_vendor_bank, name="update_vendor_bank"),
     path("bank/delete/<int:bank_id>/<int:vendor_id>", vendor_views.delete_vendor_bank, name="delete_vendor_contact"),
     #eof vendor
 ]

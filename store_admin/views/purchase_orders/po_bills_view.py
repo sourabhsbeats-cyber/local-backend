@@ -120,61 +120,6 @@ def validate_purchase_order_model(po, line_items):
     return True, ""
 
 
-@login_required
-def view_po_receive(request, po_receive_id):
-    if po_receive_id is None:
-        return HttpResponse("Invalid PO", status=404)
-
-    po = PurchaseReceives.objects.filter(po_receive_id=po_receive_id).first()
-    if not po:
-        return HttpResponse("Invalid PO", status=404)
-
-    po_order_items = PurchaseReceivedItems.objects.filter(po_receive_id=po_receive_id).all()
-
-    line_items = []
-
-    for po_order_item in po_order_items:
-        po_product = Product.objects.filter(product_id=po_order_item.product_id).first()
-        po_line_item = PurchaseOrderItem.objects.filter().first()
-
-        line_items.append({
-            "item_name": po_product.title,
-            "sku": po_product.sku,
-            "ordered": po_line_item.ordered_qty,
-            "received": po_order_item.received_qty,
-            "in_transit": 0,
-            "received_quantity": po_order_item.received_qty,
-        })
-    vendors_detail = Vendor.objects.filter(id=po.vendor_id).first()
-    received_files = PurchaseReceiveFiles.objects.filter(po_receive_id=po_receive_id).all()
-    context = {
-        'po_receive_id': po_receive_id,
-        'po': po,
-        'line_items': line_items,
-        'received_files': received_files,
-        'vendors_detail': vendors_detail,
-    }
-    return render(request, 'sbadmin/pages/purchase_receive/view/view_po_receive.html', context)
-
-
-from django.db.models import Max
-# Product Add Bill Entry - Only GET
-@login_required
-def create_po_bill(request):
-    vendors_list = Vendor.objects.all()
-    po_next = (PurchaseBills.objects.aggregate(max_id=Max("bill_id")).get("max_id") or 0) + 1
-    po_bill_number = f"POB{po_next:04d}"
-    warehouse_list = Warehouse.objects.filter(status__in=["Active"]).all()
-    payment_terms = PaymentTerm.objects.all()
-    context = {
-        'vendors': vendors_list,
-        'warehouse_list': warehouse_list,
-        'payment_terms': payment_terms,
-        'po_bill_number': po_bill_number,
-        'po_received_date': datetime.date.today()}
-
-    return render(request, 'sbadmin/pages/bills/add/add_bill_form.html', context)
-
 #verified
 #list vendors Purchase receives by vendor id
 def get_vendors_ps(request, vendor_id):
@@ -192,14 +137,6 @@ def get_vendors_ps(request, vendor_id):
         })
     return JsonResponse({"status":True, "data":ps_receives_data})
 
-# PO reieve listing
-@login_required
-def bills_listing(request):
-    # ---- Context ----
-    context = {
-        "user": request.user.id,
-    }
-    return render(request, 'sbadmin/pages/bills/all_po_bills_listing.html', context)
 
 #listing bills against vendor select
 @login_required
@@ -302,7 +239,7 @@ def listing_bill_line_items(request):
         })
     return JsonResponse({"status": True, "line_items": ps_rx_items_data})
 
-@login_required
+@api_view(["GET"])
 def po_invoice_listing_json(request):
     po_id = request.GET.get("po_id")
     invoice_number = request.GET.get("invoice_number")
@@ -613,42 +550,3 @@ def save_po_bill(request):
             "status": False,
             "message": str(e)
         }, status=400)
-
-#verified
-from django.shortcuts import render, get_object_or_404
-@api_view(["GET"])
-def view_po_bill(request, bill_id):
-
-    bill = get_object_or_404(PurchaseBills, bill_id=bill_id)
-
-    items = PurchaseBillItems.objects.filter(purchase_bill_id=bill.bill_id)
-
-    product_ids = items.values_list('product_id', flat=True).distinct()
-
-    # 3. Fetch only those products from the Product table
-    # Replace 'ProductModel' with your actual product model name
-    products = Product.objects.filter(product_id__in=product_ids)
-
-
-    files = PurchaseBillFiles.objects.filter(purchase_bill_id=bill.bill_id)
-    warehouse_lists = Warehouse.objects.filter().all()
-    vendor_info = Vendor.objects.filter(id=bill.vendor_id).first()
-
-    if bill.discount_percentage is not None:
-        bill.discount_amount = (
-                (bill.sub_total+(bill.surcharge_amount+bill.surcharge_tax_total)) * Decimal(bill.discount_percentage) / Decimal("100")
-        )
-        bill.discount_amount = bill.discount_amount.quantize(Decimal("0.011"), rounding=ROUND_HALF_UP)
-
-    #bill.discount_amount = str(bill.surcharge_tax_total)
-    context = {
-        "bill": bill,
-        "warehouse_lists": warehouse_lists,
-        "products": products,
-        "items": items,
-        "vendor_info": vendor_info,
-        "files": files,
-        "view_only": True,  #  flag for template
-    }
-
-    return render(request, "sbadmin/pages/bills/view/view_po_bill.html", context)

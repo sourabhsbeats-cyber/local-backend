@@ -13,8 +13,10 @@ urlpatterns = [
     # 1. CORE PURCHASE ORDERS (PO)
     # ==========================================
     path('listing', purchase_orders_view.listing, name='po_listing'),
-    path('create/', purchase_orders_view.create_order, name='create_order'),
-    path('create/<int:po_id>/', purchase_orders_view.create_order, name='create_order'),
+    path('api/create', purchase_orders_view.create_po_api_order, name='create_po_api_order'),
+    path('api/get_po_details/<int:po_id>', purchase_orders_view.get_po_details),
+    path('api/save_po_details', purchase_orders_view.save_po_details, name='api_save_po_details'),
+
     path('view/<int:po_id>', purchase_orders_view.view_po_order, name='view_po_order'),
     path('save', purchase_orders_view.save_po, name='save_po_order'),
     path('delete/<int:po_id>/', purchase_orders_view.delete_po, name="delete_po_single"),
@@ -23,8 +25,11 @@ urlpatterns = [
     # PO Workflow Actions
     path('approve_po_order/<int:po_id>', purchase_orders_view.approve_po_order, name='approve_po_order'),
     path('approve_and_create_receive/<int:po_id>', purchase_orders_view.approve_and_create_receive,
-         name='approve_and_create_receive'),
-
+         name='keepthis'),
+    path('api/get_po_receive_details', purchase_recieve_view.get_api_po_receive,
+         name='get_api_po_receive_details'),
+#purchaseorder/api/get_po_receive_details
+    #purchase_recieve_view.view_po_receive
     # ==========================================
     # 2. BULK OPERATIONS (Import/Export)
     # ==========================================
@@ -45,9 +50,6 @@ urlpatterns = [
     # 3. PURCHASE RECEIVING & IN-TRANSIT
     # ==========================================
     path('poreceives/', purchase_recieve_view.listing, name='po_order_receives'),
-    path('poreceives/create', purchase_recieve_view.create_po_order_receive, name='create_po_order_receive'),
-    path('poreceives/view/<int:po_receive_id>', purchase_recieve_view.view_po_receive, name='view_po_receive_order'),
-    path('poreceives/edit/<int:po_receive_id>', purchase_recieve_view.edit_po_receive, name='edit_po_receive_order'),
     path('poreceives/save', purchase_recieve_view.save_po_order_receive, name='save_po_receive'),
     path('poreceives/place_po', purchase_recieve_view.place_po, name='place_po'),
     path('poreceives/delete/<int:po_receive_id>', purchase_recieve_view.delete_po_receive, name='delete_po_receive'),
@@ -64,10 +66,7 @@ urlpatterns = [
     # ==========================================
     # 4. BILLS (INVOICES)
     # ==========================================
-    path('bills/listing', po_bills_view.bills_listing, name='po_bills_listing'),
-    path('bills/createnew', po_bills_view.create_po_bill, name='create_po_bill'),
     path('bills/savebill', po_bills_view.save_po_bill, name='save_po_bill'),
-    path('bills/<int:bill_id>/view/', po_bills_view.view_po_bill, name="view_po_bill"),
     path('bills/delete/<int:bill_id>', purchase_recieve_view.delete_po_bill, name='delete_po_bill'),
 
     # ==========================================
@@ -87,9 +86,13 @@ urlpatterns = [
     path('api/list_vendors_ps_receives/<int:vendor_id>', po_bills_view.get_vendors_ps,
          name='api_get_vendors_ps_receives'),
 
+    path("api/kanbanlist/get-config-layout", purchase_orders_view.get_kanban_layout),
+    path("api/kanbanlist/save-config-layout", purchase_orders_view.save_kanban_layout),
     # List Aggregators (JSON)
+
     path('api/allpurchases', purchase_orders_view.all_purchases, name='all_purchases_json'),
     path('api/allpurchasereceives', purchase_orders_view.all_purchase_receives, name='all_purchase_receives_json'),
+    path('api/update_po_status', purchase_orders_view.update_po_status),
     path('api/intransit/listing_json', purchase_recieve_view.intransit_po_listing_json,
          name='po_intransit_api_listing'),
     path('api/bills/listing_json', po_bills_view.po_invoice_listing_json, name='po_bills_listing_json'),

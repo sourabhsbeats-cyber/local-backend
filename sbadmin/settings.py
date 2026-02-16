@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 
-from django.conf.global_settings import AUTHENTICATION_BACKENDS
 from decouple import config
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,8 +29,24 @@ DEBUG = config('DEBUG', cast=bool)
 CDN_DOMAIN = config('CDN_DOMAIN')
 ALLOWED_HOSTS = config("ALLOWED_HOSTS").split(",")
 
-# Application definition
 
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+if DEBUG:
+    SESSION_COOKIE_SECURE = False
+    CSRF_COOKIE_SECURE = False
+
+
+# Application definition
+CSRF_TRUSTED_ORIGINS = [
+    config('FRONTEND_DOMAIN')
+]
+
+# Ensure CORS is also allowing the origin (requires django-cors-headers)
+CORS_ALLOWED_ORIGINS = [
+    config('FRONTEND_DOMAIN')
+]
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -41,25 +56,71 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'corsheaders',
     'store_admin',
+    #reset framework imaplementation
+    "django.contrib.sites",
+    "rest_framework",
+    "rest_framework.authtoken",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
+    "allauth",
+    "allauth.account",
 ]
+SITE_ID = 1
+REST_FRAMEWORK = {
+    #'DEFAULT_THROTTLE_CLASSES': [
+     #   'rest_framework.throttling.AnonRateThrottle',
+    #    'rest_framework.throttling.UserRateThrottle'
+   # ],
+   # 'DEFAULT_THROTTLE_RATES': {
+   #     'anon': '20/min',  # 60s / 20 = 3s delay for guests
+   #     'user': '20/min',  # 60s / 20 = 3s delay for logged-in users
+   # },
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        #  TEMPORARILY allow both
+        #"rest_framework.authentication.SessionAuthentication",
+         #"dj_rest_auth.jwt_auth.JWTCookieAuthentication",
+        "store_admin.AuthHandler.StrictJWTCookieAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+}
+from datetime import timedelta
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15), #timedelta(seconds=10), #
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7), #timedelta(minutes=5),
 
+    "ROTATE_REFRESH_TOKENS": False,
+    "BLACKLIST_AFTER_ROTATION": False,
+
+
+    "UPDATE_LAST_LOGIN": True,
+    #"REFRESH_TOKEN_GRACE_PERIOD": timedelta(seconds=30),
+}
+
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_COOKIE": "access",
+    "JWT_AUTH_REFRESH_COOKIE": "refresh",
+    "JWT_AUTH_HTTPONLY": True,
+}
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    #'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+
+    'allauth.account.middleware.AccountMiddleware',
+
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'store_admin.middleware.NoCacheMiddleware',
     'store_admin.middleware.SecurityHeadersMiddleware',
-    'corsheaders.middleware.CorsMiddleware', # Ippo add pannadhu
-    'django.middleware.common.CommonMiddleware',
+
 ]
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-]
+
 CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'sbadmin.urls'
 
@@ -67,23 +128,23 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, 'store_admin', 'templates'),  # ✅ app level
+            os.path.join(BASE_DIR, 'store_admin', 'templates'),  #  app level
         ],
         'APP_DIRS': True,
         'OPTIONS': {
-            #"debug": False,  # ✅ Add or change this line here
+            #"debug": False,  # Add or change this line here
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',
-                'store_admin.context_processors.common_master_data',
+                #'store_admin.context_processors.common_master_data',
             ],
-            'builtins': [
-                'store_admin.templatetags.custom_filters',
-            ],
+           # 'builtins': [
+           #     'store_admin.templatetags.custom_filters',
+           # ],
 
-            'string_if_invalid': '',
+            #'string_if_invalid': '',
         },
     },
 ]
@@ -91,7 +152,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'sbadmin.wsgi.application'
 
 AUTHENTICATION_BACKENDS =[
-    'store_admin.auth_backend.CustomDBAuth',
+   # 'store_admin.auth_backend.CustomDBAuth',
     'django.contrib.auth.backends.ModelBackend',
 ]
 # Database
@@ -144,9 +205,9 @@ USE_I18N = True
 USE_TZ = True
 
 AUTH_USER_MODEL = 'store_admin.StoreUser'
-LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
+#LOGIN_URL = '/login/'
+#LOGIN_REDIRECT_URL = '/dashboard/'
+#LOGOUT_REDIRECT_URL = '/login/'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 

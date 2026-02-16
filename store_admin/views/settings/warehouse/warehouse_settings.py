@@ -2,7 +2,9 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.core.paginator import Paginator
 from django.contrib import messages
+from rest_framework.decorators import api_view
 
+from store_admin.models import Country, State
 from store_admin.models.organization_model import OrganizationInventoryLocation, OrganizationInventoryLocation
 from store_admin.models.payment_terms_model import PaymentTerm
 from django.contrib.auth.decorators import login_required
@@ -12,102 +14,138 @@ from store_admin.models.setting_model import Manufacturer, Brand, Category, Attr
 from store_admin.models.warehouse_setting_model import Warehouse
 from django.db import transaction
 
-@login_required
-def all_listing(request):
-    warehouse_locations = OrganizationInventoryLocation.objects.all()
-    if request.method == "POST":
-        action = request.POST.get("action")
-
-        # --- Create ---
-        if action == "create":
-            name = request.POST.get("warehouse_name", "").strip()
-            location = request.POST.get("location")
-            status = request.POST.get("status")
-
-            if not name:
-                return JsonResponse({"status": False, "message": "Name required"})
-            if not location:
-                return JsonResponse({"status": False, "message": "Location required"})
-
-            if Warehouse.objects.filter(warehouse_name__iexact=name).exists():
-                return JsonResponse({"status": False, "message": "Warehouse name already exists"})
-            try:
-                Warehouse.objects.create(
-                    warehouse_name=name,
-                    location=location,
-                    status=status,
-                    created_by=request.user.id,
-                )
-                return JsonResponse({"status":True, "message":"Warehouse created successfully."})
-            except Exception as ex:
-                return JsonResponse({"status": False, "message": str(ex)})
-
-        # --- Edit ---
-        elif action == "edit":
-            name = request.POST.get("warehouse_name", "").strip()
-            location = request.POST.get("location")
-            status = request.POST.get("status")
-            warehouse_id = request.POST.get("warehouse_id")
-            is_default = request.POST.get("is_default")
-
-            if not name:
-                return JsonResponse({"status": False, "message": "Name required"})
-            if not location:
-                return JsonResponse({"status": False, "message": "Location required"})
-
-            term = Warehouse.objects.filter(warehouse_id=warehouse_id).first()
-            if not term:
-                return JsonResponse({"status": False, "message": "No record found"})
-
-            #  If new primary, remove primary from all others first
-            if is_default == "1":
-                Warehouse.objects.update(is_default=0)  # → makes all warehouses NON-primary
-
-            try:
-                with transaction.atomic():
-                    term.warehouse_name = name
-                    term.location = location
-                    term.status = status
-                    term.is_default = 1 if is_default == "1" else 0  # ✅ now this will be the only primary
-                    term.save()
-
-                return JsonResponse({"status": True, "message": "Updated"})
-            except Exception as ex:
-                return JsonResponse({"status": False, "message": str(ex)})
-        # --- Delete ---
-        elif action == "delete":
-            warehouse_id = request.POST.get("warehouse_id")
-            term = Warehouse.objects.filter(warehouse_id=warehouse_id).first()
-            if term.is_default == 1:
-                return JsonResponse({"status": False, "message": "Default warehouse cannot be removed"})
-            if not term:
-                return JsonResponse({"status": False, "message": "No record found"})
-
-            try:
-                with transaction.atomic():
-                    term.warehouse_name = "ARCHIVED_"+term.warehouse_name
-                    term.status = "ARCHIVED"  # archive instead of deleting
-                    term.save()
-                return JsonResponse({"status": True, "message": "Removed"})
-            except Exception as ex:
-                return JsonResponse({"status": False, "message": str(ex)})
-
-
-    # --- Get / Paginated List ---
+@api_view(["GET"])
+def all_inventory_locations(request):
+    # --- Data Retrieval & Filtering ---
     search_query = request.GET.get("q", "").strip()
-    terms = Warehouse.objects.filter(status__in=["ACTIVE", "INACTIVE"]).order_by("warehouse_name")
-
+    # Filter based on your model logic
+    terms = Warehouse.objects.filter(status__in=[0, 1]).order_by("warehouse_name")
+    locations_qs = OrganizationInventoryLocation.objects.all()
+    loc_map = {str(loc.pk): loc.name for loc in locations_qs}
     if search_query:
-        terms = terms.filter(warehouse_name__icontains=search_query.strip())
-
-    paginator = Paginator(terms, 10)
-    page_number = request.GET.get("page")
-    page_obj = paginator.get_page(page_number)
-    return render(
-        request,
-        "sbadmin/pages/settings/warehouse/manage_warehouses.html",
-        {"terms": page_obj, "warehouse_locations": warehouse_locations, "page_obj": page_obj, "search_query": search_query},
+        terms = terms.filter(warehouse_name__icontains=search_query)
+    warehouse_locations = OrganizationInventoryLocation.objects.values(
+        "id",
+        "name",
+        "parent_location_id",
+        "attention"
     )
+    # --- Pagination ---
+    # Tabulator typically sends 'size' for records per page
+    page_size = request.GET.get("size", 10)
+    page_number = request.GET.get("page", 1)
+
+    paginator = Paginator(terms, page_size)
+    page_obj = paginator.get_page(page_number)
+
+    # --- Serialization ---
+    data = []
+    for w in page_obj:
+        loc_key = str(w.location) if w.location else ""
+        loc_name = loc_map.get(loc_key, "")
+        if OrganizationInventoryLocation.objects.filter(id=w.location).exists():
+            loc_name = OrganizationInventoryLocation.objects.filter(id=w.location).first().name
+
+        data.append({
+            "warehouse_id": w.warehouse_id,
+            "warehouse_name": w.warehouse_name,
+            "location_name": loc_name,
+            "location":w.location ,
+            "status": w.status,  # Returns 'ACTIVE' or 'INACTIVE'
+            "is_default": w.is_default,
+            "created_at": w.created_at.strftime("%d/%m/%Y %I:%M %p") if w.created_at else ""
+        })
+
+    return JsonResponse({
+        "status": True,
+        "data": data,"warehouse_locations": list(warehouse_locations),
+        "last_page": paginator.num_pages,
+        "total_record": paginator.count
+    })
+
+@api_view(["POST"])
+def add_new_inventory_locations(request):
+    data = request.data
+
+    warehouse_name = data.get("warehouse_name")
+    location = data.get("location")
+    status = data.get("status")
+    is_default = data.get("is_default")
+    try:
+        if warehouse_name and location:
+            inv_loc = Warehouse()
+            inv_loc.warehouse_name = warehouse_name
+            inv_loc.location = location
+            inv_loc.status = status
+            inv_loc.is_default = is_default
+            inv_loc.created_by = request.user.id
+            inv_loc.save()
+        else:
+            return JsonResponse({"status": False, "message": "Required fields are missing."})
+        return JsonResponse({"status": True, "message": "Inventory location created."})
+    except Exception as e:
+        return JsonResponse({"status": False, "message": "Error while creating warehouse", "Err":str(e)})
+
+
+@api_view(["DELETE"])
+def delete_inventory_location(request, warehouse_id):
+    try:
+        inv_loc = Warehouse.objects.filter(warehouse_id=warehouse_id).first()
+        inv_loc.status = -1
+        inv_loc.save(update_fields=["status"])
+        return JsonResponse({"status": True, "message": "Inventory location removed"})
+    except Exception as ex:
+        return JsonResponse({"status":False, "message":"Error deleting", "err":str(ex)})
+
+@api_view(["PUT"])
+def save_inventory_location(request, warehouse_id):
+    data = request.data
+
+    warehouse_name = data.get("warehouse_name")
+    location = data.get("location")
+    status = data.get("status")
+    is_default = data.get("is_default")
+    try:
+        if warehouse_name and location:
+            inv_loc = get_object_or_404(Warehouse, warehouse_id=warehouse_id)
+
+            inv_loc.warehouse_name = warehouse_name
+            inv_loc.location = location
+            inv_loc.status = status
+            inv_loc.is_default = is_default
+            inv_loc.save()
+        else:
+            return JsonResponse({"status": False, "message": "Required fields are missing."})
+        return JsonResponse({"status": True, "message": "Inventory location updated."})
+    except Exception as e:
+        return JsonResponse({"status": False, "message": "Error while creating Inventory location", "Err": str(e)})
+
+
+@api_view(["GET"])
+def all_sb_api_listing(request):
+    warehouse_locations = list(OrganizationInventoryLocation.objects.all())
+    w_locs = []
+    for loc in warehouse_locations:
+        w_locs.append({
+            "id": loc.id,
+            "name": loc.name,
+            "parent_location_id": loc.parent_location_id,
+            "attention": loc.attention,
+            "address_line1": loc.address_line1,
+            "address_line2": loc.address_line2,
+            "city": loc.city,
+            "zip_code": loc.zip_code,
+            "country_name": loc.country_name,  # plain text
+            "country_id": Country.objects.get(name=loc.country_name).id if loc.country_name else None,  # plain text
+            "state_name": loc.state_name,
+            "state_id": State.objects.get(name=loc.state_name).id if loc.state_name else None,
+            "phone": loc.phone,
+            "fax": loc.fax,
+            "website_url": loc.website_url,
+        })
+
+    return JsonResponse({"status": True, "data": w_locs})
+
 
 from django.db import transaction
 from django.db.models import F, Value

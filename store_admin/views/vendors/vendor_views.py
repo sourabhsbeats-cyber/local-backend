@@ -1,11 +1,25 @@
+import os
+
+from dj_rest_auth.jwt_auth import JWTCookieAuthentication
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from rest_framework.decorators import api_view, parser_classes, permission_classes, authentication_classes
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from sbadmin import settings
+from store_admin.AuthHandler import StrictJWTCookieAuthentication, User
+from store_admin.helpers import get_bool_int
 from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress
+from store_admin.models.po_models.po_models import PurchaseOrder
+from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress, VendorDocuments, \
+    VendorWarehouse
 from store_admin.models.address_model import Addresses
 from django.db import transaction
 from django.db.models import Min
@@ -14,237 +28,504 @@ from django.db.models.functions import Concat
 from django.db.models import Min, Value as V
 from django.db.models.functions import Concat
 from django.core.paginator import Paginator
-from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.core.validators import validate_email
 
-@login_required
-def add_new_vendor(request):
-    payment_terms = PaymentTerm.objects.all()
-    currency_list = Country.objects.values('currency').annotate(
-                        id=Min('id'),  # pick country with smallest ID per currency
-                        currency_name=Min('currency_name')
-                    )
-    countries_list = Country.objects.values('name','id')
+@api_view(["GET"])
+def get_vendor_details(request):
+    vendor_id = request.GET.get("vendor_id")
+    try:
+        vendor = Vendor.objects.get(id=vendor_id)
+        if not vendor:
+            raise Exception("vendor not found")
 
-    # context = locals()
-    context = {
-        'user': request.user.id,
-        'payment_terms': payment_terms,
-        'countries_list': countries_list,
-        'currency_list':currency_list
-    }
-    return render(request, 'sbadmin/pages/vendor/add_new.html', context)
+        # Helper function to serialize addresses (Billing/Shipping)
+        def serialize_address(address_type):
+            # Link Vendor to the specific address type
+            rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type=address_type).first()
+            addr = Addresses.objects.select_related("country", "state").filter(id=rel.address_id).first() if rel else None
 
+            if not addr:
+                return {
+                    "attention": "", "country": "", "street1": "", "street2": "",
+                    "city": "", "state": "", "zip": "", "phone": "", "fax": "",
+                    "state_list": []
+                }
 
-@login_required
-def view_vendor(request, vendor_id):
-    vendor = get_object_or_404(Vendor, id=vendor_id)
+            # Fetch state list for the saved country to populate React dropdowns immediately
+            state_list = list(State.objects.filter(country_id=addr.country_id).values('id', 'name'))
 
-    payment_terms = PaymentTerm.objects.all()
-    currency_list = Country.objects.values('currency').annotate(
-        id=Min('id'),
-        currency_name=Min('currency_name')
-    )
-    countries_list = Country.objects.values('name', 'id')
+            return {
+                "attention": addr.attention_name or "",
+                "country": addr.country.id if addr.country else "",
+                "street1": addr.street1 or "",
+                "street2": addr.street2 or "",
+                "city": addr.city or "",
+                "state": addr.state.id if addr.state else "",
+                "state_name": addr.state.name if addr.state else "",
+                "zip": addr.zip or "",
+                "phone": addr.phone or "",
+                "fax": addr.fax or "",
+                "state_list": state_list
+            }
 
-    # ------------------- BILLING ---------------------
-    billing_rel = VendorAddress.objects.filter(
-        vendor_id=vendor.id, address_type="billing"
-    ).first()
+        # Serialize Bank and Contact records
+        qs = VendorDocuments.objects.filter(vendor_id=vendor.id)
 
-    billing_address = (
-        Addresses.objects.select_related("country", "state")
-        .filter(id=billing_rel.address_id).first()
-        if billing_rel else None
-    )
+        # collect all user ids
+        user_ids = qs.values_list("created_by", flat=True)
 
-    billing_country_id = billing_address.country_id if billing_address else None
-    billing_state_id = billing_address.state_id if billing_address else None
-    billing_state_list = (
-        State.objects.filter(country_id=billing_country_id)
-        if billing_country_id else []
-    )
+        # build id → username map
+        user_map = {
+            u.id: u.name
+            for u in User.objects.filter(id__in=user_ids)
+        }
 
-    billing_state_name = billing_address.state.name if billing_address and billing_address.state else ""
+        documents = []
+        for d in qs:
+            documents.append({
+                "id": d.pk,
+                "file_path": request.build_absolute_uri(d.file_path.url),
+                "file_name": d.file_name,
+                "created_by": user_map.get(d.created_by),  # username
+                "created_at": d.created_at.strftime("%d-%m-%Y %I:%M %p"),
+            })
 
-    # ------------------- SHIPPING ---------------------
-    shipping_rel = VendorAddress.objects.filter(
-        vendor_id=vendor.id, address_type="shipping"
-    ).first()
+        contacts = list(VendorContact.objects.filter(vendor_id=vendor.id).values(
+            'id', 'first_name', 'last_name', 'role', 'email', 'phone', 'department', 'description'
+        ))
 
-    shipping_address = (
-        Addresses.objects.select_related("country", "state")
-        .filter(id=shipping_rel.address_id).first()
-        if shipping_rel else None
-    )
+        # Structure response to match your React 'profile' and 'details' states
+        context = {
+            "primary": {
+                "vendor_code": vendor.vendor_code ,
+                "vendor_name": vendor.vendor_name ,
+                "gst_number": vendor.gst_number or "",
+                "tax_percent": vendor.tax_percent or "",
+                "min_order_value": vendor.min_order_value or "",
+                "is_taxable": vendor.is_taxable or "0",
+                "default_warehouse": vendor.default_warehouse or "",
+                "payment_term": vendor.payment_term or "",
+                "company_abn": vendor.company_abn or "",
+                "company_acn": vendor.company_acn or "",
+                "bank_name": vendor.bank_name or "",
+                "bank_branch": vendor.bank_branch or "",
+                "account_number": vendor.account_number or "",
+                "reminder": vendor.reminder or "",
+                "remarks": vendor.remarks or "",
+                "status": vendor.status,
+                "currency": vendor.currency or "",
+                #"document": request.build_absolute_uri(vendor.documents.url) if vendor.documents else None
+            },
+            "details": {
+                "billing_address": serialize_address("billing"),
+                "shipping_address": serialize_address("shipping"),
+                "contacts": contacts,
+                "documents": documents
+            }
+        }
 
-    shipping_country_id = shipping_address.country_id if shipping_address else None
-    shipping_state_id = shipping_address.state_id if shipping_address else None
-    shipping_state_list = (
-        State.objects.filter(country_id=shipping_country_id)
-        if shipping_country_id else []
-    )
-
-    shipping_state_name = shipping_address.state.name if shipping_address and shipping_address.state else ""
-
-    # ------------------- BANK / CONTACT ---------------------
-    bank_details = VendorBank.objects.filter(vendor_id=vendor.id)
-    contact_details = VendorContact.objects.filter(vendor_id=vendor.id)
-
-    context = {
-        'vendor': vendor,
-        'payment_terms': payment_terms,
-        'countries_list': countries_list,
-        'currency_list': currency_list,
-
-        'billing': billing_address,
-        'billing_state_list': billing_state_list,
-        'billing_state_name': billing_state_name,  # ⬅️ new
-
-        'shipping': shipping_address,
-        'shipping_state_list': shipping_state_list,
-        'shipping_state_name': shipping_state_name,  # ⬅️ new
-
-        'banks': bank_details,
-        'contacts': contact_details,
-    }
-
-    return render(request, 'sbadmin/pages/vendor/view/view_details.html', context)
-
-
-@login_required
-def edit_vendor(request, vendor_id):
-    vendor = get_object_or_404(Vendor, id=vendor_id)
-
-    payment_terms = PaymentTerm.objects.all()
-    currency_list = Country.objects.values('currency').annotate(
-        id=Min('id'),
-        currency_name=Min('currency_name')
-    )
-    countries_list = Country.objects.values('name', 'id')
-
-    # ------------------- BILLING ---------------------
-    billing_rel = VendorAddress.objects.filter(
-        vendor_id=vendor.id, address_type="billing"
-    ).first()
-
-    billing_address = (
-        Addresses.objects.select_related("country", "state")
-        .filter(id=billing_rel.address_id).first()
-        if billing_rel else None
-    )
-
-    billing_country_id = billing_address.country_id if billing_address else None
-    billing_state_id = billing_address.state_id if billing_address else None
-    billing_state_list = (
-        State.objects.filter(country_id=billing_country_id)
-        if billing_country_id else []
-    )
-
-    billing_state_name = billing_address.state.name if billing_address and billing_address.state else ""
+        return JsonResponse({"status": True, "data": context})
+    except Exception as err:
+        return JsonResponse({"status": False, "message": f"Error - {str(err)}"}, status=500)
 
 
-    # ------------------- SHIPPING ---------------------
-    shipping_rel = VendorAddress.objects.filter(
-        vendor_id=vendor.id, address_type="shipping"
-    ).first()
-
-    shipping_address = (
-        Addresses.objects.select_related("country", "state")
-        .filter(id=shipping_rel.address_id).first()
-        if shipping_rel else None
-    )
-
-    shipping_country_id = shipping_address.country_id if shipping_address else None
-    shipping_state_id = shipping_address.state_id if shipping_address else None
-    shipping_state_list = (
-        State.objects.filter(country_id=shipping_country_id)
-        if shipping_country_id else []
-    )
-
-    shipping_state_name = shipping_address.state.name if shipping_address and shipping_address.state else ""
+from rest_framework import serializers, status
 
 
-    # ------------------- BANK / CONTACT ---------------------
-    bank_details = VendorBank.objects.filter(vendor_id=vendor.id)
-    contact_details = VendorContact.objects.filter(vendor_id=vendor.id)
+class PaymentTermSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentTerm
+        fields = '__all__'
 
 
-    context = {
-        'vendor': vendor,
-        'payment_terms': payment_terms,
-        'countries_list': countries_list,
-        'currency_list': currency_list,
-
-        'billing': billing_address,
-        'billing_state_list': billing_state_list,
-        'billing_state_name': billing_state_name,   # ⬅️ new
-
-        'shipping': shipping_address,
-        'shipping_state_list': shipping_state_list,
-        'shipping_state_name': shipping_state_name, # ⬅️ new
-
-        'banks': bank_details,
-        'contacts': contact_details,
-    }
-
-    return render(request, 'sbadmin/pages/vendor/edit_vendor.html', context)
-
-@login_required
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([StrictJWTCookieAuthentication])
+# Note: Ensure JWTCookieAuthentication is properly configured in your settings
 def all_vendors(request):
-    payment_terms = PaymentTerm.objects.all()
+    # 1. Get Params
+    search_query = request.GET.get("vendor_search", "").strip()
+    search_status = request.GET.get("status", "").strip()
+    sort_by = request.GET.get("sort_by", "id")  # Default sort by id
+    sort_dir = request.GET.get("sort_dir", "desc")
+    page_size = int(request.GET.get("size", 20)) # Tabulator sends 'size', not 'page_size'
+    page_number = int(request.GET.get("page", 1))
 
-    countries_list = Country.objects.values('currency').annotate(
-        id=Min('id'),
-        currency_name=Min('currency_name')
-    )
+    # 2. Base Queryset
+    vendors = Vendor.objects.all()
 
-    currency_list = Country.objects.values('currency').annotate(
-        id=Min('id'),
-        currency_name=Min('currency_name')
-    )
-
-    search_query = request.GET.get("q", "").strip()
-
-    # Base queryset
-    vendors = Vendor.objects.annotate(
-        name=Concat(
-            'salutation', V(' '),
-            'first_name', V(' '),
-            'last_name'
-        )
-    ).values(
-        'id', 'name', 'company_name',
-        'email_address', 'vendor_code',
-        'work_phone'
-    ).order_by('id')
-
-    # Searching support
+    # 3. Filtering
     if search_query:
         vendors = vendors.filter(
-            Q(name__icontains=search_query) |
-            Q(company_name__icontains=search_query) |
-            Q(email_address__icontains=search_query) |
+            Q(vendor_name__icontains=search_query) |
             Q(vendor_code__icontains=search_query)
         )
 
-    # Pagination
-    paginator = Paginator(vendors, 10)  # 10 rows per page
-    page_number = request.GET.get("page")
+    if search_status:
+        vendors = vendors.filter(status=search_status)
+
+    # 4. Sorting
+    # Map the direction: 'desc' becomes '-field_name'
+    if sort_dir == "desc":
+        order_string = f"-{sort_by}"
+    else:
+        order_string = sort_by
+
+    try:
+        vendors = vendors.order_by(order_string)
+    except Exception:
+        # Fallback if an invalid field name is passed
+        vendors = vendors.order_by("vendor_name")
+
+    # 5. Pagination
+    paginator = Paginator(vendors, page_size)
     page_obj = paginator.get_page(page_number)
 
-    context = {
-        'user': request.user.id,
-        'payment_terms': payment_terms,
-        'countries_list': countries_list,
-        'currency_list': currency_list,
-        'allvendors': page_obj.object_list,  # Data for table
-        'page_obj': page_obj,  # Data for pagination
-        'search_query': search_query,
+    # 6. Serialize (Only the paginated objects!)
+    vendor_data = []
+    for vendor in page_obj: # Use page_obj, NOT vendors
+        billing_details = shipping_details = None
+
+        vendor_addresses = VendorAddress.objects.filter(vendor_id=vendor.id)
+
+        for addr in vendor_addresses:
+            if addr.address_type == "billing":
+                billing_details = Addresses.objects.filter(id=addr.address_id).first()
+            elif addr.address_type == "shipping":
+                shipping_details = Addresses.objects.filter(id=addr.address_id).first()
+
+        vendor_data.append({
+            "id": vendor.id,
+            "vendor_name": vendor.vendor_name,
+            "vendor_code": vendor.vendor_code,
+            "currency": vendor.currency,
+            "billing_country" : billing_details.country.name  if billing_details and billing_details.country else "",
+            "shipping_country" : shipping_details.country.name if shipping_details and shipping_details.country else "",
+            "billing_city" : billing_details.city if billing_details else "",
+            "shipping_city" : shipping_details.city if shipping_details else "",
+
+            "status": vendor.status,
+            "tax_percent": vendor.tax_percent,
+            "is_taxable": vendor.is_taxable,
+            "reminder": vendor.reminder,
+        })
+
+    return JsonResponse({
+        "data": vendor_data,
+        "last_page": paginator.num_pages,
+        "total": paginator.count,
+    })
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([StrictJWTCookieAuthentication])
+def api_vendor_warehouses(request, vendor_id):  # Added 'request' argument
+    # 1. Check if vendor exists
+    get_object_or_404(Vendor, pk=vendor_id)
+
+    # 2. Fetch warehouses associated with the vendor_id
+    # Using .values() is the fastest way to get a JSON-serializable list
+    # without creating a separate Serializer class.
+    warehouses = VendorWarehouse.objects.filter(vendor_id=vendor_id).order_by("-warehouse_id").values(
+        'warehouse_id',
+        'name',
+        'delivery_name',
+        'address_line1',
+        'address_line2',
+        'city',
+        'state_id',
+        'zip',
+        'country_id',
+        'is_primary',
+        'created_at'
+    )
+
+    return JsonResponse({
+        "status": True,
+        "data": list(warehouses)  # Convert QuerySet to a standard Python list
+    })
+
+
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import IsAuthenticated
+import json
+
+
+# Replace with your actual model import
+# from .models import VendorWarehouse
+
+class WarehouseDetailManager(APIView):
+    permission_classes = [IsAuthenticated]
+
+    # If you are using JWT cookies, add authentication_classes here
+    # authentication_classes = [JWTCookieAuthentication]
+
+    def get(self, request, warehouse_id, vendor_id=None):
+        """Fetch Details"""
+        warehouse = get_object_or_404(VendorWarehouse, pk=warehouse_id)
+        data = {
+            "id": warehouse.id,
+            "name": warehouse.name,
+            "delivery_name": warehouse.delivery_name,
+            "address_line1": warehouse.address_line1,
+            "address_line2": warehouse.address_line2,
+            "city": warehouse.city,
+            "state_id": warehouse.state_id,
+            "zip": warehouse.zip,
+            "country_id": warehouse.country_id,
+            "is_primary": warehouse.is_primary,
+        }
+        return JsonResponse({"status": True, "data": data})
+
+    def put(self, request, warehouse_id, vendor_id=None):
+        """Update (Edit) Details"""
+        warehouse = get_object_or_404(VendorWarehouse, pk=warehouse_id)
+        try:
+            data = json.loads(request.body)
+            warehouse.name = data.get("name", warehouse.name)
+            warehouse.delivery_name = data.get("delivery_name", warehouse.delivery_name)
+            warehouse.address_line1 = data.get("address_line1", warehouse.address_line1)
+            warehouse.address_line2 = data.get("address_line2", warehouse.address_line2)
+            warehouse.city = data.get("city", warehouse.city)
+            warehouse.state_id = data.get("state_id", warehouse.state_id)
+            warehouse.zip = data.get("zip", warehouse.zip)
+            warehouse.country_id = data.get("country_id", warehouse.country_id)
+            warehouse.is_primary = data.get("is_primary", warehouse.is_primary)
+
+            warehouse.save()
+            return JsonResponse({"status": True, "message": "Warehouse updated successfully"})
+        except Exception as e:
+            return JsonResponse({"status": False, "message": str(e)}, status=400)
+
+    def post(self, request, vendor_id=None):
+        """Update (Edit) Details"""
+        warehouse = VendorWarehouse()
+        try:
+            data = json.loads(request.body)
+            warehouse.name = data.get("name", warehouse.name)
+            warehouse.vendor_id = vendor_id
+            warehouse.delivery_name = data.get("delivery_name", warehouse.delivery_name)
+            warehouse.address_line1 = data.get("address_line1", warehouse.address_line1)
+            warehouse.address_line2 = data.get("address_line2", warehouse.address_line2)
+            warehouse.city = data.get("city", warehouse.city)
+            warehouse.state_id = data.get("state_id", warehouse.state_id)
+            warehouse.zip = data.get("zip", warehouse.zip)
+            warehouse.country_id = data.get("country_id", warehouse.country_id)
+            warehouse.is_primary = data.get("is_primary", warehouse.is_primary)
+
+            warehouse.save()
+            return JsonResponse({"status": True, "message": "Warehouse created successfully"})
+        except Exception as e:
+            return JsonResponse({"status": False, "message": str(e)}, status=400)
+
+    def delete(self, request, warehouse_id, vendor_id=None):
+        """Remove Warehouse"""
+        warehouse = get_object_or_404(VendorWarehouse, warehouse_id=warehouse_id)
+        warehouse.delete()
+        return JsonResponse({"status": True, "message": "Warehouse deleted successfully"})
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([JWTCookieAuthentication])
+def api_all_vendors(request):
+    search = request.GET.get("search", "").strip()
+
+    vendors = Vendor.objects.order_by("id")
+
+    # Apply search filter
+    if search:
+        vendors = vendors.filter(
+            Q(vendor_code__icontains=search) |
+            Q(vendor_name__icontains=search)
+        )
+
+    vendor_data = []
+    for vendor in vendors:
+        vendor_data.append({
+            "id": vendor.id,
+            "vendor_name": vendor.vendor_name,
+            "vendor_code": vendor.vendor_code,
+            "currency": vendor.currency,
+            "tax_percent": vendor.tax_percent,
+            "is_taxable": vendor.is_taxable,
+            "reminder": vendor.reminder,
+        })
+
+    return JsonResponse({"status": True, "data": vendor_data})
+
+
+from django.http import FileResponse, Http404
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([StrictJWTCookieAuthentication])
+def download_import_template(request):
+    import_type = request.GET.get('file_type', 'vendor')
+    file_format = request.GET.get('file_format', 'csv')
+    #= request.GET.get("order_no", "").strip()
+    # Map parameters to the exact filenames shown in your folder structure
+    # Map parameters to the exact filenames shown in your folder structure
+
+
+    file_map = {
+        ('vendor', 'csv'): 'vendor_template.csv',
+        ('vendor', 'xl'): 'vendor_template.xlsx',
+        ('contact', 'csv'): 'vendor_template_contacts.csv',
+        ('contact', 'xl'): 'vendor_template_contacts.xlsx',
     }
 
-    return render(request, 'sbadmin/pages/vendor/all_listing.html', context)
+    filename = file_map.get((import_type, file_format))
+
+    #filename
+    if not filename:
+        raise Http404("Invalid template parameters provided.")
+
+    # Construct path based on your uploaded folder structure: static/import_templates/vendor/
+    # Note: If 'static' is at your project root, use BASE_DIR.
+    # If it's handled by STATIC_ROOT, use that.
+    temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "vendors")
+    file_path = os.path.join(temp_dir, filename)
+
+    if not os.path.exists(file_path):
+        # Fallback check in case your static path is configured differently
+        raise Http404(f"Template file not found at: {file_path}")
+
+    # Determine the correct MIME type for the browser
+    content_type = 'text/csv' if filename.endswith(
+        '.csv') else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+    # Stream the file using FileResponse
+    response = FileResponse(open(file_path, 'rb'), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response
+
+
+from django.http import HttpResponse
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from django.http import FileResponse, Http404
+import pandas as pd
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([StrictJWTCookieAuthentication])
+def download_export_vendors(request):
+    file_format = request.GET.get('format', 'csv')
+    file_type = request.GET.get('file_type', 'vendor')  # Using the file_type argument
+
+    export_data = []
+    sheet_name = 'Data'
+    filename_base = 'Export'
+
+    # --- BRANCH 1: VENDOR EXPORT ---
+    if file_type == 'vendor':
+        vendors = Vendor.objects.all()
+        sheet_name = 'Vendors'
+        filename_base = 'Vendor_Address_Export'
+
+        for vendor in vendors:
+            payment_term_obj = PaymentTerm.objects.filter(id=vendor.payment_term).first()
+            row = {
+                'Vendor Code': vendor.vendor_code,
+                'Vendor Name': vendor.vendor_name,
+                'Payment Term': payment_term_obj.name if payment_term_obj else "",
+                'Company ABN': vendor.company_abn,
+                'Company ACN': vendor.company_acn,
+                'Taxable': 'Yes' if vendor.is_taxable == 0 else 'No',
+                'Tax %': vendor.tax_percent,
+                'Bank Name': vendor.bank_name,
+                'Bank Branch': vendor.bank_branch,
+                'Bank Account Number': vendor.account_number,
+                'Currency Code': vendor.currency,
+                'Status': vendor.get_status_display(),
+            }
+
+            def get_address_data(addr_type):
+                rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type=addr_type).first()
+                if rel:
+                    addr = Addresses.objects.filter(id=rel.address_id).first()
+                    if addr:
+                        return {
+                            'attention': addr.attention_name,
+                            'country': addr.country.name if addr.country else "",
+                            'street1': addr.street1,
+                            'street2': addr.street2,
+                            'state': addr.state.name if addr.state else "",
+                            'city': addr.city,
+                            'zip': addr.zip,
+                            'phone': addr.phone
+                        }
+                return {}
+
+            billing = get_address_data('billing')
+            row.update({
+                'Billing Attention Name': billing.get('attention', ''),
+                'Billing Country': billing.get('country', ''),
+                'Billing Street Address': billing.get('street1', ''),
+                'Billing Street Address 2': billing.get('street2', ''),
+                'Billing State': billing.get('state', ''),
+                'Billing City': billing.get('city', ''),
+                'Billing ZIP': billing.get('zip', ''),
+                'Billing Phone': billing.get('phone', ''),
+            })
+
+            shipping = get_address_data('shipping')
+            row.update({
+                'Shipping Attention Name': shipping.get('attention', ''),
+                'Shipping Country': shipping.get('country', ''),
+                'Shipping Street Address': shipping.get('street1', ''),
+                'Shipping Street Address 2': shipping.get('street2', ''),
+                'Shipping State': shipping.get('state', ''),
+                'Shipping City': shipping.get('city', ''),
+                'Shipping ZIP': shipping.get('zip', ''),
+                'Shipping Phone': shipping.get('phone', ''),
+            })
+            export_data.append(row)
+
+    # --- BRANCH 2: CONTACT EXPORT ---
+    elif file_type == 'contact':
+        # 1. Fetch all vendors first (Exactly like your vendor branch)
+        vendors = Vendor.objects.all()
+        sheet_name = 'Vendor Contacts'
+        filename_base = 'Vendor_Contacts_Export'
+
+        for vendor in vendors:
+            # 2. Fetch all contacts for THIS specific vendor
+            # Filter condition: VendorContact.vendor_id = vendor.id
+            vendor_contacts = VendorContact.objects.filter(vendor_id=vendor.id).all()
+
+            # 3. Iterate through VendorContacts and insert into export_data
+            for contact in vendor_contacts:
+                row = {
+                    'Vendor Code': vendor.vendor_code,  # Direct vendor-la
+                    'First Name': contact.first_name,
+                    'Last Name': contact.last_name,
+                    'Department': getattr(contact, 'department', ''),
+                    'Email': contact.email,
+                    'Phone': contact.phone,
+                    'Description': getattr(contact, 'description', ''),
+                }
+                export_data.append(row)
+
+    # 4. Create DataFrame and Export (Common for both)
+    df = pd.DataFrame(export_data)
+
+    if file_format == 'xl':
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
+        response = HttpResponse(output.getvalue(),
+                                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="{filename_base}.xlsx"'
+        return response
+    else:
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
+        df.to_csv(path_or_buf=response, index=False)
+        return response
 
 
 def api_vendor_search(request):
@@ -255,31 +536,19 @@ def api_vendor_search(request):
         qs = Vendor.objects.all()
 
         if q:
-            if q.isdigit():
-                # Number search → phone fields only
-                qs = qs.filter(
-                    Q(mobile_number__icontains=q) |
-                    Q(work_phone__icontains=q)
-                )
-            else:
-                # Text search → name/code/company only
-                qs = qs.filter(
-                    Q(display_name__icontains=q) |
-                    Q(vendor_code__icontains=q) |
-                    Q(company_name__icontains=q)
-                )
+            # Text search → name/code/company only
+            qs = qs.filter(
+                Q(vendor_name__icontains=q) |
+                Q(vendor_code__icontains=q)
+            )
 
-        qs = qs.order_by("display_name")[:20]
+        qs = qs.order_by("vendor_name")[:20]
 
         data = [
             {
                 "id": v.id,
-                "display_name": v.display_name,
+                "vendor_name": v.vendor_name,
                 "vendor_code": v.vendor_code,
-                "company_name": v.company_name,
-                "email_address": v.email_address,
-                "mobile_number": v.mobile_number,
-                "work_phone": v.work_phone,
             }
             for v in qs
         ]
@@ -358,115 +627,298 @@ def api_get_vendor_by_id(request, vendor_id):
 import re
 import ast
 
-@login_required
-def save_vendor(request):
-    if request.method != "POST":
-        return JsonResponse({"status": False, "message": "Invalid request"}, status=400)
+@api_view(["POST"])
+def api_add_new_vendor(request):
+    #return JsonResponse({"status": False, "message": "Invalid request"}, status=400)
+    data = request.data
+    #return JsonResponse({"status": False, "message": "Invalid request"}, status=400)
+    vendor_code = data.get("vendor_code").strip()
+    vendor_name = data.get("vendor_name").strip()
 
-    action_type = request.POST.get('action_type', None)
-    vendor_id = request.POST.get("vendor_id")
-
-    vendor_code = request.POST.get("vendor_code").strip()
-    vendor_email = request.POST.get("email_address").strip()
-
-    if action_type != "update":
-        if Vendor.objects.filter(vendor_code=vendor_code).exists():
-            return JsonResponse({
-                "status": False,
-                "message": f"Vendor code already exists",
-            }, status=500)
-
-    if action_type != "update":
-        if Vendor.objects.filter(email_address=vendor_email).exists():
-            return JsonResponse({
-                "status": False,
-                "message": f"Vendor email already exists",
-            }, status=500)
-
-    work_phone = request.POST.get("work_phone").strip()
-    mobile_number = request.POST.get("mobile_number").strip()
-
-    errors = []
-
-    if work_phone and not re.fullmatch(r'\+?\d{6,15}', work_phone):
-        errors.append("Invalid work phone")
-
-    if mobile_number and not re.fullmatch(r'\+?\d{6,15}', mobile_number):
-        errors.append("Invalid mobile number")
-
-    if errors:
-        return JsonResponse({"status": False, "message": ", ".join(errors)}, status=400)
-
-
-    try:
-        validate_email(vendor_email)
-    except ValidationError:
+    if not vendor_code or not vendor_name:
         return JsonResponse({
             "status": False,
-            "message": "Invalid vendor email format"
+            "message": f"Vendor code or Vendor name required",
+        }, status=500)
+
+    is_taxable = get_bool_int(data, "is_taxable")
+    tax_percent = data.get("tax_percent") or 0.0
+    if not is_taxable:
+        is_taxable = 0
+        tax_percent = 0.0
+    if is_taxable and tax_percent == 0.0:
+        return JsonResponse({"status":False, "data":[], "message":"Invalid Tax % "})
+    gst_number = data.get("gst_number")
+    payment_term = data.get("payment_term")
+    tax_percent = tax_percent
+    is_taxable = is_taxable
+    default_warehouse = data.get("default_warehouse")
+    bank_name = data.get("bank_name")
+    bank_branch = data.get("bank_branch")
+    account_number = data.get("account_number")
+    currency = data.get("currency")
+    reminder = data.get("reminder")
+    remarks = data.get("remarks")
+    company_abn = data.get("company_abn")
+    company_acn = data.get("company_acn")
+    min_order_value = data.get("min_order_value")
+    vendor_status = data.get("status") or 0
+
+    if Vendor.objects.filter(vendor_code=vendor_code).exists():
+        return JsonResponse({
+            "status": False,
+            "message": f"Vendor code already exists",
+        }, status=500)
+
+    if Vendor.objects.filter(vendor_name=vendor_name).exists():
+        return JsonResponse({
+            "status": False,
+            "message": f"Vendor name already exists",
         }, status=500)
 
     try:
         sid = transaction.savepoint()
         with (transaction.atomic()):   #  ROLLBACK STARTS HERE
-            if vendor_id:
-                vendor = Vendor.objects.get(id=vendor_id)
-            else:
-                vendor = Vendor()
-            vendor.vendor_type = request.POST.get("vendor_type")
-            vendor.salutation = request.POST.get("saluation")
-            vendor.first_name = request.POST.get("first_name")
-            vendor.last_name = request.POST.get("last_name")
-            vendor.company_name = request.POST.get("company_name")
-            vendor.display_name = request.POST.get("display_name")
+            vendor = Vendor()
+            vendor.vendor_code = vendor_code
+            vendor.vendor_name = vendor_name
+            #vendor.gst_number = gst_number
+            vendor.tax_percent = tax_percent if tax_percent else None
+            vendor.min_order_value = min_order_value if min_order_value else None
+            vendor.is_taxable = is_taxable
+            vendor.default_warehouse =  default_warehouse if default_warehouse else None
+            vendor.payment_term =  payment_term if payment_term else None
+            vendor.bank_name = bank_name
+            vendor.bank_branch = bank_branch
+            vendor.currency = currency
 
-            if action_type != "update":
-                vendor.vendor_code = request.POST.get("vendor_code")
+            vendor.account_number = account_number
+            #vendor.vendor_type = company_type
 
-            vendor.email_address = request.POST.get("email_address")
-            vendor.work_phone = request.POST.get("work_phone")
-            vendor.mobile_number = request.POST.get("mobile_number")
-            vendor.registered_business = bool(request.POST.get("registeredBusiness"))
-            vendor.company_abn = request.POST.get("company_abn")
-            vendor.company_acn = request.POST.get("company_acn")
-            vendor.currency = request.POST.get("currency")
-            vendor.vendor_remarks = request.POST.get("vendor_remarks")
-            vendor.payment_method = request.POST.get("payment_method")
+            vendor.reminder = reminder
+            vendor.remarks =remarks
             vendor.created_by = request.user.id
-            vendor.status = 1
-            if request.POST.get("payment_term"):
-                vendor.payment_term = PaymentTerm.objects.get(id=int(request.POST["payment_term"]))
-            if request.FILES.get("documents"):
-                vendor.documents = request.FILES["documents"]
-            vendor.full_clean()
+            vendor.status = vendor_status
+            vendor.company_abn = company_abn
+            vendor.company_acn = company_acn
+
             vendor.save()
-            if request.POST["billing_country"]:
-                status = save_address(request, "billing", vendor.id)
 
-            if request.POST["shipping_country"]:
-                status = save_address(request, "shipping", vendor.id)
 
-        return JsonResponse({"status": True, "vendor_id": vendor.id})
+        return JsonResponse({"status": True, "message":"Vendor created successfully", "vendor_id": vendor.id})
 
     except Exception as e:
-        error_text = str(e)
-        try:
-            error_dict = ast.literal_eval(error_text)
-        except:
-            error_dict = {"error": error_text}
-
-        alias = {
-            "first_name": "First Name",
-            "last_name": "Last Name"
-        }
-        formatted_errors = {alias.get(k, k): v for k, v in error_dict.items()}
         return JsonResponse({
             "status": False,
-            "message": "Error in vendor create - "+str(formatted_errors),
-            "detail": formatted_errors
+            "message": "Error in vendor create - "+str(e),
+            "detail": str(e)
         }, status=500)
 
-def save_address(request, type, vendor_id):
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def upload_vendor_files(request):
+    vendor_id = request.data.get("vendor_id")
+    uploaded_file = request.FILES.get("file")
+
+    if not vendor_id or not uploaded_file:
+        return JsonResponse({"status": False, "message": "Missing file or vendor ID"})
+
+    try:
+        # 1. Define relative and absolute paths
+        # Using relative path 'uploads/vendors/' for database storage
+        relative_folder = os.path.join("vendor_documents", str(vendor_id))
+        absolute_folder = os.path.join(settings.MEDIA_ROOT, relative_folder)
+        os.makedirs(absolute_folder, exist_ok=True)
+
+        file_name = uploaded_file.name
+        absolute_path = os.path.join(absolute_folder, file_name)
+        db_path = os.path.join(relative_folder, file_name)
+
+        # 2. Save the file
+        with open(absolute_path, "wb+") as destination:
+            for chunk in uploaded_file.chunks():
+                destination.write(chunk)
+
+        # 3. Create Database Entry
+        new_doc = VendorDocuments.objects.create(
+            vendor_id=vendor_id,
+            file_name=file_name,
+            file_path=db_path,
+            created_by=request.user.id if request.user.is_authenticated else 0
+        )
+
+        # 4. Return data for the frontend table
+        return JsonResponse({
+            "status": True,
+            "message": "File uploaded successfully",
+            "new_file": {
+                "id": new_doc.file_id,
+                "file_path": file_name,
+                "created_by": f"{settings.MEDIA_URL}{db_path}",
+                "created_at": f""
+            }
+        })
+
+    except Exception as e:
+        return JsonResponse({"status": False, "message": str(e)})
+
+
+from django.http import JsonResponse
+
+@api_view(["DELETE"])
+def delete_vendor_document(request, file_id):
+    """
+    Deletes the physical file and the database record for a vendor document.
+    """
+    try:
+        # 1. Retrieve the document record
+        document = VendorDocuments.objects.get(file_id=file_id)
+
+        # 2. Delete the physical file from disk
+        # Using document.file_path.delete() handles the os.remove logic automatically
+        if document.file_path:
+            document.file_path.delete(save=False)
+
+        # 3. Delete the database entry
+        document.delete()
+
+        return JsonResponse({
+            "status": True,
+            "message": "Vendor document deleted successfully"
+        })
+
+    except VendorDocuments.DoesNotExist:
+        return JsonResponse({
+            "status": False,
+            "message": "File record not found"
+        }, status=404)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": False,
+            "message": str(e)
+        }, status=500)
+
+
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+@api_view(["POST"])
+@parser_classes([MultiPartParser, FormParser, JSONParser])
+def api_save_vendor(request):
+    data = request.data
+
+    # Parse JSON safely
+    try:
+        primary = json.loads(data.get("primary", "{}"))
+        details = json.loads(data.get("details", "{}"))
+    except json.JSONDecodeError:
+        return JsonResponse({
+            "status": False,
+            "message": "Invalid JSON payload"
+        }, status=400)
+
+    vendor_id = data.get("vendor_id")
+
+    if not vendor_id:
+        return JsonResponse({
+            "status": False,
+            "message": "Vendor ID is required"
+        }, status=400)
+
+    vendor_code = (primary.get("vendor_code") or "").strip()
+    vendor_name = (primary.get("vendor_name") or "").strip()
+    gst_number = primary.get("gst_number")
+
+    # Validation
+    if not vendor_code or not vendor_name:
+        return JsonResponse({
+            "status": False,
+            "message": "Vendor code and Vendor name are required"
+        }, status=400)
+
+    if Vendor.objects.filter(vendor_code=vendor_code).exclude(id=vendor_id).exists():
+        return JsonResponse({
+            "status": False,
+            "message": "Vendor code already exists"
+        }, status=400)
+
+    if Vendor.objects.filter(vendor_name=vendor_name).exclude(id=vendor_id).exists():
+        return JsonResponse({
+            "status": False,
+            "message": "Vendor name already exists"
+        }, status=400)
+    if not vendor_name:
+        if Vendor.objects.filter(gst_number=gst_number).exclude(id=vendor_id).exists():
+            return JsonResponse({
+                "status": False,
+                "message": "Vendor GST already exists"
+            }, status=400)
+
+    try:
+        with transaction.atomic():
+
+            is_taxable = get_bool_int(primary, "is_taxable")
+            tax_percent = primary.get("tax_percent") or  0.0
+            if not is_taxable:
+                is_taxable = 0
+                tax_percent = 0.0
+
+            vendor = Vendor.objects.get(id=vendor_id)
+            vendor.vendor_code = vendor_code
+            vendor.vendor_name = vendor_name
+            vendor.gst_number = gst_number or None
+            vendor.tax_percent = tax_percent
+            vendor.is_taxable = is_taxable
+            vendor.default_warehouse = primary.get("default_warehouse") or None
+            vendor.payment_term = primary.get("payment_term") or None
+            vendor.bank_name = primary.get("bank_name") or None
+            vendor.company_acn = primary.get("company_acn") or None
+            vendor.company_abn = primary.get("company_abn") or None
+            vendor.bank_branch = primary.get("bank_branch") or None
+            vendor.currency = primary.get("currency") or None
+            vendor.status = primary.get("status") or 0
+            vendor.account_number = primary.get("account_number") or None
+            vendor.remarks = primary.get("remarks") or None
+            vendor.reminder = primary.get("reminder") or None
+            vendor.min_order_value = primary.get("min_order_value") or None
+            vendor.save()
+
+            if details.get("billing_address"):
+                save_address(
+                    details["billing_address"],
+                    "billing",
+                    vendor.id,
+                    "API",
+                    int(request.user.id)
+                )
+
+            if details.get("shipping_address"):
+                save_address(
+                    details["shipping_address"],
+                    "shipping",
+                    vendor.id,
+                    "API",
+                    int(request.user.id)
+                )
+
+        return JsonResponse({
+            "status": True,
+            "vendor_id": vendor.id
+        })
+
+    except Vendor.DoesNotExist:
+        return JsonResponse({
+            "status": False,
+            "message": "Invalid vendor details"
+        }, status=404)
+
+    except Exception as e:
+        return JsonResponse({
+            "status": False,
+            "message": "Error in vendor update",
+            "detail": str(e)
+        }, status=500)
+
+def save_address(request, type, vendor_id, method="POST", user_id=1):
     try:
         field_prefix = f"{type}_"
 
@@ -476,27 +928,43 @@ def save_address(request, type, vendor_id):
         ).first()
 
         if relation:
-            address_obj = Addresses.objects.get(id=relation.address_id)
-            is_new = False
+            address_obj = Addresses.objects.filter(id=relation.address_id).first()
+            if address_obj:
+                is_new = False
+            else:
+                # relation exists but address missing
+                address_obj = Addresses()
+                is_new = True
         else:
             address_obj = Addresses()
             is_new = True
+        if method == "POST":
+            address_obj.attention_name = request.POST.get(field_prefix + "attention_name")
+            address_obj.street1 = request.POST.get(field_prefix + "street1")
+            address_obj.street2 = request.POST.get(field_prefix + "street2")
+            address_obj.city = request.POST.get(field_prefix + "city")
+            address_obj.zip = request.POST.get(field_prefix + "zip")
+            address_obj.phone = request.POST.get(field_prefix + "phone")
+            address_obj.fax = request.POST.get(field_prefix + "fax")
 
-        address_obj.attention_name = request.POST.get(field_prefix + "attention_name")
-        address_obj.street1 = request.POST.get(field_prefix + "street1")
-        address_obj.street2 = request.POST.get(field_prefix + "street2")
-        address_obj.city = request.POST.get(field_prefix + "city")
-        address_obj.zip = request.POST.get(field_prefix + "zip")
-        address_obj.phone = request.POST.get(field_prefix + "phone")
-        address_obj.fax = request.POST.get(field_prefix + "fax")
-
-        country_id = request.POST.get(field_prefix + "country")
-        state_id = request.POST.get(field_prefix + "state")
+            country_id = request.POST.get(field_prefix + "country")
+            state_id = request.POST.get(field_prefix + "state")
+            user_id = request.user.id
+        else:
+            address_obj.attention_name = request.get("attention")
+            address_obj.street1 =request.get( "street1")
+            address_obj.street2 =request.get("street2")
+            address_obj.city = request.get( "city")
+            address_obj.zip = request.get("zip")
+            address_obj.phone = request.get("phone")
+            address_obj.fax = request.get("fax")
+            country_id = request.get("country")
+            state_id = request.get("state")
 
         address_obj.country = Country.objects.get(id=country_id) if country_id else None
         address_obj.state = State.objects.get(id=state_id) if state_id else None
 
-        address_obj.created_by = request.user.id
+        address_obj.created_by = user_id
         address_obj.save()
 
         if is_new:
@@ -504,7 +972,7 @@ def save_address(request, type, vendor_id):
                 vendor_id=vendor_id,
                 address_id=address_obj.id,
                 address_type=type,
-                created_by=request.user.id
+                created_by=user_id,
             )
 
         return True
@@ -560,70 +1028,70 @@ def extract_contacts(request):
 
     return contacts
 
-@login_required
+@api_view(["POST"])
 def add_newvendor_contact(request, vendor_id):
-    if request.method == "POST":
-        if not vendor_id:
-            return JsonResponse({"status": False, "message": "Required fields missing"})
+    data = request.data
+    if not vendor_id:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
+    print(data)
+    if not data.get("first_name") and not data.get("last_name"):
+        return JsonResponse({"status":False, "message":"Required fields missing"})
 
-        if not request.POST.get("first_name") and not request.POST.get("last_name"):
-            return JsonResponse({"status":False, "message":"Required fields missing"})
-
-        VendorContact.objects.create(
-            vendor_id=vendor_id,
-            department=request.POST.get("department"),
-            email=request.POST.get("email"),
-            phone=request.POST.get("phone"),
-            first_name=request.POST.get("first_name"),
-            last_name=request.POST.get("last_name"),
-            description=request.POST.get("description"),
-            role=request.POST.get("role"),
-            created_by=request.user.id
-        )
+    VendorContact.objects.create(
+        vendor_id=vendor_id,
+        department=data.get("department"),
+        email=data.get("email"),
+        phone=data.get("phone"),
+        first_name=data.get("first_name"),
+        last_name=data.get("last_name"),
+        description=data.get("description"),
+        role=data.get("role"),
+        created_by=request.user.id
+    )
 
     return JsonResponse({"status":True, "message":"Contact created successfully"})
 
+@api_view(["POST"])
 def update_vendor_contact(request, contact_id):
-    if request.method == "POST":
-        if not contact_id:
-            return JsonResponse({"status": False, "message": "Required fields missing"})
+    data = request.data
+    if not contact_id:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
 
-        if not request.POST.get("first_name") and not request.POST.get("last_name"):
-            return JsonResponse({"status": False, "message": "Required fields missing"})
+    if not data.get("first_name") and not data.get("last_name"):
+        return JsonResponse({"status": False, "message": "Required fields missing"})
 
-        vendor_contact = VendorContact.objects.get(id=contact_id)
-        vendor_contact.department = request.POST.get("department")
-        vendor_contact.email = request.POST.get("email")
-        vendor_contact.phone = request.POST.get("phone")
-        vendor_contact.first_name = request.POST.get("first_name")
-        vendor_contact.last_name = request.POST.get("last_name")
-        vendor_contact.description = request.POST.get("description")
-        vendor_contact.role = request.POST.get("role")
-        vendor_contact.save()
+    vendor_contact = VendorContact.objects.get(id=contact_id)
+    vendor_contact.department = data.get("department")
+    vendor_contact.email = data.get("email")
+    vendor_contact.phone = data.get("phone")
+    vendor_contact.first_name = data.get("first_name")
+    vendor_contact.last_name = data.get("last_name")
+    vendor_contact.description = data.get("description")
+    #vendor_contact.role = data.get("role")
+    vendor_contact.save()
     return JsonResponse({"status": True, "message": "Contact updated successfully"})
 
-@login_required
+@api_view(["POST"])
 def update_vendor_bank(request, bank_id):
-    if request.method == "POST":
-        if not bank_id:
-            return JsonResponse({"status": False, "message": "Required fields missing"})
+    if not bank_id:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
+    data = request.data
+    if not data.get("account_number") and not data.get("account_holder"):
+        return JsonResponse({"status": False, "message": "Required fields missing"})
 
-        if not request.POST.get("account_number") and not request.POST.get("account_holder"):
-            return JsonResponse({"status": False, "message": "Required fields missing"})
-
-        vendor_bank = VendorBank.objects.get(id=bank_id)
-        vendor_bank.account_holder = request.POST.get("account_holder")
-        vendor_bank.bank_name = request.POST.get("bank_name")
-        vendor_bank.account_number = request.POST.get("account_number")
-        vendor_bank.bic = request.POST.get("bic")
-        vendor_bank.save()
+    vendor_bank = VendorBank.objects.get(id=bank_id)
+    vendor_bank.account_holder = data.get("account_holder")
+    vendor_bank.bank_name = data.get("bank_name")
+    vendor_bank.account_number = data.get("account_number")
+    vendor_bank.bic = data.get("bic")
+    vendor_bank.save()
     return JsonResponse({"status": True, "message": "Bank details updated successfully"})
 
 from django.core import serializers as core_serializers
 from store_admin.models.serializers.common_serializers import VendorContactSerializer, VendorBankSerializer
 
 
-@login_required
+
 def get_all_vendor_contacts(request,vendor_id):
     if vendor_id == None:
         return JsonResponse({"status": False, "message": "Required fields missing"})
@@ -632,7 +1100,7 @@ def get_all_vendor_contacts(request,vendor_id):
         serialized_data = VendorContactSerializer(contacts_queryset, many=True)
         return JsonResponse({"status": True, "data": serialized_data.data})
 
-@login_required
+
 def get_single_vendor_contact(request, vendor_id, contact_id):
     if vendor_id == None:
         return JsonResponse({"status": False, "message": "Required fields missing"})
@@ -641,7 +1109,7 @@ def get_single_vendor_contact(request, vendor_id, contact_id):
         serialized_data = VendorContactSerializer(contacts_queryset)
         return JsonResponse({"status": True, "data": serialized_data.data})
 
-@login_required
+
 def delete_vendor_contact(request, contact_id, vendor_id):
     try:
         obj = VendorContact.objects.filter(id=contact_id,vendor_id=vendor_id).first()
@@ -653,7 +1121,7 @@ def delete_vendor_contact(request, contact_id, vendor_id):
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)})
 
-@login_required
+@api_view(["DELETE"])
 def delete_vendor(request, vendor_id):
     if request.method != "DELETE":
         return JsonResponse({"status": False, "message": "Invalid request method"}, status=400)
@@ -676,6 +1144,8 @@ def delete_vendor(request, vendor_id):
                 vendor_id=vendor_id
             ).values_list('address_id', flat=True)).delete()
 
+            if PurchaseOrder.objects.filter(vendor_id=vendor_id).exists():
+                return JsonResponse({"status": False, "message": "This Vendor has Purchase Orders, Can not delete this vendor", "error":"Vendor has PO"})
 
             VendorAddress.objects.filter(vendor_id=vendor_id).delete()
             vendor.delete()
@@ -686,7 +1156,7 @@ def delete_vendor(request, vendor_id):
 
 from django.http import JsonResponse
 import json
-@login_required
+
 def delete_vendors_bulk(request):
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "Invalid request"})
@@ -709,7 +1179,7 @@ def delete_vendors_bulk(request):
 
     return JsonResponse({"status": "success", "deleted": len(ids)})
 
-@login_required
+
 def delete_vendor_bank(request, bank_id, vendor_id):
     try:
         obj = VendorBank.objects.filter(id=bank_id,vendor_id=vendor_id).first()
@@ -724,7 +1194,7 @@ def delete_vendor_bank(request, bank_id, vendor_id):
 
 
 #vnew vendor bank details
-@login_required
+
 def get_all_vendor_banks(request, vendor_id):
     # Filter by the integer vendor_id
     banks_queryset = VendorBank.objects.filter(vendor_id=vendor_id)
@@ -735,29 +1205,27 @@ def get_all_vendor_banks(request, vendor_id):
     return JsonResponse({"status": True, "data": serializer.data})
 
 
-@login_required
+@api_view(["POST"])
 def add_new_vendor_bank(request, vendor_id):
-    if request.method == "POST":
-        data = request.POST.copy()
+    data = request.data
 
-        # Ensure the vendor_id is explicitly set from the URL argument
-        data['vendor_id'] = vendor_id
-        # Set created_by if needed (e.g., current user's ID)
-        data['created_by'] = request.user.id if request.user.is_authenticated else 0
+    # Ensure the vendor_id is explicitly set from the URL argument
+    data['vendor_id'] = vendor_id
+    # Set created_by if needed (e.g., current user's ID)
+    data['created_by'] = request.user.id if request.user.is_authenticated else 0
 
-        serializer = VendorBankSerializer(data=data)
+    serializer = VendorBankSerializer(data=data)
 
-        if serializer.is_valid():
-            serializer.save()
-            return JsonResponse({"status": True, "message": "Bank details added successfully."})
-        else:
-            # Return detailed error messages from the serializer
-            return JsonResponse({"status": False, "message": serializer.errors})
-
-    return JsonResponse({"status": False, "message": "Only POST method supported."}, status=405)
+    if serializer.is_valid():
+        serializer.save()
+        return JsonResponse({"status": True, "message": "Bank details added successfully."})
+    else:
+        # Return detailed error messages from the serializer
+        return JsonResponse({"status": False, "message": serializer.errors})
 
 
-@login_required
+
+
 def get_single_vendor_bank(request, vendor_id, bank_id):
     if vendor_id == None or bank_id is None:
         return JsonResponse({"status": False, "message": "Required fields missing"})

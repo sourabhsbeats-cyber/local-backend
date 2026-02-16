@@ -53,6 +53,7 @@ class Manufacturer(models.Model):
 class UnitOfMeasurements(models.Model):
     measurement_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=120)
+    short_name = models.CharField(max_length=10)
     status = models.PositiveIntegerField(default=0)
     created_at = models.PositiveIntegerField()
     created_by = models.DateTimeField(auto_now=True)

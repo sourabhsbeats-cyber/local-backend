@@ -153,7 +153,7 @@ class PurchaseOrder(models.Model):
 
     parent_po_id = models.IntegerField(blank=True, null=True)
 
-    tax_percentage = models.DecimalField(max_digits=10, decimal_places=4, default=1)
+
     payment_term_id = models.IntegerField(blank=True, null=True)
     city = models.CharField(max_length=100, blank=True, null=True)
     comments = models.TextField(blank=True, null=True)
@@ -181,6 +181,10 @@ class PurchaseOrder(models.Model):
 
     updated_by = models.IntegerField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
+
+    global_tax_rate = models.DecimalField(max_digits=10, decimal_places=4, default=10.0)
+    minimum_order_value = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True)
+    global_discount_percentage = models.DecimalField(max_digits=10, decimal_places=4, blank=True, null=True)
 
     sub_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # qty*price
     tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtital 's tax amount
@@ -214,28 +218,44 @@ class PurchaseOrderItem(models.Model):
     #product = models.ForeignKey("Product", on_delete=models.SET_NULL, null=True)
     po_id  = models.IntegerField(blank=True, null=True)
     product_id  = models.IntegerField(blank=True, null=True)
+
     qty = models.IntegerField(default=1)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # qty*price
     tax_percentage = models.DecimalField(max_digits=10, decimal_places=2, default=0) #tax %
-    discount_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0) # disc %
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtital 's tax amount
 
-    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0) #qty*price
-    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0) #subtital 's tax amount
+    discount_percentage = models.DecimalField(max_digits=10, decimal_places=2, default=0) # disc %
+    discount_amt = models.DecimalField(max_digits=12, decimal_places=2,
+                                       default=0)  # subtotal's discount percentage amount
+    landed_cost = models.DecimalField(max_digits=12, decimal_places=2,
+                                       default=0)
+    cost_per_item = models.DecimalField(max_digits=12, decimal_places=2,
+                                      default=0)
+    #unit_cost
+    #costing_total
+    #total_unit_cost
+    #landed_cost
+    #comments
+
+
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0) #subtotal + taxamount
-    discount_amt = models.DecimalField(max_digits=12, decimal_places=2, default=0) #subtotal's discount percentage amount
+
+    delivery_date = models.DateField(blank=True, null=True)
 
     created_by = models.IntegerField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     unit = models.CharField(max_length=10, blank=True, null=True)
+    comment = models.CharField(max_length=120, blank=True, null=True)
+
+
     #To track the received qty from Purchase Orders receives
     received_qty = models.IntegerField(blank=True, null=True, default=0)
     # To track the pending qty from Purchase Orders receives
     pending_qty = models.IntegerField(blank=True, null=True, default=0)
     ordered_qty = models.IntegerField(blank=True, null=True, default=0)
 
-    order_ref = models.CharField(max_length=80, blank=True, null=True)
-    order_type = models.CharField(max_length=80, blank=True, null=True)
     def save(self, *args, **kwargs):
         # Auto calculate line amount:
         is_create = self.pk is None

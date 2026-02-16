@@ -11,19 +11,23 @@ from .views.settings.product_settings import product_settings
 
 urlpatterns = [
     # Product Management
-    path('addproduct/', product_view.add_new, name='add_new_product'),
-    path('create/', product_view.add_new, name='create_new_product'),
+    #path('addproduct/', product_view.add_new, name='add_new_product'),
+    path('create', product_view.api_create_product),
+    path('details/<int:product_id>/', product_view.get_product_details_api),
+    path('update/<int:product_id>/', product_view.save, name='update_product'),
+
+
     path('save_new_product/', product_view.create_product, name='save_new_product'),
-    path('update/', product_view.save, name='update_product'),
-    path('<int:product_id>/edit', product_view.edit_product, name='edit_product'),
+
     path('download_sample/<str:file_type>/<str:file_format>', bulk_import_product_view.download_product_template, name='download_product_template'),
-    path("delete_bulk/", product_view.delete_product_bulk, name="delete_products_bulk"),
+
     path("delete/<int:product_id>/", product_view.delete_product, name="delete_product_single"),
-    path('allproducts', product_view.listing, name='all_products'),
     path('api/allproducts', product_view.products_json, name='all_products_json'),
+    path('api/get_all_product_types', product_view.get_all_product_types),
 
     #bulk upload
     # stage 1 - Form
+    path("delete_bulk/", product_view.delete_product_bulk, name="delete_products_bulk"),
     path('import_product', bulk_import_product_view.import_product, name='import_product'),
     # stage 2 import_vendor_file_upload
     path('import_product/uploadfile_and_validate', bulk_import_product_view.import_product_validate,

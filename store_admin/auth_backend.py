@@ -17,7 +17,7 @@ class CustomDBAuth(BaseBackend):
                 return None
 
             user_id, email, pw_hash = row[0], row[1], row[2]
-            print(user_id)
+            print("CustomDBAuth")
             if not check_password(password, pw_hash):
                 return None
 
