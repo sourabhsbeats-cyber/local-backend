@@ -135,7 +135,9 @@ def confirm_import_vendor(request):
                         account_number = str(int(raw_acct)) if isinstance(raw_acct, (int, float)) else str(raw_acct).strip()
 
                     # Status mapping
+
                     status_name = (item.get('Status') or '').strip()
+
                     try:
                         status_id = VendorStatus[status_name.upper().replace(" ", "_")].value if status_name else VendorStatus.PENDING
                     except KeyError:
@@ -176,7 +178,7 @@ def confirm_import_vendor(request):
                             vendor_code=vendor_code,
                             vendor_name=vendor_name,
                             gst_number=clean_val(item.get('GST Number')),
-                            payment_term=payment_term,
+                            payment_term=payment_term_id,
                             company_abn=clean_val(item.get('Company ABN')),
                             company_acn=clean_val(item.get('Company ACN')),
                             is_taxable=0 if str(item.get('Taxable', '')).lower() == 'yes' else 1,

@@ -18,7 +18,7 @@ urlpatterns = [
     path('api/vendorsearch', vendor_views.api_vendor_search, name='api_vendor_search'),
     path('api/addvendor/', vendor_views.api_add_new_vendor, name='api_add_new_vendor'),
     path("api/delete/<int:vendor_id>", vendor_views.delete_vendor),
-    path('api/save_vendor_details', vendor_views.api_save_vendor, name='api_save_vendor'),
+    path('api/save_vendor_details', vendor_views.api_save_vendor),
     path('api/vendor_warehouse/get_all/<int:vendor_id>', vendor_views.api_vendor_warehouses),
     path('api/vendor_warehouse/addNew/<int:vendor_id>', vendor_views.WarehouseDetailManager.as_view()),
     path('api/vendor_warehouse/update/<int:warehouse_id>', vendor_views.WarehouseDetailManager.as_view()),

@@ -1,14 +1,21 @@
 import datetime
+import os
 
 from time import timezone
-
+from decimal import Decimal, InvalidOperation
+from django.db import transaction
+from django.http import JsonResponse
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db.models.expressions import d
 from django.urls import reverse
-
-from store_admin.helpers import name_validator_none,getUserName, reference_validator, zip_validator, \
-    get_prep_label, format_tax_percentage, validate_purchase_order_model, safe_df
+from django.utils import timezone
+from django.utils.html import escape
+from django.utils.dateformat import format as df
+from sbadmin import settings
+from store_admin.AuthHandler import StrictJWTCookieAuthentication
+from store_admin.helpers import name_validator_none, getUserName, reference_validator, zip_validator, \
+    get_prep_label, format_tax_percentage, validate_purchase_order_model, safe_df, getPaymentTermName
 from store_admin.models.organization_model import OrganizationInventoryLocation
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.address_model import Addresses
@@ -18,8 +25,9 @@ from store_admin.models.po_models.po_models import (PurchaseOrder, PurchaseOrder
                                                     PurchaseOrderShipping, \
                                                     PurchaseOrderVendorDetails, PurchaseReceives, PurchaseReceivedItems,
                                                     PurchaseBills, PurchaseBillItems, PurchasePayments, POStatus,
-                                                    PurchaseOrderFiles, POShippingStatus, PurchaseOrderPrimaryDetails,
-                                                    PurchaseOrderInvoiceDetails, po_status_list)
+                                                    PurchaseOrderFiles,
+                                                    PurchaseOrderInvoiceDetails)
+from store_admin.models.po_models.po_receipt_model import PurchaseReceiptItem, PurchaseReceipt
 from store_admin.models.product_model import Product, ProductImages
 from store_admin.models.setting_model import UnitOfMeasurements, ShippingProviders
 from store_admin.models.vendor_models import Vendor, VendorAddress
@@ -33,7 +41,7 @@ import math
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from rest_framework.renderers import JSONRenderer
-from rest_framework.decorators import renderer_classes
+from rest_framework.decorators import renderer_classes, authentication_classes
 from rest_framework.decorators import permission_classes
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -47,98 +55,222 @@ from store_admin.views.libs.common import clean_percent
 from store_admin.views.serializers.product_serializers import ProductImageSerializer
 from decimal import Decimal, InvalidOperation
 
+from datetime import timedelta
+from django.utils import timezone
+
+def delete_old_predraft_pos():
+    cutoff_time = timezone.now() - timedelta(hours=4)
+
+    deleted_count, _ = PurchaseOrder.objects.filter(
+        vendor_id__isnull=True,
+        created_at__lt=cutoff_time
+    ).delete()
+
+    return deleted_count
+
 
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
-@login_required
 def create_po_api_order(request):
+    cnt = delete_old_predraft_pos()
+    last_po = PurchaseOrder.objects.filter(
+        po_number__startswith="PO",
+        parent_po_id=None, source_po_id=None
+    ).exclude(
+        vendor_code=""
+    ).exclude(
+        vendor_id__isnull=True
+    ).order_by("-po_id").first()
+
+    if last_po and last_po.po_number:
+        try:
+            last_num = int(last_po.po_number.replace("PO", ""))
+            next_num = last_num + 1
+        except ValueError:
+            next_num = 1
+    else:
+        next_num = 1
+    po_number = f"PO{next_num:04d}"
+    # Duplicate check
+    while PurchaseOrder.objects.filter(po_number=po_number).exists():
+        next_num += 1
+        po_number = f"PO{next_num:04d}"
+
+    po_number = f"PO{next_num:04d}"
+
     po = PurchaseOrder.objects.create(
+        po_number=po_number,
         vendor_code="",
         vendor_name="",
         created_by=request.user.id,
         global_tax_rate=10.0,
-        status_id=POStatus.DRAFT__PENDING  # Created / Draft
+        status_id=POStatus.DRAFT
     )
-    po_number = f"PO{po.po_id:04d}"
 
-    #  Update the record with PO number
-    po.po_number = po_number
-    po.save()
-    return JsonResponse({"status":True, "data":{"po_id":po.po_id}, "message":"PO Created"})
+    return JsonResponse({
+        "status": True,
+        "data": {"po_id": po.po_id},
+        "message": "PO Created"
+    })
+
+
+
+def calculate_product_landed_cost(po_id, product_id):
+    po = PurchaseOrder.objects.filter(po_id=po_id, is_archived=0).only(
+        "shipping_charge", "surcharge_total"
+    ).first()
+    if not po:
+        return None
+
+    items = list(PurchaseOrderItem.objects.filter(po_id=po_id).only(
+        "product_id", "qty", "price", "tax_percentage", "discount_percentage", "subtotal"
+    ))
+    if not items:
+        return None
+
+    item = next((i for i in items if i.product_id == product_id), None)
+    if not item:
+        return None
+
+    total_extra_cost = Decimal(po.shipping_charge or 0) + Decimal(po.surcharge_total or 0)
+
+    # ✅ subtotal proportional — discount already applied
+    total_subtotal = sum(Decimal(i.subtotal or 0) for i in items)
+
+    item_subtotal = Decimal(item.subtotal or 0)
+    item_qty      = Decimal(item.qty or 1)
+
+    # ✅ proportional extra cost for this item total
+    if total_subtotal > 0:
+        item_extra_total = (item_subtotal / total_subtotal) * total_extra_cost
+    else:
+        item_extra_total = Decimal("0")
+
+    # ✅ landed cost total (not per unit) — no rounding until end
+    item_landed_total_exc = item_subtotal + item_extra_total
+
+    # ✅ per unit
+    landed_ex_gst = item_landed_total_exc / item_qty
+
+    tax_rate = Decimal(item.tax_percentage or 0) / 100
+
+    product = Product.objects.filter(product_id=product_id).only("is_taxable").first()
+    if product and product.is_taxable:
+        landed_inc_gst = landed_ex_gst * (1 + tax_rate)
+    else:
+        landed_inc_gst = landed_ex_gst
+
+    return (
+        landed_ex_gst.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP),
+        landed_inc_gst.quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP),
+    )
+
+
+def get_po_invoice_totals(po_id):
+    invoices = PurchaseOrderInvoiceDetails.objects.filter(po_id=po_id)
+    if not invoices.exists():
+        return None
+
+    # Total Raised
+    total_raised = invoices.aggregate(
+        total=Sum("invoice_total")
+    )["total"] or Decimal("0.00")
+
+    # Total Paid
+    total_paid = invoices.filter(
+        payment_status_id=1   # adjust if needed
+    ).aggregate(
+        total=Sum("invoice_total")
+    )["total"] or Decimal("0.00")
+
+    total_pending = total_raised - total_paid
+
+    return  total_raised.quantize(Decimal("0.01")),  total_paid.quantize(Decimal("0.01")), total_pending.quantize(Decimal("0.01"))
 
 @api_view(["GET"])
 def get_po_details(request, po_id):
     po = PurchaseOrder.objects.filter(po_id=po_id, is_archived=0).first()
     if not po:
-        return JsonResponse({"status":False, "message":"Invalid PO" }, status=404)
+        return JsonResponse({"status": False, "message": "Invalid PO"}, status=404)
 
-    # category = Category.objects.filter(status=1).all()
-    #warehouses = Warehouse.objects.all()
-    # unit_of_measures = UnitOfMeasurements.objects.all()
-    # vendors = Vendor.objects.filter(status=1).all()
-    # countries_list = Country.objects.values('name', 'id', 'currency')
-    # currency_list = Country.objects.values('currency').annotate(
-    #     id=Min('id'),  # pick country with smallest ID per currency
-    #     currency_name=Min('currency_name')
-    # )
+    po_receive_id = None
+    invpayment_details = get_po_invoice_totals(po_id)
+    total_raised = total_paid = total_pending = Decimal(0.0)
+    if invpayment_details is not None:
+        total_raised, total_paid, total_pending = invpayment_details
+
     po_order_items = PurchaseOrderItem.objects.filter(po_id=po_id).all()
 
-    line_items = []
+    NO_IMAGE = request.build_absolute_uri(static("sbadmin/dist/img/no_product_image.png"))
 
-    NO_IMAGE = static("no_product_image.png")
-    # Build Response
+    line_items = []
+    total_po_landed_cost = Decimal("0.00")
 
     for po_order_item in po_order_items:
         po_product = Product.objects.filter(product_id=po_order_item.product_id).first()
-        po_images = ProductImages.objects.filter(product_id=po_order_item.product_id).order_by(
-            "product_image_id").first()
+        po_images  = ProductImages.objects.filter(product_id=po_order_item.product_id).order_by("product_image_id").first()
+
+        cost_exc_gst = cost_inc_gst = Decimal("0.00")
+        result = calculate_product_landed_cost(po_id, po_order_item.product_id)
+        if result is not None:
+            cost_exc_gst, cost_inc_gst = result
+
+        qty = Decimal(po_order_item.qty or 0)
+
+        # ✅ Per item landed cost total (exc + inc)
+        item_landed_exc = cost_exc_gst * qty
+        item_landed_inc = cost_inc_gst * qty
+        total_po_landed_cost += item_landed_inc  # ✅ accumulate all items
+
         line_items.append({
             "row_item": {
-                "id": po_product.product_id,
-                "title": po_product.title,
-                "image": po_images.cdn_url if po_images else NO_IMAGE,
-                "stock_qty": 0,  # if you have stock, replace 0
-                "sku": po_product.sku,
-                "asin": po_product.asin, "fnsku": po_product.fnsku, "ean": po_product.ean,
-                "prep_type": "", # get_prep_label(po_product.prep_type),
-                "product_order_type": "", #po_product.order_type,  # send as number for JS
-                "product_order_ref": "", #po_product.order_ref,  # send as number for JS
-                "is_taxable": True if po_product.is_taxable else False,
+                "id":                 po_product.product_id,
+                "title":              po_product.title,
+                "image":              po_images.cdn_url if po_images else NO_IMAGE,
+                "stock_qty":          0,
+                "sku":                po_product.sku,
+                "asin":               po_product.asin,
+                "fnsku":              po_product.fnsku,
+                "ean":                po_product.ean,
+                "prep_type":          "",
+                "product_order_type": "",
+                "product_order_ref":  "",
+                "is_taxable":         True if po_product.is_taxable else False,
             },
-            "barcode_label_type": po_product.barcode_label_type,
-            "qty": int(po_order_item.qty),
-            "price": float(po_order_item.price),
-            "discount": float(po_order_item.discount_percentage),
-            "comment": po_order_item.comment,
-            "delivery_date": po_order_item.delivery_date,
-            "tax": float(po_order_item.tax_percentage),
-            "tax_amount": float(po_order_item.tax_amount),
-            "sub_total": float(po_order_item.subtotal),
-            "line_total": float(po_order_item.line_total),
+            "barcode_label_type":  po_product.barcode_label_type,
+            "qty":                 int(po_order_item.qty),
+            "price":               float(po_order_item.price),
+            "landed_cost_ex_gst":  float(cost_exc_gst),        # ✅ per unit
+            "landed_cost_inc_gst": float(cost_inc_gst),        # ✅ per unit
+            "landed_total_ex_gst": float(item_landed_exc),     # ✅ total = unit × qty
+            "landed_total_inc_gst": float(item_landed_inc),    # ✅ total = unit × qty
+            "discount":            float(po_order_item.discount_percentage),
+            "comment":             po_order_item.comment,
+            "delivery_date":       po_order_item.delivery_date,
+            "tax":                 float(po_order_item.tax_percentage),
+            "tax_amount":          float(po_order_item.tax_amount),
+            "sub_total":           float(po_order_item.subtotal),
+            "line_total":          float(po_order_item.line_total),
         })
 
     can_pdf_generate, err_msg = validate_purchase_order_model(po, line_items)
+
     receive_generated = False
     if PurchaseReceives.objects.filter(po_id=po_id).exists():
         receive_generated = True
-    #payment_terms = PaymentTerm.objects.all()
+        po_receive_id = PurchaseReceives.objects.filter(po_id=po_id).first().po_receive_id
 
-    #shipping_details = PurchaseOrderShipping.objects.filter(po_id=po.po_id).all()
     po_vendor_details = PurchaseOrderVendorDetails.objects.filter(po_id=po_id).all()
-    #shipping_providers = ShippingProviders.objects.filter(is_archived=0, status=1).all()
-    #warehouse locations
-    #warehouse_locations = OrganizationInventoryLocation.objects.filter(organization_id=1).all()'po)state_id
-    po_state_id = None
-    if po.state and str(po.state).isdigit():
-        if State.objects.filter(id=po.state).exists():
-            po_state_id = State.objects.filter(id=po.state).first().id
+    vendor_dets       = Vendor.objects.filter(id=po.vendor_id).first()
 
-    po_state_name = None
+    po_state_name  = None
     po_country_name = None
+    po_state_id     = None
 
     try:
-        po_state_name = State.objects.get(id=int(po.state)).name
+        state_obj = State.objects.get(id=int(po.state))
+        po_state_name = state_obj.name
+        po_state_id   = state_obj.id
     except (State.DoesNotExist, ValueError, TypeError):
         pass
 
@@ -147,56 +279,61 @@ def get_po_details(request, po_id):
     except (Country.DoesNotExist, ValueError, TypeError):
         pass
 
-    context = {
-        "po_id": po_id,
-        "can_pdf_generate":can_pdf_generate,
-        "receive_generated":receive_generated,
-        "po": {
-            "created_by_name" : getUserName(po.created_by),
-            "created_at": po.created_at.strftime("%b %d, %Y, %I:%M %p"),
-            "currency_code": po.currency_code,
-            "po_id": po.po_id,
-            "po_number": po.po_number,
-            "sbpo_order_date": po.order_date,
-            "sb_po_delivery_date": po.delivery_date,
-            "global_tax_rate": po.global_tax_rate,
-           # "tax_percentage": float(po.tax_percentage),
-            "minimum_order_value": po.minimum_order_value,
-            "global_discount_percentage": po.global_discount_percentage,
-            "warehouse_id": po.warehouse_id,
-            "po_delivery_name": po.delivery_name,
-            "po_address_line1": po.address_line1,
-            "po_address_line2": po.address_line2,
-            "po_city": po.city,
-            "po_state": po.state,
-            "po_state_name": po_state_name,
-            "po_country_name": po_country_name,
-            "po_state_id": po_state_id,
-            "po_zip": po.post_code,
-            "po_country":po.country_id,
-            "vendor_code": po.vendor_code,
-            "vendor_name": po.vendor_name,
-            "status_id": po.status_id,
+    preferred_shipping_provider = vendor_dets.preferred_shipping_provider if vendor_dets else None
 
-            "comments": po.comments,
-            "shipping_charge": po.shipping_charge,
-            "surcharge_total": po.surcharge_total,
-            "summary_total": po.summary_total,
-            "tax_total": po.tax_total,
-            "sub_total": po.sub_total,
+    context = {
+        "po_id":                po_id,
+        "can_pdf_generate":     can_pdf_generate,
+        "receive_generated":    receive_generated,
+        "po_receive_id":        po_receive_id,
+        "preferred_shipping_provider": preferred_shipping_provider,
+        "po": {
+            "created_by_name":          getUserName(po.created_by),
+            "total_po_landed_cost":     float(total_po_landed_cost),  # ✅ all items total
+            "created_at":               po.created_at.strftime("%b %d, %Y, %I:%M %p"),
+            "currency_code":            po.currency_code,
+            "po_id":                    po.po_id,
+            "po_number":                po.po_number,
+            "sbpo_order_date":          po.order_date,
+            "sb_po_delivery_date":      po.delivery_date,
+            "global_tax_rate":          po.global_tax_rate,
+            "minimum_order_value":      po.minimum_order_value,
+            "global_discount_percentage": po.global_discount_percentage,
+            "warehouse_id":             po.warehouse_id,
+            "po_delivery_name":         po.delivery_name,
+            "po_address_line1":         po.address_line1,
+            "po_address_line2":         po.address_line2,
+            "po_city":                  po.city,
+            "po_state":                 po.state,
+            "po_state_name":            po_state_name,
+            "po_country_name":          po_country_name,
+            "po_state_id":              po_state_id,
+            "po_zip":                   po.post_code,
+            "po_country":               po.country_id,
+            "vendor_code":              po.vendor_code,
+            "vendor_id":                po.vendor_id,
+            "vendor_name":              po.vendor_name,
+            "vendor_payment_term_id":   vendor_dets.payment_term if vendor_dets else None,
+            "vendor_payment_term_name": getPaymentTermName(vendor_dets.payment_term) if vendor_dets else None,
+            "status_id":                po.status_id,
+            "comments":                 po.comments,
+            "shipping_charge":          po.shipping_charge,
+            "surcharge_total":          po.surcharge_total,
+            "summary_total":            po.summary_total,
+            "invoice_total":            total_raised,
+            "invoice_paid":             total_paid,
+            "invoice_balance":          total_pending,
+            "tax_total":                po.tax_total,
+            "sub_total":                po.sub_total,
+            "landed_cost_total":        float(total_po_landed_cost),  # ✅ fixed
         },
-        "po_vendor_details": list(
-            po_vendor_details.values(
-                "po_vendor_id",
-                "vendor_po_number",
-                "order_number",
-                "order_date"
-            )
-        ),
+        "po_vendor_details": list(po_vendor_details.values(
+            "po_vendor_id", "vendor_po_number", "order_number", "order_date", "is_primary"
+        )),
         "line_items": line_items,
     }
 
-    return JsonResponse({"status":True, "message":"success", "data":context})
+    return JsonResponse({"status": True, "message": "success", "data": context})
 
 
 def d2(v):
@@ -216,9 +353,7 @@ def r4(v):
     return v.quantize(Q4, rounding=ROUND_HALF_UP)
 
 
-from decimal import Decimal, InvalidOperation
-from django.db import transaction
-from django.http import JsonResponse
+
 
 @api_view(['POST'])
 def save_po_details(request):
@@ -370,6 +505,7 @@ def save_po_details(request):
                     "vendor_po_number": v_order.get("vendor_po_number"),
                     "order_number": v_order.get("order_number"),
                     "order_date": v_order.get("order_date"),
+                    "is_primary": 1,
                 }
             )
 
@@ -394,10 +530,13 @@ def save_po_details(request):
         po.sub_total = agg['st'] or Decimal("0.00")
         po.tax_total = agg['tt'] or Decimal("0.00")
         po.summary_total = (agg['gt'] or Decimal("0.00")) + po.shipping_charge + po.surcharge_total
-        po.status_id = POStatus.PARKED__PENDING
+
+        if not po.status_id:
+            po.status_id = POStatus.PARKED
+
         po.save()
 
-    return JsonResponse({"status": True, "message": "PO updated successfully"})
+    return JsonResponse({"status": True, "po_status_id":po.status_id, "message": "PO updated successfully"})
 
 
 #UPDATE SAVE PO
@@ -489,8 +628,8 @@ def save_po(request):
 
         po.comments = comments
         po.created_by = request.user.id
-        if po.status_id == POStatus.DRAFT__PENDING:
-            po.status_id = POStatus.PARKED__PENDING #int(po_status)  # POStatus.CREATED
+        if po.status_id == POStatus.DRAFT:
+            po.status_id = POStatus.PARKED #int(po_status)  # POStatus.CREATED
 
         '''sub_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # qty*price
         tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtital 's tax amount
@@ -661,90 +800,71 @@ def save_po(request):
 
     return Response({"status": True, "message": "PO updated successfully"})
 
-from django.utils import timezone
-from django.utils.html import escape
-from django.utils.dateformat import format as df
+def approve_and_create_receive_internal(po_id, user_id):
+    try:
+        po_detail = PurchaseOrder.objects.filter(po_id=po_id).first()
+        if not po_detail:
+            return False, "Invalid PO Details", None, None
+
+        existing_receive = PurchaseReceives.objects.filter(
+            po_id=po_detail.po_id
+        ).order_by("-po_receive_id").first()
+
+        po_detail.updated_by = user_id
+        po_detail.updated_at = timezone.now()
+        po_detail.status_id  = POStatus.PLACED
+        po_detail.save(update_fields=["status_id", "updated_by", "updated_at"])
+
+        if existing_receive:
+            return True, "PO Updated successfully", existing_receive.po_receive_id, po_detail.status_id
+
+        po_next = (
+            PurchaseReceives.objects.aggregate(max_id=Max("po_receive_id")).get("max_id") or 0
+        ) + 1
+
+        receive = PurchaseReceives.objects.create(
+            po_id             = po_detail.po_id,
+            vendor_id         = po_detail.vendor_id,
+            po_number         = po_detail.po_number,
+            po_receive_number = f"PR{po_next:04d}",
+            received_date     = datetime.date.today(),
+            shipping_date     = datetime.date.today(),
+            created_by        = user_id,
+        )
+
+        po_items = PurchaseOrderItem.objects.filter(po_id=po_detail.po_id)
+        for po_item in po_items:
+            PurchaseReceivedItems.objects.create(
+                po_receive_id = receive.po_receive_id,
+                product_id    = po_item.product_id,
+                item_id       = po_item.item_id,
+                received_qty  = 0,
+                created_by    = user_id,
+                status_id     = 1
+            )
+
+        return True, "PO Updated successfully", receive.po_receive_id, po_detail.status_id
+
+    except Exception as e:
+        raise Exception(str(e))
+        return False, str(e), None, None
+
 
 @api_view(["POST"])
 @transaction.atomic
 def approve_and_create_receive(request, po_id):
     try:
-
-        po_detail = PurchaseOrder.objects.filter(po_id=po_id).first()
-        if not po_detail:
-            return JsonResponse({
-                "status": False,
-                "message": "Invalid PO Details",
-                "redirect_url": ""
-            })
-
-        #  CHECK EXISTING RECEIVE FIRST
-        existing_receive = PurchaseReceives.objects.filter(
-            po_id=po_detail.po_id
-        ).order_by("-po_receive_id").first()
-
-        po_detail.updated_by = request.user.id
-        po_detail.updated_at = timezone.now()
-        if po_detail.status_id == POStatus.PARKED__PENDING:
-            po_detail.status_id = POStatus.PLACED__PENDING
-        po_detail.save(update_fields=["status_id", "updated_by", "updated_at"])
-
-
-        if existing_receive:
-            return JsonResponse({
-                "status": True,
-                "message": "Opening receive details",
-                "po_receive_id": existing_receive.po_receive_id,
-
-            })
-
-        # -------------------------------------------------
-        # CREATE NEW RECEIVE (ONLY IF NONE EXISTS)
-        # -------------------------------------------------
-
-
-        po_next = (
-            PurchaseReceives.objects.aggregate(
-                max_id=Max("po_receive_id")
-            ).get("max_id") or 0
-        ) + 1
-
-        po_receive_number = f"PR{po_next:04d}"
-
-        receive = PurchaseReceives.objects.create(
-            po_id=po_detail.po_id,
-            vendor_id=po_detail.vendor_id,
-            po_number=po_detail.po_number,
-            po_receive_number=po_receive_number,
-            received_date=datetime.date.today(),
-            shipping_date=datetime.date.today(),
-            created_by=request.user.id,
+        success, message, po_receive_id, po_status_id = approve_and_create_receive_internal(
+            po_id, request.user.id
         )
-
-        # CREATE RECEIVE ITEMS (0 QTY)
-        po_items = PurchaseOrderItem.objects.filter(po_id=po_detail.po_id)
-        for po_item in po_items:
-            PurchaseReceivedItems.objects.create(
-                po_receive_id=receive.po_receive_id,
-                product_id=po_item.product_id,
-                item_id=po_item.item_id,
-                received_qty=0,
-                created_by=request.user.id,
-                status_id=1
-            )
-
+        if not success:
+            return JsonResponse({"status": False, "message": message}, status=400)
         return JsonResponse({
-            "status": True,
-            "message": "PO Receive created successfully",
-            "po_receive_id": receive.po_receive_id
+            "status": True, "message": message,
+            "po_receive_id": po_receive_id, "po_status_id": po_status_id,
         })
-
     except Exception as e:
-        transaction.set_rollback(True)
-        return JsonResponse({
-            "status": False,
-            "message": str(e),
-        },status=500)
+        return JsonResponse({"status": False, "message": str(e)}, status=500)
 
 
 
@@ -790,7 +910,7 @@ def get_po_line_received_items(po_id, po_received_id):
 
     line_items = []
 
-    NO_IMAGE = static("no_product_image.png")
+    NO_IMAGE = static("sbadmin/dist/img/no_product_image.png")
     # Build Response
 
     tot_qty = 0
@@ -904,7 +1024,7 @@ def get_po_line_items(po_id):
 
     line_items = []
 
-    NO_IMAGE = static("no_product_image.png")
+    NO_IMAGE = None
     # Build Response
 
     tot_qty = 0
@@ -1290,98 +1410,113 @@ def all_purchase_receives(request):
 
 
 import json
-
 @api_view(["POST"])
 def update_po_status(request):
     try:
-        # 1. Access the pre-parsed data instead of request.body
-        data = request.data  # This replaces json.loads(request.body)
-
+        data = request.data
         po_id = data.get('po_id')
         new_status_id = data.get('status_id')
+
+        #  Status label map
+        STATUS_LABELS = {
+            POStatus.DRAFT:     "PO moved to Draft",
+            POStatus.PARKED:    "PO moved to Parked",
+            POStatus.PLACED:    "PO Placed successfully",
+            POStatus.COSTED:    "PO Costed successfully",
+            POStatus.RECEIPTED: "PO Receipted successfully",
+            POStatus.COMPLETED: "PO Completed successfully",
+        }
 
         po = PurchaseOrder.objects.filter(po_id=po_id).first()
         if not po:
             return JsonResponse({"status": False, "message": "Invalid PO ID."}, status=400)
 
-        po.status_id = new_status_id
-        po.save(update_fields=["status_id"])
-        return JsonResponse({"status": True, "message": "PO Details Updated."}, status=200
-                            )
+        po.status_id  = new_status_id
+        po.updated_by = request.user.id
+        po.updated_at = timezone.now()
+        update_fields_ = ["status_id", "updated_by", "updated_at"]
+
+        if new_status_id == POStatus.COMPLETED:
+            po.is_completed = 1
+            update_fields_ = ["status_id", "is_completed", "updated_by", "updated_at"]
+
+        po.save(update_fields=update_fields_)
+
+        msg = STATUS_LABELS.get(new_status_id, "PO Details Updated.")
+
+        return JsonResponse({
+            "status": True,
+            "po_status_id": po.status_id,
+            "message": msg
+        }, status=200)
+
     except Exception as err:
         return JsonResponse({"status": False, "message": str(err)}, status=400)
 
 
+def empty_to_none(value):
+    return value if value not in ["", None] else None
+
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
 def save_shipping_details(request):
     try:
-        # 1. Access the pre-parsed data instead of request.body
-        data = request.data  # This replaces json.loads(request.body)
-
+        data = request.data
         po_id = data.get('po_id')
-        po_item_id = data.get('po_item_id') #product_id
-        receive_id = data.get('receive_id')  # po_receive_id
         shipments = data.get('shipments', [])
         user_id = request.user.id if request.user.is_authenticated else None
 
         po_receive = PurchaseReceives.objects.filter(po_id=po_id).first()
         if not po_receive:
-            return JsonResponse({"status":False, "message":"Invalid Receive ID."}, status=400)
+            return JsonResponse({"status": False, "message": "Invalid Receive ID."}, status=400)
 
-        receive_id = po_receive.po_receive_id
+        preferred_shipping_provider = None
 
-        created_count = 0
         for ship in shipments:
-            exists = PurchaseOrderShipping.objects.filter(
-                po_id=po_id,
-                receive_id=receive_id,
-                po_item_id=po_item_id,
-                provider=ship.get('provider'),
-                tracking_number=ship.get('tracking_number')
-            ).exists()
+            shipping_id = ship.get("shipping_id")
 
-            if exists:
-                return JsonResponse({
-                    "status": False,
-                    "message": f"Tracking number '{ship.get('tracking_number')}' already exists for this product."
-                }, status=200)
+            if ship.get('provider'):
+                preferred_shipping_provider = ship.get('provider')
 
+            #  UPDATE EXISTING
+            if shipping_id:
+                PurchaseOrderShipping.objects.filter(
+                    po_shipping_id=shipping_id
+                ).update(
+                    provider=ship.get('provider'),
+                    tracking_number=ship.get('tracking_number'),
+                    shipping_date=empty_to_none(ship.get('shipping_date')),
+                    status=ship.get('status') if ship.get('status') else None,
+                   # updated_by=user_id
+                )
+            #  CREATE NEW
+            else:
+                PurchaseOrderShipping.objects.create(
+                    po_id=po_id,
+                    provider=ship.get('provider'),
+                    tracking_number=ship.get('tracking_number'),
+                    shipping_date=empty_to_none(ship.get('shipping_date')),
+                    status=ship.get('status') if ship.get('status') else None,
+                    created_by=user_id
+                )
 
-            PurchaseOrderShipping.objects.create(
-                po_id=po_id,
-                po_item_id=po_item_id,
-                receive_id=receive_id,
-                provider=ship.get('provider'),
-                tracking_number=ship.get('tracking_number'),
-                shipped_date=ship.get('shipped_date') or None,
-                received_date=ship.get('received_date') or None,
-                created_by=user_id
-            )
-            created_count += 1
-
-        po_receive_item = PurchaseReceivedItems.objects.filter(product_id=po_item_id,
-                                                               po_receive_id=receive_id).first()
-        print("Updating shipping status")
-        if po_receive_item:
-            po_receive_item.status_id = POShippingStatus.SHIPPED
-            print("Updated shipping status")
-            po_receive_item.save(update_fields=["status_id"])
-
-        po_details = PurchaseOrder.objects.filter(po_id=po_id).first()
-        if po_details.status_id == POStatus.PLACED__PENDING:
-            po_details.status_id = POStatus.PLACED__SHIPPED
-            po_details.save(update_fields=["status_id"])
+        #  Update Vendor Preferred Provider
+        if preferred_shipping_provider:
+            po_details = PurchaseOrder.objects.filter(po_id=po_id).first()
+            if po_details:
+                po_vendor = Vendor.objects.filter(id=po_details.vendor_id).first()
+                if po_vendor:
+                    po_vendor.preferred_shipping_provider = int(preferred_shipping_provider)
+                    po_vendor.save(update_fields=["preferred_shipping_provider"])
 
         return JsonResponse({
-            "status": "success",
-            "message": f"{created_count} shipping record(s) saved successfully."
+            "status": True,
+            "message": "Shipping record saved successfully."
         })
 
     except Exception as e:
-        return JsonResponse({"status": "error", "message": str(e)}, status=400)
+        return JsonResponse({"status": False, "message": str(e)}, status=400)
 
-
+#all po invoices against the Porudtc , or receive id
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
@@ -1541,87 +1676,53 @@ def clean_input(val):
         return None
     return val
 
+
+@api_view(["POST"])
 def save_purchase_invoice(request):
     if request.method != "POST":
-        return JsonResponse(
-            {"status": False, "message": "Invalid method"}
-        )
+        return JsonResponse({"status": False, "message": "Invalid method"})
 
     try:
         data = json.loads(request.body)
 
-        # -------------------------------------------------
-        # REQUIRED FIELDS
-        # -------------------------------------------------
         po_id = data.get("po_id")
-        product_id = data.get("product_id")
-        receive_id = data.get("receive_id")
-
         invoice_number = data.get("invoice_number")
         payment_status_id = data.get("payment_status_id")
-        delivery_ref = data.get("delivery_ref")
 
         if not invoice_number:
-            return JsonResponse(
-                {"status": False, "message": "Invoice number is required"}
-            )
+            return JsonResponse({"status": False, "message": "Invoice number is required"})
 
         if payment_status_id in [None, ""]:
-            return JsonResponse(
-                {"status": False, "message": "Invoice status is required"}
-            )
+            return JsonResponse({"status": False, "message": "Invoice status is required"})
 
-        # -------------------------------------------------
-        # CLEAN INPUT HELPER
-        # -------------------------------------------------
         def clean_val(val):
             if val in ["", None, "None", "null", "undefined"]:
                 return None
             return val
 
+        total_amount = Decimal(data.get("invoice_amount") or 0)
+
         # -------------------------------------------------
-        # DUPLICATE CHECK (CREATE ONLY)
+        # TRANSACTION START
         # -------------------------------------------------
-        if PurchaseOrderInvoiceDetails.objects.filter(
-            invoice_number=invoice_number, product_id=product_id, po_id=po_id
-        ).exists():
-            return JsonResponse(
-                {"status": False, "message": "Invoice number already exists"}
+        with transaction.atomic():
+
+            invoice_header = PurchaseOrderInvoiceDetails.objects.create(
+                po_id=po_id,
+                invoice_number=invoice_number,
+                invoice_date=clean_val(data.get("invoice_date")),
+                due_date=clean_val(data.get("due_date")),
+                payment_status_id=payment_status_id,
+                payment_term_id=clean_val(data.get("payment_term_id")),
+                invoice_total=total_amount,
+                created_by=request.user.id,
+                created_at=timezone.now()
             )
-
-        # -------------------------------------------------
-        # CREATE INVOICE (NO UPDATE LOGIC)
-        # -------------------------------------------------
-        invoice = PurchaseOrderInvoiceDetails.objects.create(
-            po_id=po_id,
-            product_id=product_id,
-            receive_id=receive_id,
-
-            invoice_number=invoice_number,
-            po_amount=Decimal(data.get("po_amount") or 0),
-            received_qty=clean_val(data.get("received_qty")),
-            payment_status_id=payment_status_id,
-
-            order_date=clean_val(data.get("order_date")),
-            order_no=clean_val(data.get("order_no")),
-            vendor_ref_no=clean_val(data.get("vendor_ref_no")),
-            delivery_ref=clean_val(delivery_ref),
-
-            invoice_date=clean_val(data.get("invoice_date")),
-            payment_term_id=clean_val(
-                data.get("payment_term_id")
-            ),
-            due_date=clean_val(data.get("due_date")),
-            paid_date=clean_val(data.get("paid_date")),
-
-            created_by=request.user.id,
-            created_at=timezone.now()
-        )
 
         return JsonResponse({
             "status": True,
             "message": "Invoice created successfully",
-            "po_invoice_id": invoice.po_invoice_id
+            "po_invoice_id": invoice_header.po_invoice_id
         })
 
     except Exception as e:
@@ -1631,16 +1732,122 @@ def save_purchase_invoice(request):
         )
 
 
-def delete_invoice(request):
-    data = json.loads(request.body)
-    po_invoice_id = data.get("po_invoice_id")
-
+@api_view(["PUT"])
+def update_purchase_invoice(request, invoice_id):
+    if request.method != "PUT":
+        return JsonResponse({"status": False, "message": "Invalid method"})
     try:
-        po_inv = PurchaseOrderInvoiceDetails.objects.get(po_invoice_id=po_invoice_id).delete()
-    except Exception as e:
-        return JsonResponse({"status": False, "message": "Delete failed"})
+        data = json.loads(request.body)
 
-    return JsonResponse({"status":True, "message":"Deletion successful"})
+        po_id             = data.get("po_id")
+        invoice_number    = data.get("invoice_number")
+        payment_status_id = data.get("payment_status_id")
+
+        if not invoice_number:
+            return JsonResponse({"status": False, "message": "Invoice number is required"})
+
+        if payment_status_id in [None, ""]:
+            return JsonResponse({"status": False, "message": "Invoice status is required"})
+
+        def clean_val(val):
+            if val in ["", None, "None", "null", "undefined"]:
+                return None
+            return val
+
+        total_amount = Decimal(data.get("invoice_amount") or 0)
+
+        # ── Invoice amount minimum $10 validation ──
+        if total_amount < Decimal("10"):
+            return JsonResponse({
+                "status": False,
+                "message": "Invoice amount must be at least $10"
+            })
+
+        with transaction.atomic():
+
+            # ── FETCH EXISTING INVOICE HEADER ──
+            try:
+                invoice_header = PurchaseOrderInvoiceDetails.objects.get(
+                    po_invoice_id=invoice_id
+                )
+            except PurchaseOrderInvoiceDetails.DoesNotExist:
+                return JsonResponse({
+                    "status": False,
+                    "message": "Invoice not found"
+                })
+
+            # ── PO Status check — Costed(2), Receipted(3), Completed(4) ──
+            po = PurchaseOrder.objects.filter(po_id=invoice_header.po_id).first()
+            if po and po.status_id in [2, 3, 4]:
+                # Only payment_status_id and invoice_total allowed
+                invoice_header.payment_status_id = payment_status_id
+                invoice_header.invoice_total      = total_amount
+                invoice_header.updated_by         = request.user.id
+                invoice_header.updated_at         = timezone.now()
+                invoice_header.save(update_fields=[
+                    "payment_status_id", "invoice_total",
+                    "updated_by", "updated_at"
+                ])
+            else:
+                # ── Normal — UPDATE ALL FIELDS ──
+                invoice_header.invoice_number    = invoice_number
+                invoice_header.invoice_total     = total_amount
+                invoice_header.payment_status_id = payment_status_id
+                invoice_header.invoice_date      = clean_val(data.get("invoice_date"))
+                invoice_header.payment_term_id   = clean_val(data.get("payment_term_id"))
+                invoice_header.due_date          = clean_val(data.get("due_date"))
+                invoice_header.updated_by        = request.user.id
+                invoice_header.updated_at        = timezone.now()
+                invoice_header.save()
+
+        return JsonResponse({
+            "status"        : True,
+            "message"       : "Invoice updated successfully",
+            "po_invoice_id" : invoice_header.po_invoice_id
+        })
+
+    except Exception as e:
+        return JsonResponse(
+            {"status": False, "message": str(e)},
+            status=500
+        )
+
+
+#Delete Invoice
+@api_view(["DELETE"])
+def delete_invoice(request, po_invoice_id):
+    try:
+        if not po_invoice_id:
+            return Response({
+                "status": False,
+                "message": "Invoice ID is required"
+            }, status=400)
+
+        # ── Check if receipt exists for this invoice ──
+        receipt_exists = PurchaseReceipt.objects.filter(
+            po_invoice_id=po_invoice_id
+        ).exists()
+
+        if receipt_exists:
+            return Response({
+                "status": False,
+                "message": "Invoice cannot be deleted as a receipt has already been created against it"
+            }, status=400)
+
+        with transaction.atomic():
+            PurchaseOrderInvoiceDetails.objects.filter(po_invoice_id=po_invoice_id).delete()
+
+        return Response({
+            "status": True,
+            "message": "Invoice and related items deleted successfully"
+        })
+
+    except Exception as err:
+        return Response({
+            "status": False,
+            "err": str(err),
+            "message": "Delete failed"
+        }, status=500)
 
 
 #delete PO Orders
@@ -1649,7 +1856,7 @@ def delete_invoice(request):
 def delete_po(request, po_id):
     try:
         po_details = PurchaseOrder.objects.get(po_id=po_id)
-        if po_details.status_id in [POStatus.DRAFT__PENDING, POStatus.PARKED__PENDING]:
+        if po_details.status_id in [POStatus.DRAFT, POStatus.PARKED]:
             PurchaseOrder.objects.filter(po_id=po_id).delete()
             PurchaseOrderVendorDetails.objects.filter(po_id=po_id).delete()
             PurchaseOrderShipping.objects.filter(po_id=po_id).delete()
@@ -1657,7 +1864,7 @@ def delete_po(request, po_id):
             PurchaseOrderFiles.objects.filter(po_id=po_id).delete()
             return JsonResponse({"status": True, "message": "Removed!"})
         else:
-            return JsonResponse({"status": False, "message": "Can not remove this PO"})
+            return JsonResponse({"status": False, "message": "Can not remove this PO"}, status=500)
 
     except Exception as e:
         return JsonResponse({
@@ -1685,23 +1892,22 @@ class GroupConcat(Aggregate):
 def d(v):
     return Decimal(str(v or 0))
 
+from django.db.models import (
+        OuterRef, Subquery, Value, TextField, DecimalField,
+        Q, Sum
+    )
+from django.db.models.functions import Coalesce
+from decimal import Decimal
+import math
+
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
 def all_purchases(request):
-    from django.db.models import (
-        OuterRef, Subquery, Value, TextField, DecimalField,
-        Q, Sum
-    )
-    from django.db.models.functions import Coalesce
-    from decimal import Decimal
-    import math
-    # 1. Capture Sorting Parameters
+
     sort_by = request.GET.get("sort_by", "created_at")  # Default field
     sort_dir = request.GET.get("sort_dir", "desc")  # Default direction
-    # -------------------------------
-    # SUBQUERIES
-    # -------------------------------
+
     warehouse_sub = Warehouse.objects.filter(
         warehouse_id=OuterRef("warehouse_id")
     ).values("warehouse_name")[:1]
@@ -1710,58 +1916,67 @@ def all_purchases(request):
         id=OuterRef("vendor_id")
     ).values("vendor_name")[:1]
 
-    po_vendor_sub = (
-        PurchaseOrderInvoiceDetails.objects
-        .filter(po_id=OuterRef("po_id"))
-        .order_by("-po_invoice_id")  # or -created_at
-        .values("vendor_ref_no")[:1]
-    )
-
-    po_master_vendor_sub = (
+    po_master_vendor_po_number_sub = (
         PurchaseOrderVendorDetails.objects
-        .filter(po_id=OuterRef("po_id"))
-        .values("po_id")
-        .annotate(
-            order_numbers=GroupConcat("order_number"),
-            order_dates=GroupConcat("order_date"),
+        .filter(
+            po_id=OuterRef("po_id"),
+            is_primary=1
         )
+        .values("vendor_po_number")[:1]
     )
 
-    po_shipping_details_sub = (
-        PurchaseOrderShipping.objects
-        .filter(po_id=OuterRef("po_id"))
-        .values("po_id")
-        .annotate(
-            received_dates=GroupConcat("received_date")
+    po_master_vendor_order_number_sub = (
+        PurchaseOrderVendorDetails.objects
+        .filter(
+            po_id=OuterRef("po_id"),
+            is_primary=1
         )
+        .values("order_number")[:1]
     )
 
-    # -------------------------------
-    # BASE QUERY
-    # -------------------------------
+    po_master_vendor_order_date_sub = (
+        PurchaseOrderVendorDetails.objects
+        .filter(
+            po_id=OuterRef("po_id"),
+            is_primary=1
+        )
+        .values("order_date")[:1]
+    )
+
+    po_items_qty_sub = (
+        PurchaseOrderItem.objects
+        .filter(po_id=OuterRef("po_id"))
+        .values("po_id")
+        .annotate(total_qty=Sum("qty"))
+        .values("total_qty")[:1]
+    )
+
     base_qs = PurchaseOrder.objects.filter(
         is_archived=0,
         vendor_id__isnull=False,
         vendor_code__isnull=False
     ).annotate(
-        master_invoice_order_numbers=Coalesce(
-            Subquery(po_master_vendor_sub.values("order_numbers")),
+        product_total_qty=Coalesce(
+            Subquery(po_items_qty_sub),
+            Value(0),
+            output_field=IntegerField()
+        ),
+        master_vendor_po_number=Coalesce(
+            Subquery(po_master_vendor_po_number_sub),
             Value(""),
             output_field=TextField()
         ),
-        master_invoice_order_dates=Coalesce(
-            Subquery(po_master_vendor_sub.values("order_dates")),
+
+        master_vendor_order_number=Coalesce(
+            Subquery(po_master_vendor_order_number_sub),
             Value(""),
             output_field=TextField()
         ),
-        shipping_delivery_dates =Coalesce(
-            Subquery(po_shipping_details_sub.values("received_dates")),
-            Value(""),
-            output_field=TextField()
-        ),
+
+        master_vendor_order_date=Subquery(po_master_vendor_order_date_sub),
+
         warehouse_name=Coalesce(Subquery(warehouse_sub), Value(""), output_field=TextField()),
         vendor_name_val=Coalesce(Subquery(vendor_sub), Value(""), output_field=TextField()),
-        po_vendor_ref=Coalesce(Subquery(po_vendor_sub), Value(""), output_field=TextField()),
         subtotal_val=Coalesce("sub_total", Value(0, DecimalField())),
         tax_val=Coalesce("tax_total", Value(0, DecimalField())),
         total_val=Coalesce("summary_total", Value(0, DecimalField())),
@@ -1778,9 +1993,7 @@ def all_purchases(request):
 
     db_field = sort_map.get(sort_by, sort_by)
     order_string = f"-{db_field}" if sort_dir == "desc" else db_field
-    # -------------------------------
-    # STATUS FILTER (CORRECTED)
-    # -------------------------------
+
     status_param = request.GET.get("status", "").strip()
 
     if status_param not in ["", "None", "undefined"]:
@@ -1798,24 +2011,26 @@ def all_purchases(request):
     except Exception:
         filtered_qs = filtered_qs.order_by("-created_at")
 
-    # -------------------------------
-    # OTHER FILTERS
-    # -------------------------------
     order_no = request.GET.get("order_no")
+
     if order_no:
         filtered_qs = filtered_qs.filter(
-            Q(po_number__icontains=order_no)
-            |
-            Exists(
-                PurchaseOrderInvoiceDetails.objects.filter(
-                    po_id=OuterRef("po_id"),
-                    vendor_ref_no__icontains=order_no
-                )
-            )
-            |
+            Q(po_number__icontains=order_no) |
+            Q(vendor_name_val__icontains=order_no) |
+            Q(vendor_reference__icontains=order_no) |
+            Q(master_vendor_po_number__icontains=order_no) |
+            Q(master_vendor_order_number__icontains=order_no) |
             Exists(
                 PurchaseOrderVendorDetails.objects.filter(
                     po_id=OuterRef("po_id"),
+                    is_primary=1,
+                    vendor_po_number__icontains=order_no
+                )
+            ) |
+            Exists(
+                PurchaseOrderVendorDetails.objects.filter(
+                    po_id=OuterRef("po_id"),
+                    is_primary=1,
                     order_number__icontains=order_no
                 )
             )
@@ -1852,24 +2067,20 @@ def all_purchases(request):
     if warehouse:
         filtered_qs = filtered_qs.filter(warehouse_id=warehouse)
 
-    supplier_ref = request.GET.get("supplier_ref")
-    if supplier_ref:
-        filtered_qs = filtered_qs.filter(
-            po_vendor_ref__icontains=supplier_ref
+    po_grand_total = filtered_qs.aggregate(
+        grand_total=Coalesce(
+            Sum("summary_total"),
+            Value(0),
+            output_field=DecimalField()
         )
+    )["grand_total"]
 
-    q = request.GET.get("q", "").strip()
-    if q:
-        filtered_qs = filtered_qs.filter(
-            Q(po_number__icontains=q) |
-            Q(vendor_name_val__icontains=q) |
-            Q(vendor_reference__icontains=q)
-        )
-
-    # -------------------------------
-    # FETCH DATA
-    # -------------------------------
     data = list(filtered_qs.values(
+        "product_total_qty",
+        #"product_total_received_qty",
+        "master_vendor_po_number",
+        "master_vendor_order_number",
+        "master_vendor_order_date",
         "po_id",
         "parent_po_id",
         "po_number",
@@ -1877,11 +2088,8 @@ def all_purchases(request):
         "vendor_code",
         "vendor_name",
         "currency_code",
-        "master_invoice_order_numbers",
-        "master_invoice_order_dates",
         "vendor_reference",
         "order_date",
-        "shipping_delivery_dates",
         "delivery_date",
         "invoice_date",
         "delivery_name",
@@ -1893,88 +2101,35 @@ def all_purchases(request):
         "surcharge_total",
         "tax_total",
         "warehouse_name",
-        "po_vendor_ref",
         "vendor_name_val",
         "subtotal_val",
         "tax_val",
         "total_val",
     ))
-
-    # -------------------------------
-    # RELATED MAPS
-    # -------------------------------
-    po_ids = [x["po_id"] for x in data]
-
-    vendor_map = {
-        v.po_id: v
-        for v in PurchaseOrderVendorDetails.objects.filter(po_id__in=po_ids)
-    }
-
-    shipping_map = {
-        s.po_id: s
-        for s in PurchaseOrderShipping.objects.filter(po_id__in=po_ids)
-    }
-
-    provider_map = {
-        p.carrier_id: p
-        for p in ShippingProviders.objects.all()
-    }
-
-    qty_map = {
-        x["po_id"]: x
-        for x in (
-            PurchaseOrderItem.objects
-            .filter(po_id__in=po_ids)
-            .values("po_id")
-            .annotate(
-                total_order_qty=Sum("ordered_qty"),
-                total_received_qty=Sum("received_qty")
-            )
-        )
-    }
-
-    # -------------------------------
-    # MERGE DATA
-    # -------------------------------
-    for po in data:
-        po_id = po["po_id"]
-
-        vendor = vendor_map.get(po_id)
-        shipping = shipping_map.get(po_id)
-        qty = qty_map.get(po_id, {})
-
-        po["po_vendor_order_date"] = vendor.order_date if vendor else ""
-
-        provider = provider_map.get(shipping.provider) if shipping else None
-
-        po["vendor_shipping_company"] = provider.carrier_name if provider else ""
-        po["vendor_shipping_tracking_no"] = shipping.tracking_number if shipping else ""
-        po["vendor_shipping_tracking_link"] = (
-            provider.tracking_url.replace("{0}", shipping.tracking_number)
-            if provider and shipping and shipping.tracking_number
-            else ""
-        )
-
-        po["total_order_qty"] = qty.get("total_order_qty", 0) or 0
-        po["total_received_qty"] = qty.get("total_received_qty", 0) or 0
-
-    # -------------------------------
-    # SHIPPING STATUS LABEL
-    # -------------------------------
+    '''
     for row in data:
         status_id = row.get("status_id")
         tracking_status = "Unknown"
-        for s in po_status_list:
+        for s in POStatus:
             if s["id"] == status_id:
                 tracking_status = s["tracking_status"]
                 break
-
-
         row["shipping_status"] = tracking_status
 
-    # -------------------------------
-    # PAGINATION
-    # -------------------------------
+        po_id = row["po_id"]
+
+        tot_received = 0
+        po_receipts = PurchaseReceipt.objects.filter(po_id=po_id)
+        if po_receipts.exists():
+            for po_receipt in po_receipts:
+                po_receipt_items = PurchaseReceiptItem.objects.filter(
+                    po_receipt_id=po_receipt.po_receipt_id
+                )
+                for po_receipt_item in po_receipt_items:
+                    tot_received += po_receipt_item.received_qty
+        row["product_total_received_qty"] = tot_received'''
+
+
     page = int(request.GET.get("page", 1) or 1)
     size = min(int(request.GET.get("size", 20) or 20), 20)
 
@@ -1989,6 +2144,7 @@ def all_purchases(request):
         "data": paged_data,
         "last_page": last_page,
         "total": total,
+        "grand_total":po_grand_total,
         "row_count": total
     })
 
@@ -2058,7 +2214,9 @@ def view_po_order(request, po_id):
 
     line_items = []
 
-    NO_IMAGE = static("no_product_image.png")
+    NO_IMAGE = request.build_absolute_uri(
+        static("sbadmin/dist/img/no_product_image.png")
+    )
     # Build Response
 
     tot_qty = 0
@@ -2241,8 +2399,6 @@ def view_po_order(request, po_id):
     return render(request, 'sbadmin/pages/purchase_order/view/view_po.html', context)
 
 
-from decimal import Decimal
-from django.http import JsonResponse
 @api_view(["GET"])
 def get_shipping_rows(request, po_id):
 
@@ -2255,14 +2411,6 @@ def get_shipping_rows(request, po_id):
     data = []
 
     for item in po_items:
-        product = Product.objects.filter(
-            product_id=item.product_id
-        ).first()
-        po_receive =  PurchaseReceives.objects.filter(po_id=item.po_id).first()
-        if not po_receive:
-            return JsonResponse({"data": []}, safe=False)
-
-        po_recieved_item = PurchaseReceivedItems.objects.filter(product_id=product.product_id, po_receive_id=po_receive.po_receive_id).first()
         ordered_qty = Decimal(item.qty or 0)
         price = Decimal(item.price or 0)
         line_total = ordered_qty * price
@@ -2270,7 +2418,6 @@ def get_shipping_rows(request, po_id):
         # Fetch shipping rows (may be EMPTY)
         shipping_qs = PurchaseOrderShipping.objects.filter(
             po_id=po_id,
-            po_item_id=item.product_id
         )
 
         shipping_details = []
@@ -2278,9 +2425,9 @@ def get_shipping_rows(request, po_id):
             provider_name = ""
             provider_link = ""
             if sh.provider:
-                shippingProvider =  ShippingProviders.objects.filter(carrier_id=sh.provider).first()
-                provider_name = shippingProvider.carrier_name
-                provider_link = shippingProvider.tracking_url.replace("{0}", sh.tracking_number)
+                shipping_provider =  ShippingProviders.objects.filter(carrier_id=sh.provider).first()
+                provider_name = shipping_provider.carrier_name
+                provider_link = shipping_provider.tracking_url.replace("{0}", sh.tracking_number)
                 provider_link = f"<a class='text-primary link' target='_blank' href='{provider_link}'>{sh.tracking_number}</a>"
 
             shipping_details.append({
@@ -2288,19 +2435,17 @@ def get_shipping_rows(request, po_id):
                 "tracking_number": sh.tracking_number,
                 "tracking_link": provider_link,
                 "carrier_name": provider_name,
-                "shipping_date": sh.shipped_date,
-                "received_date": sh.received_date,
+                "shipping_date": sh.shipping_date,
+                #"delivery_date": sh.delivery_date,
+                "status": sh.status,
+              #  "delivery_eta_date": sh.delivery_eta_date,
+               # "vendor_po": sh.vendor_po,
+               # "vendor_po_order_no": sh.vendor_po_order_no,
+               # "vendor_po_order_date": sh.vendor_po_order_date,
             })
 
         # Always append product (even if no shipping)
         data.append({
-            "product_id": item.product_id,
-            "product_name": product.title if product else "",
-            "sku": product.sku if product else "",
-            "ordered_qty": ordered_qty,
-            "receive_item_id": po_recieved_item.received_item_id if po_recieved_item else None,
-            "price": price,
-            "line_total": line_total,
             "shipping_details": shipping_details  # EMPTY LIST OK
         })
 
@@ -2311,73 +2456,76 @@ from decimal import Decimal
 from django.http import JsonResponse
 @api_view(["GET"])
 def get_invoice_rows(request, po_id):
+    try:
+        po_invoices = PurchaseOrderInvoiceDetails.objects.filter(po_id=po_id).all()
 
-    po_items = PurchaseOrderItem.objects.filter(po_id=po_id)
-    data = []
+        data = []
+        for po_invoice in po_invoices:
+            payment_term_name = None
+            if po_invoice.payment_term_id:
+                pt_obj = PaymentTerm.objects.filter(id=po_invoice.payment_term_id).first()
+                if pt_obj:
+                    payment_term_name = pt_obj.name
 
-    for item in po_items:
-        product = Product.objects.filter(
-            product_id=item.product_id
-        ).only("title", "sku", "product_id").first()
-        po_receive = PurchaseReceives.objects.filter(po_id=item.po_id).first()
-        if not po_receive:
-            return JsonResponse({"data": []}, safe=False)
-        po_recieved_item = PurchaseReceivedItems.objects.filter(product_id=product.product_id,
-                                                                po_receive_id=po_receive.po_receive_id).first()
-
-
-        ordered_qty = Decimal(item.qty or 0)
-        price = Decimal(item.price or 0)
-        line_total = ordered_qty * price
-
-        # Fetch invoice rows
-        invoice_qs = PurchaseOrderInvoiceDetails.objects.filter(
-            po_id=po_id,
-            product_id=item.product_id
-        )
-
-        invoice_details = []
-        for inv in invoice_qs:
-            payment_term_name = ""
-            if inv.payment_term_id:
-                paymentTerm = PaymentTerm.objects.filter(id=inv.payment_term_id).first()
-                if paymentTerm:
-                    payment_term_name = paymentTerm.name
-
-            invoice_details.append({
-                "po_invoice_id": inv.po_invoice_id,
-                "po_id": inv.po_id,
-                "product_id": inv.product_id,
-                "receive_id": inv.receive_id,
-                "invoice_number": inv.invoice_number,
-                "po_amount": inv.po_amount,
-                "received_qty": inv.received_qty,
-                "payment_status_id": inv.payment_status_id,
-                "order_date": inv.order_date,
-                "order_no": inv.order_no,
-                "vendor_ref_no": inv.vendor_ref_no,
-                "delivery_ref": inv.delivery_ref,
-                "invoice_date": inv.invoice_date,
-                "due_date": inv.due_date,
-                "paid_date": inv.paid_date,
-                "payment_term_id": inv.payment_term_id,
+                # "invoice_details": inv_data
+            data.append({
+                "po_invoice_id":po_invoice.po_invoice_id,
+                "po_id": po_invoice.po_id,
+                "invoice_number": po_invoice.invoice_number,
+                "invoice_amount": po_invoice.invoice_total,
+                "payment_status_id": po_invoice.payment_status_id,
+                "invoice_date": po_invoice.invoice_date,
+                "due_date": po_invoice.due_date,
+                "payment_term_id": po_invoice.payment_term_id,
                 "payment_term_name": payment_term_name,
             })
+        return JsonResponse({"status": True, "data": data})
 
-        # Always append product row
-        data.append({
-            "product_id": item.product_id,
-            "receive_id": po_recieved_item.po_receive_id if po_recieved_item else None,
-            "product_name": product.title if product else "",
-            "sku": product.sku if product else "",
-            "ordered_qty": ordered_qty,
-            "price": price,
-            "line_total": line_total,
-            "invoice_details": invoice_details  # EMPTY LIST OK
-        })
+    except Exception as e:
+        return JsonResponse(
+            {"status": False, "message": str(e)},
+            status=500
+        )
 
-    return JsonResponse({"data": data})
+from django.http import FileResponse, Http404
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+@authentication_classes([StrictJWTCookieAuthentication])
+def download_import_template(request):
+    import_type = 'purchase_orders'
+    file_format = request.GET.get('f_frmt', 'csv')
+    #= request.GET.get("order_no", "").strip()
 
+    file_map = {
+        ('purchase_orders', 'csv'): 'po_template.csv',
+        ('purchase_orders', 'xl'): 'po_template.xlsx',
+    }
+
+    filename = file_map.get((import_type, file_format))
+
+    #filename
+    if not filename:
+        raise Http404("Invalid template parameters provided.")
+
+    # Construct path based on your uploaded folder structure: static/import_templates/vendor/
+    # Note: If 'static' is at your project root, use BASE_DIR.
+    # If it's handled by STATIC_ROOT, use that.
+    temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "purchase_orders")
+    file_path = os.path.join(temp_dir, filename)
+
+    if not os.path.exists(file_path):
+        # Fallback check in case your static path is configured differently
+        raise Http404(f"Template file not found at: {file_path}")
+
+    # Determine the correct MIME type for the browser
+    content_type = 'text/csv' if filename.endswith(
+        '.csv') else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+
+    # Stream the file using FileResponse
+    response = FileResponse(open(file_path, 'rb'), content_type=content_type)
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+
+    return response
 
 
 

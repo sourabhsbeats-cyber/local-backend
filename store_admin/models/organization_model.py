@@ -42,6 +42,6 @@ class OrganizationInventoryLocation(models.Model):
     phone = models.CharField(max_length=50, null=True, blank=True)
     fax = models.CharField(max_length=50, null=True, blank=True)
     website_url = models.URLField(null=True, blank=True)
-
+    #timezone = models.CharField(max_length=50, default="UTC")
     class Meta:
         db_table = 'store_admin_organization_inventory_locations'

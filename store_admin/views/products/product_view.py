@@ -923,7 +923,9 @@ def api_product_search(request):
                 Q(title__icontains=q) |
                 Q(sku__icontains=q)
             )
-        NO_IMAGE = static("no_product_image.png")
+        NO_IMAGE = request.build_absolute_uri(
+            static("sbadmin/dist/img/no_product_image.png")
+        )
         # Build Response
         data = []
         for p in qs[:20]:  # limit 20 results

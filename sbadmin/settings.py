@@ -87,13 +87,9 @@ REST_FRAMEWORK = {
 }
 from datetime import timedelta
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15), #timedelta(seconds=10), #
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7), #timedelta(minutes=5),
-
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=8),  # 8 hours fixed
+    "REFRESH_TOKEN_LIFETIME": timedelta(hours=8), # same
     "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": False,
-
-
     "UPDATE_LAST_LOGIN": True,
     #"REFRESH_TOKEN_GRACE_PERIOD": timedelta(seconds=30),
 }
@@ -123,7 +119,7 @@ MIDDLEWARE = [
 
 CORS_ALLOW_CREDENTIALS = True
 ROOT_URLCONF = 'sbadmin.urls'
-
+CORS_EXPOSE_HEADERS = ["Content-Disposition"]
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

@@ -6,8 +6,9 @@ from datetime import datetime, date, timedelta
 #from store_admin.models.product_model import PREP_TYPE_CHOICES
 from django.core.exceptions import ValidationError
 
-from store_admin.models import StoreUser
+from store_admin.models import StoreUser, Country, State, PaymentTerm
 from store_admin.models.po_models.po_models import PurchaseOrder
+from store_admin.models.setting_model import ShippingProviders
 
 
 # -------------------------------------------------
@@ -34,11 +35,85 @@ def safe_int(val, default=None):
 def getUserName(user_id):
     return StoreUser.objects.get(id=user_id).name
 
+
+def getCountryById(country_id):
+    # Handle None, empty string, or whitespace
+    if not country_id or not str(country_id).strip():
+        return ""
+
+    # Clean the input
+    identifier = str(country_id).strip()
+
+    # If it's a number, look up by ID
+    if identifier.isdigit():
+        country = Country.objects.filter(id=identifier).first()
+    else:
+        # If it's text, look up by Name (case-insensitive)
+        country = Country.objects.filter(name__iexact=identifier).first()
+
+    # Return the raw string name if found, otherwise empty string
+    return country.name if country else ""
+
+
+def getStateById(state_id):
+    # 1. Handle None or empty input immediately
+    if not state_id:
+        return ""
+
+    # 2. Convert to string to safely use .isdigit() and .strip()
+    identifier = str(state_id).strip()
+
+    # 3. Flexible lookup: Check if it's a numeric ID or a Name string
+    if identifier.isdigit():
+        state = State.objects.filter(id=identifier).first()
+    else:
+        # We use __iexact to ensure "new york" matches "New York"
+        state = State.objects.filter(name__iexact=identifier).first()
+
+    # 4. Return the raw string name if found, otherwise empty string
+    return state.name if state else ""
+
+def getPaymentTermName(type_id):
+    if type_id is None:
+        return ""
+    pterm = PaymentTerm.objects.filter(id=type_id)
+    if pterm.exists():
+        return pterm.first().name
+    else:
+        return ""
+
+
+
 def to_int_or_none(value):
     try:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+from django.utils.safestring import mark_safe
+
+
+def generateTrackingLink(providerId, trackingRef):
+    # 1. Fetch the provider
+    shipping_provider = ShippingProviders.objects.filter(carrier_id=providerId).first()
+
+    # 2. Handle Case: Provider not found
+    if not shipping_provider:
+        return "Unknown Carrier", str(trackingRef)
+
+    carrier_name = shipping_provider.carrier_name
+    tracking_url_template = shipping_provider.tracking_url
+
+    # 3. Handle Case: No URL template defined
+    if not tracking_url_template:
+        return carrier_name, str(trackingRef)
+
+    # 4. Generate the link
+    tracking_link = tracking_url_template.replace("{0}", str(trackingRef))
+    # 5. HTML link generation
+    #html_link = f"<a class='text-primary link' target='_blank' href='{tracking_link}'>{trackingRef}</a>"
+    return carrier_name, tracking_link
 
 from django.utils.dateformat import format as df
 def safe_df(value, fmt):

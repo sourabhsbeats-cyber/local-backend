@@ -22,9 +22,9 @@ urlpatterns = [
     path('api/logout/', auth_views.api_logout, name='logout'),
     #path('app/dashboard/', dashboard_views.dashboard, name='dashboard'),
     # vendor management
-    path("vendor/", include("store_admin.vendor_urls")),
-    path("product/", include("store_admin.product_urls")),
-    path("purchaseorder/", include("store_admin.purchase_order_urls")),
+    path("api/vendor/", include("store_admin.vendor_urls")),
+    path("api/product/", include("store_admin.product_urls")),
+    path("api/purchaseorder/", include("store_admin.purchase_order_urls")),
     #user menu item
     #path('api/getnavigation', auth_views.get_user_navigations, name='get_user_navigation'),
 
@@ -40,36 +40,36 @@ urlpatterns = [
     path("api/roles/update/<int:role_id>", user_management.update_user_roles),
     path("api/roles/delete/<int:role_id>", user_management.delete_user_roles),
 
-    path('product_api/api/categories', product_settings.all_product_categories, name=''),
-    path('product_api/product_categories/create', product_settings.add_new_category, name=''),
-    path('product_api/product_categories/delete/<int:category_id>', product_settings.delete_category, name=''),
-    path('product_api/product_categories/update/<int:category_id>', product_settings.update_category, name=''),
+    path('api/product_api/api/categories', product_settings.all_product_categories, name=''),
+    path('api/product_api/product_categories/create', product_settings.add_new_category, name=''),
+    path('api/product_api/product_categories/delete/<int:category_id>', product_settings.delete_category, name=''),
+    path('api/product_api/product_categories/update/<int:category_id>', product_settings.update_category, name=''),
 
-    path('product_api/product_brands/all', product_settings.api_all_brands, name=''),
-    path('product_api/api/brands', product_settings.api_manage_brands, name=''),
-    path('product_api/api/brands/create', product_settings.api_create_brands, name=''),
-    path('product_api/api/brands/update/<int:brand_id>', product_settings.update_brand, name=''),
-    path('product_api/api/brands/delete/<int:brand_id>', product_settings.delete_brand, name=''),
+    path('api/product_api/product_brands/all', product_settings.api_all_brands, name=''),
+    path('api/product_api/api/brands', product_settings.api_manage_brands, name=''),
+    path('api/product_api/api/brands/create', product_settings.api_create_brands, name=''),
+    path('api/product_api/api/brands/update/<int:brand_id>', product_settings.update_brand, name=''),
+    path('api/product_api/api/brands/delete/<int:brand_id>', product_settings.delete_brand, name=''),
 
-    path('product_api/api/manufacturers', product_settings.list_manufacturers, name=''),
-    path('product_api/product_manufacturers/all', product_settings.api_list_all_manufacturers, name=''),
-    path('product_api/api/manufacturers/create', product_settings.create_manufacturer, name=''),
-    path('product_api/api/manufacturers/update/<int:manufacturer_id>', product_settings.update_manufacturers, name=''),
-    path('product_api/api/manufacturers/delete/<int:manufacturer_id>', product_settings.delete_manufacturers, name=''),
+    path('api/product_api/api/manufacturers', product_settings.list_manufacturers, name=''),
+    path('api/product_api/product_manufacturers/all', product_settings.api_list_all_manufacturers, name=''),
+    path('api/product_api/api/manufacturers/create', product_settings.create_manufacturer, name=''),
+    path('api/product_api/api/manufacturers/update/<int:manufacturer_id>', product_settings.update_manufacturers, name=''),
+    path('api/product_api/api/manufacturers/delete/<int:manufacturer_id>', product_settings.delete_manufacturers, name=''),
     #product/api/manufacturers/update/53
 
     #path('product/product_uom', product_settings.list_uoms),
-    path('product_api/api/uom', product_settings.list_uoms),
-    path('product_api/product_uom/update/<int:uom_id>', product_settings.update_uom),
-    path('product_api/product_uom/create', product_settings.create_uom),
-    path('product_api/product_uom/delete/<int:uom_id>', product_settings.delete_uom),
-    path("product_api/api/attributes/listing", product_settings.list_attributes),
-    path("product_api/api/attributes/create", product_settings.create_attribute),
-    path("product_api/api/attributes/update/<int:attribute_id>", product_settings.update_attribute),
-    path("product_api/api/attributes/delete/<int:attribute_id>", product_settings.delete_attribute),
+    path('api/product_api/api/uom', product_settings.list_uoms),
+    path('api/product_api/product_uom/update/<int:uom_id>', product_settings.update_uom),
+    path('api/product_api/product_uom/create', product_settings.create_uom),
+    path('api/product_api/product_uom/delete/<int:uom_id>', product_settings.delete_uom),
+    path("api/product_api/api/attributes/listing", product_settings.list_attributes),
+    path("api/product_api/api/attributes/create", product_settings.create_attribute),
+    path("api/product_api/api/attributes/update/<int:attribute_id>", product_settings.update_attribute),
+    path("api/product_api/api/attributes/delete/<int:attribute_id>", product_settings.delete_attribute),
 
 
-    path("common/api/attributes/bulk_delete_attributes", product_settings.delete_product_attributes),
+    path("api/common/api/attributes/bulk_delete_attributes", product_settings.delete_product_attributes),
 
     path("api/shipping_providers/lists", app_api_view.api_all_shipping_providers), #master_data
     path("api/shipping-providers", manage_shipping_view.api_all_shipping_providers),
@@ -104,26 +104,21 @@ urlpatterns = [
 
 
     #path("settings/countries/<int:country_id>/states/", countries_view.state_list, name="state_list"),
-    path("get-states/<int:country_id>/", countries_view.get_states, name="get_states"),
+    path("api/get-states/<int:country_id>/", countries_view.get_states, name="get_states"),
 
-    path("common/list_states/", countries_view.get_states_by_country, name="get_states_by_country"),
+    path("api/common/list_states/", countries_view.get_states_by_country, name="get_states_by_country"),
     #path("common/list_countries/", countries_view.get_countries, name="get_countries"),
     path("api/vendor_api/lists", vendor_views.api_all_vendors), #master data
     path("api/vendor_details", vendor_views.get_vendor_details),
     path("api/payment_terms/lists", app_api_view.api_all_payment_terms, name="api_all_payment_terms"), #master data
 
-    path("organizations/view", organization_settings.view_organization_details),
-    path("organizations/update", organization_settings.update_organization),
-    path("organizations/locations/detail/<int:loc_id>", organization_settings.get_location_detail,
+    path("api/organizations/view", organization_settings.view_organization_details),
+    path("api/organizations/update", organization_settings.update_organization),
+    path("api/organizations/locations/detail/<int:loc_id>", organization_settings.get_location_detail,
          name="get_org_location_details"),
-    path("organizations/locations/update/<int:loc_id>", organization_settings.update_location),
-    path("organizations/locations/add/", organization_settings.save_location),
-    path("organizations/locations/delete/<int:loc_id>", organization_settings.delete_location),
-
-
-
-
+    path("api/organizations/locations/update/<int:loc_id>", organization_settings.update_location),
+    path("api/organizations/locations/add/", organization_settings.save_location),
+    path("api/organizations/locations/delete/<int:loc_id>", organization_settings.delete_location),
 
     #API Master data Json
-
 ]

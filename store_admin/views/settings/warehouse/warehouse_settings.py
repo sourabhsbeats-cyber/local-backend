@@ -43,8 +43,15 @@ def all_inventory_locations(request):
     for w in page_obj:
         loc_key = str(w.location) if w.location else ""
         loc_name = loc_map.get(loc_key, "")
-        if OrganizationInventoryLocation.objects.filter(id=w.location).exists():
-            loc_name = OrganizationInventoryLocation.objects.filter(id=w.location).first().name
+
+        try:
+            loc_id = int(w.location) if w.location else None
+            if loc_id:
+                loc_obj = OrganizationInventoryLocation.objects.filter(id=loc_id).first()
+                if loc_obj:
+                    loc_name = loc_obj.name
+        except (ValueError, TypeError):
+            loc_name = str(w.location) if w.location else ""
 
         data.append({
             "warehouse_id": w.warehouse_id,

@@ -5,12 +5,36 @@ from rest_framework.renderers import JSONRenderer
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from store_admin.models.setting_model import ShippingProviders
-
+from django.db.models import  Q
 @api_view(["GET"])
-@renderer_classes([JSONRenderer])
-@login_required
 def api_all_shipping_providers(request):
-    shipping_providers = ShippingProviders.objects.filter(is_archived=0).values(
+
+    search = request.GET.get("search", "").strip()
+    sort_by = request.GET.get("sort_by", "carrier_name")
+    sort_dir = request.GET.get("sort_dir", "asc")
+
+    queryset = ShippingProviders.objects.filter(is_archived=0)
+
+    # -----------------------------
+    # SEARCH
+    # -----------------------------
+    if search:
+        queryset = queryset.filter(
+            Q(carrier_name__icontains=search) |
+            Q(carrier_code__icontains=search) |
+            Q(class_code__icontains=search) |
+            Q(tracking_url__icontains=search)
+        )
+
+    # -----------------------------
+    # SORT
+    # -----------------------------
+    if sort_dir == "desc":
+        sort_by = f"-{sort_by}"
+
+    queryset = queryset.order_by(sort_by)
+
+    data = queryset.values(
         "carrier_name",
         "carrier_id",
         "carrier_code",
@@ -19,9 +43,10 @@ def api_all_shipping_providers(request):
         "status",
         "is_archived",
     )
+
     return JsonResponse({
         "status": True,
-        "data": list(shipping_providers),
+        "data": list(data),
         "message": ""
     })
 

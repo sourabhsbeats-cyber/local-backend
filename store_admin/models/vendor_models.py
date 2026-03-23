@@ -20,14 +20,43 @@ class VendorStatus(models.IntegerChoices):
 class Vendor(models.Model):
     id = models.AutoField(primary_key=True)
     vendor_code = models.CharField(max_length=50)
+    vendor_company_name = models.CharField(max_length=120)
     vendor_name = models.CharField(max_length=120)
     gst_number = models.CharField(max_length=50, blank=True, null=True)
     tax_percent = models.DecimalField(decimal_places=2,max_digits=10,default=0.0, null=True)
     min_order_value = models.DecimalField(decimal_places=2,max_digits=10,default=0.0, blank=True, null=True)
     is_taxable = models.IntegerField(blank=True, null=True, default=0)
+
+    company_acc_no = models.CharField(max_length=25, blank=True, null=True)
+    company_website = models.CharField(max_length=255, blank=True, null=True)
+    vendor_model = models.CharField(max_length=120, blank=True, null=True)
+
+    wallet_notes = models.TextField(blank=True, null=True)
+    credit_card_notes = models.TextField(blank=True, null=True)
+    paypal_notes = models.TextField(blank=True, null=True)
+
     default_warehouse = models.IntegerField(default=0, blank=True, null=True)
     payment_term = models.IntegerField(default=0, blank=True, null=True)
     bank_name = models.CharField(max_length=120, blank=True, null=True)
+
+    mode_of_payment = models.CharField(max_length=255, blank=True, null=True)
+    bank_ifsc = models.CharField(max_length=60, blank=True, null=True)
+    first_contact_date = models.DateField(blank=True, null=True)
+    first_contact_via = models.CharField(max_length=80, blank=True, null=True)
+    onboard_date = models.DateField(blank=True, null=True)
+    onboard_by = models.CharField(max_length=120, blank=True, null=True)
+    mode_of_contact = models.CharField(max_length=50, blank=True, null=True)
+    comments = models.CharField(max_length=120, blank=True, null=True)
+
+    cardholder_name = models.CharField(max_length=100, blank=True, null=True)
+    card_type = models.CharField(max_length=20, blank=True, null=True)
+    card_last_four = models.CharField(max_length=4, blank=True, null=True)
+    card_expiry = models.CharField(max_length=7, blank=True, null=True)  # Format: MM/YYYY
+    paypal_email = models.EmailField(max_length=254, blank=True, null=True)
+    paypal_merchant_id = models.CharField(max_length=50, blank=True, null=True)
+
+    vendor_locality = models.CharField(max_length=120, blank=True, null=True)
+
     company_abn = models.CharField(max_length=15, blank=True, null=True)
     company_acn = models.CharField(max_length=15, blank=True, null=True)
     bank_branch = models.CharField(max_length=80, blank=True, null=True)
@@ -35,6 +64,30 @@ class Vendor(models.Model):
     reminder = models.TextField(blank=True, null=True)
     remarks = models.TextField(blank=True, null=True)
     currency = models.CharField(max_length=10, blank=True, null=True)
+
+    wallet_type = models.CharField(max_length=100, blank=True, null=True)
+    auto_detect_invoice = models.CharField(max_length=10, default="no")
+    allow_negative_balance = models.CharField(max_length=10, default="no")
+    minimum_wallet_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+    low_balance_email = models.EmailField(blank=True, null=True)
+
+    # --- Bank Transfer Details ---
+    account_name = models.CharField(max_length=150, blank=True, null=True)
+    bank_country = models.CharField(max_length=100, blank=True, null=True)
+    # வங்கி ஆவணங்களை சேமிக்க (Media folder செட் செய்திருக்க வேண்டும்)
+    bank_verification_doc = models.FileField(upload_to='vendor/bank_docs/', blank=True, null=True)
+
+    # --- PayPal Details ---
+    paypal_environment = models.CharField(max_length=20, default="sandbox")
+    paypal_transaction_fee = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+
+    # --- Credit Card Details ---
+    accepted_card = models.CharField(max_length=50, blank=True, null=True)
+    payment_gateway = models.CharField(max_length=100, blank=True, null=True)
+    processing_fee = models.DecimalField(max_digits=5, decimal_places=2, default=0.00)
+    three_d_secure = models.CharField(max_length=10, default="no")
+    preferred_shipping_provider = models.IntegerField(blank=True, null=True)
+
 
    # documents = models.FileField(upload_to='imports/vendors/', null=True, blank=True)
     created_by = models.IntegerField(default=0)

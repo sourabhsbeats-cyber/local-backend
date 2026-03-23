@@ -14,7 +14,46 @@ from rest_framework.status import HTTP_401_UNAUTHORIZED
 from store_admin.AuthHandler import StrictJWTCookieAuthentication
 from store_admin.models import StoreAdminSession
 
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@authentication_classes([])
+@csrf_exempt
+def api_login(request):
+    username = request.data.get("username")
+    password = request.data.get("password")
 
+    user = authenticate(username=username, password=password)
+    if not user:
+        return Response(
+            {"status": "error", "message": "Invalid credentials"},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+
+    refresh = RefreshToken.for_user(user)
+
+    response = Response(
+        {"status": "success", "message": f"Welcome back, {user.name}"},
+        status=status.HTTP_200_OK
+    )
+
+    # Access token மட்டும் - 8 hours
+    response.set_cookie(
+        key="access",
+        value=str(refresh.access_token),
+        httponly=True,
+        secure=False,      # True in prod
+        samesite="Lax",
+        path="/",
+        max_age=8 * 60 * 60,  # 8 hours
+    )
+
+    # Refresh cookie வேண்டாமே!
+
+    return response
+
+
+#Refresh token implementation not working in perfect session adikadi close aguthu
+'''
 @api_view(['POST'])
 @permission_classes([AllowAny])
 @authentication_classes([])
@@ -58,6 +97,7 @@ def api_login(request):
     )
 
     return response
+'''
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
