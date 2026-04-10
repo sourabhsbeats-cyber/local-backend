@@ -252,8 +252,7 @@ def get_vendor_details(request):
         def serialize_address(address_type):
             # Link Vendor to the specific address type
             rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type=address_type).first()
-            addr = Addresses.objects.select_related("country", "state").filter(id=rel.address_id).first() if rel else None
-
+            addr = rel.address if rel else None
             if not addr:
                 return {
                     "attention": "", "country": "", "street1": "", "street2": "",
@@ -470,7 +469,7 @@ def all_vendors(request):
 
         for addr in vendor_addresses:
             if addr.address_type == "billing":
-                billing_details = Addresses.objects.filter(id=addr.address_id).first()
+                billing_details = addr.address  # Directly access the related Addresses object
             elif addr.address_type == "shipping":
                 shipping_details = Addresses.objects.filter(id=addr.address_id).first()
 
