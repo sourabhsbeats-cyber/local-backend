@@ -11,6 +11,94 @@ from store_admin.models.po_models.po_models import PurchaseOrder
 from store_admin.models.setting_model import ShippingProviders
 
 
+def parse_json_field(value, default=None):
+    """
+    Safely parse a JSON string into a Python object.
+    If the value is already a dict/list or parsing fails, return the default.
+    """
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    try:
+        return json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return default
+    
+def upsert_vendor_bank(vendor, primary_data, user_id):
+    """
+    Create or update VendorBank records for a vendor.
+    Stub implementation: add your logic as needed.
+    """
+    banks = primary_data.get('banks', [])
+    for bank in banks:
+        VendorBank.objects.update_or_create(
+            vendor=vendor,
+            account_number=bank.get('account_number'),
+            defaults={
+                'bank_name': bank.get('bank_name'),
+                'ifsc_code': bank.get('ifsc_code'),
+                'created_by': user_id
+            }
+        )
+
+def upsert_vendor_contacts(vendor, contacts, user_id):
+    """
+    Create or update VendorContact records.
+    """
+    for contact in contacts:
+        VendorContact.objects.update_or_create(
+            vendor=vendor,
+            email=contact.get('email'),
+            defaults={
+                'name': contact.get('name'),
+                'phone': contact.get('phone'),
+                'created_by': user_id
+            }
+        )
+
+def upsert_vendor_warehouses(vendor, warehouses, user_id):
+    """
+    Create or update VendorWarehouse records.
+    """
+    for wh in warehouses:
+        VendorWarehouse.objects.update_or_create(
+            vendor=vendor,
+            name=wh.get('name'),
+            defaults={
+                'location': wh.get('location'),
+                'created_by': user_id
+            }
+        )
+
+def save_vendor_addresses(vendor_id, billing_address, shipping_address, user_id):
+    """
+    Save or update VendorAddress for billing and shipping.
+    """
+    if billing_address:
+        VendorAddress.objects.update_or_create(
+            vendor_id=vendor_id,
+            address_type='billing',
+            defaults={
+                'address_line': billing_address.get('address_line'),
+                'city': billing_address.get('city'),
+                'state': billing_address.get('state'),
+                'zipcode': billing_address.get('zipcode'),
+                'created_by': user_id
+            }
+        )
+    if shipping_address:
+        VendorAddress.objects.update_or_create(
+            vendor_id=vendor_id,
+            address_type='shipping',
+            defaults={
+                'address_line': shipping_address.get('address_line'),
+                'city': shipping_address.get('city'),
+                'state': shipping_address.get('state'),
+                'zipcode': shipping_address.get('zipcode'),
+                'created_by': user_id
+            }
+        )
 # -------------------------------------------------
 # Basic sanitizers
 # -------------------------------------------------

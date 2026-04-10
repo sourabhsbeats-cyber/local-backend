@@ -9,12 +9,16 @@ from .views.vendors import (
 )
 
 urlpatterns = [
+
+    path('vendor_details/', get_vendor_details, name='vendor_details'),
     # -------------------------
     # Vendor Management
     # -------------------------
     path('vendors_list', vendor_views.all_vendors, name='vendors_list'),
     path('api/vendorsearch', vendor_views.api_vendor_search, name='api_vendor_search'),
     path('api/addvendor/', vendor_views.api_add_new_vendor, name='api_add_new_vendor'),
+    # Add this line for the frontend
+    path('vendor_api_lists', vendor_views.vendor_api_lists, name='vendor_api_lists'),
     path("api/delete/<int:vendor_id>", vendor_views.delete_vendor, name="delete_vendor"),
     path('api/save_vendor_details', vendor_views.api_save_vendor, name="save_vendor_details"),
 

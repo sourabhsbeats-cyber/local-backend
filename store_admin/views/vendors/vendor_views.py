@@ -19,8 +19,7 @@ from store_admin.helpers import get_bool_int
 from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.po_models.po_models import PurchaseOrder
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorAddress, VendorDocuments, \
-    VendorWarehouse
+from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorWarehouse, VendorAddress
 from store_admin.models.address_model import Addresses
 from django.db import transaction
 from django.db.models import Min
@@ -31,7 +30,7 @@ from django.db.models.functions import Concat
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.core.validators import validate_email
-
+from store_admin.helpers import parse_json_field, upsert_vendor_bank, upsert_vendor_contacts, upsert_vendor_warehouses, save_vendor_addresses
 
 def parse_json_field(value, default):
     if value in [None, "", "null", "undefined"]:
@@ -53,6 +52,8 @@ def normalize_mode_of_payment(raw_modes):
 
 
 def upsert_vendor_bank(vendor, primary, user_id=0):
+    from store_admin.models.vendor_models import VendorBank  # moved inside to avoid circular import
+
     if not hasattr(vendor, 'mode_of_payment'):
         return
 
@@ -82,14 +83,10 @@ def upsert_vendor_bank(vendor, primary, user_id=0):
         }
         bank_obj = VendorBank.objects.filter(vendor_id=vendor.id).first()
         if bank_obj:
-            bank_obj.account_holder = bank_data['account_holder']
-            bank_obj.bank_name = bank_data['bank_name']
-            bank_obj.bank_branch = bank_data['bank_branch']
-            bank_obj.account_number = bank_data['account_number']
-            bank_obj.bic = bank_data['bic']
-            bank_obj.bank_country = bank_data['bank_country']
+            for k, v in bank_data.items():
+                setattr(bank_obj, k, v)
             bank_obj.save()
-        elif any([bank_data['account_holder'], bank_data['bank_name'], bank_data['account_number'], bank_data['bic'], bank_data['bank_branch'], bank_data['bank_country']]):
+        elif any(bank_data.values()):
             VendorBank.objects.create(vendor_id=vendor.id, **bank_data)
 
     if 'credit_card' in mode_list:
@@ -130,6 +127,10 @@ def upsert_vendor_bank(vendor, primary, user_id=0):
 
 
 def upsert_vendor_contacts(vendor, contacts, user_id=0):
+    from store_admin.models.vendor_models import VendorContact  # moved inside
+    from django.core.validators import validate_email
+    from django.core.exceptions import ValidationError
+
     if not contacts:
         return
     for contact in contacts:
@@ -173,6 +174,8 @@ def upsert_vendor_contacts(vendor, contacts, user_id=0):
 
 
 def upsert_vendor_warehouses(vendor, warehouses, user_id=0):
+    from store_admin.models.vendor_models import VendorWarehouse  # moved inside
+
     if not warehouses:
         return
     for warehouse in warehouses:
@@ -211,10 +214,28 @@ def upsert_vendor_warehouses(vendor, warehouses, user_id=0):
 
 
 def save_vendor_addresses(vendor_id, billing_address, shipping_address, user_id=0):
+    from store_admin.models.vendor_models import VendorAddress  # moved inside
+
+    def save_address(address_data, addr_type, vendor_id, source, user_id):
+        if not address_data:
+            return
+        VendorAddress.objects.update_or_create(
+            vendor_id=vendor_id,
+            address_type=addr_type,
+            defaults={
+                'address_line': address_data.get('address_line'),
+                'city': address_data.get('city'),
+                'state': address_data.get('state'),
+                'zipcode': address_data.get('zipcode'),
+                'created_by': user_id
+            }
+        )
+
     if billing_address:
         save_address(billing_address, 'billing', vendor_id, 'API', user_id)
     if shipping_address:
         save_address(shipping_address, 'shipping', vendor_id, 'API', user_id)
+
 
 from store_admin.serializers.common_serializers import VendorContactSerializer, VendorBankSerializer
 from store_admin.serializers.payment_serializers import VendorPaymentLogSerializer, VendorPaymentLogItemSerializer
@@ -894,7 +915,6 @@ def api_add_new_vendor(request):
     data = request.data
     primary = parse_json_field(data.get('primary'), {})
     details = parse_json_field(data.get('details'), {})
-    onboard_details = parse_json_field(data.get('onboard_details'), {})
     warehouses = parse_json_field(data.get('warehouses'), [])
     contacts = parse_json_field(data.get('contacts'), [])
 
@@ -945,7 +965,6 @@ def api_add_new_vendor(request):
             min_order_value=min_order_value,
             created_by=request.user.id if request.user.is_authenticated else None,
             status=primary.get('status') or data.get('status') or 0,
-            default_warehouse=primary.get('default_warehouse') or None,
             payment_term=primary.get('payment_term') or None,
             company_acn=primary.get('company_acn') or None,
             company_abn=primary.get('company_abn') or None,
@@ -953,20 +972,30 @@ def api_add_new_vendor(request):
             currency=primary.get('currency') or None
         )
 
+        # Optional vendor model field
         if hasattr(vendor, 'vendor_model'):
             vendor.vendor_model = primary.get('vendor_model') or ''
 
+        # Save related models
         upsert_vendor_bank(vendor, primary, request.user.id if request.user.is_authenticated else 0)
         upsert_vendor_contacts(vendor, contacts, request.user.id if request.user.is_authenticated else 0)
         upsert_vendor_warehouses(vendor, warehouses, request.user.id if request.user.is_authenticated else 0)
         save_vendor_addresses(vendor.id, billing_address, shipping_address, request.user.id if request.user.is_authenticated else 0)
+
+        # Set default warehouse if provided
+        default_wh_id = primary.get('default_warehouse')
+        if default_wh_id:
+            VendorWarehouse.objects.create(
+                vendor=vendor,
+                warehouse_id=default_wh_id,
+                is_default=True
+            )
 
     return JsonResponse({
         'status': True,
         'message': 'Vendor created successfully',
         'vendor_id': vendor.id
     }, status=201)
-
 
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
@@ -1620,3 +1649,18 @@ def get_single_vendor_bank(request, vendor_id, bank_id):
         contacts_queryset = VendorBank.objects.filter(vendor_id=vendor_id, id=bank_id).first()
         serialized_data = VendorBankSerializer(contacts_queryset)
         return JsonResponse({"status": True, "data": serialized_data.data})
+
+
+def vendor_api_lists(request):
+    """
+    Returns a JSON list of all vendors.
+    Adjust the fields as needed to match your frontend requirements.
+    """
+    vendors = Vendor.objects.all().values(
+    'id',
+    'vendor_name',         # instead of 'name'
+    'vendor_company_name', # optional
+    'vendor_locality',     # instead of 'email' or 'phone' maybe?
+    'status'
+)
+    return JsonResponse(list(vendors), safe=False)
