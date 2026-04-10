@@ -110,6 +110,9 @@ class VendorDocuments(models.Model):
     created_by = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
 
+    class Meta:
+        db_table = "store_admin_vendor_documents"
+
 # -------------------------
 # Vendor Contact Details
 # -------------------------

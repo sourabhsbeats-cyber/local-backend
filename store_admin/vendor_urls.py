@@ -10,7 +10,7 @@ from .views.vendors import (
 from .views.vendors.vendor_views import get_vendor_details  # <- Add this line
 urlpatterns = [
 
-    path('vendor_details/', vendor_views.get_vendor_details, name='vendor_details'),
+    path('vendor_details', get_vendor_details, name='vendor_details'),
     # -------------------------
     # Vendor Management
     # -------------------------

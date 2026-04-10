@@ -19,7 +19,7 @@ from store_admin.helpers import get_bool_int
 from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.po_models.po_models import PurchaseOrder
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorWarehouse, VendorAddress
+from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorWarehouse, VendorAddress, VendorDocuments
 from store_admin.models.address_model import Addresses
 from django.db import transaction
 from django.db.models import Min
@@ -244,41 +244,54 @@ from store_admin.serializers.payment_serializers import VendorPaymentLogSerializ
 def get_vendor_details(request):
     vendor_id = request.GET.get("vendor_id")
     try:
-        vendor = Vendor.objects.get(id=vendor_id)
+        if not vendor_id:
+            return JsonResponse({"status": False, "message": "vendor_id is required"}, status=400)
+
+        vendor = Vendor.objects.filter(id=vendor_id).first()
         if not vendor:
-            raise Exception("vendor not found")
+            return JsonResponse({"status": False, "message": "vendor not found"}, status=404)
 
         # Helper function to serialize addresses (Billing/Shipping)
         def serialize_address(address_type):
-            # Link Vendor to the specific address type
             rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type=address_type).first()
-            addr = rel.address if rel else None
-            if not addr:
+            if not rel:
                 return {
                     "attention": "", "country": "", "street1": "", "street2": "",
                     "city": "", "state": "", "zip": "", "phone": "", "fax": "",
                     "state_list": []
                 }
 
-            # Fetch state list for the saved country to populate React dropdowns immediately
-            state_list = list(State.objects.filter(country_id=addr.country_id).values('id', 'name'))
+            # Current VendorAddress model stores flat address fields
+            country_value = rel.country or ""
+            state_list = []
+            try:
+                country_id = int(country_value)
+                state_list = list(State.objects.filter(country_id=country_id).values('id', 'name'))
+            except (TypeError, ValueError):
+                state_list = []
 
             return {
-                "attention": addr.attention_name or "",
-                "country": addr.country.id if addr.country else "",
-                "street1": addr.street1 or "",
-                "street2": addr.street2 or "",
-                "city": addr.city or "",
-                "state": addr.state.id if addr.state else "",
-                "state_name": addr.state.name if addr.state else "",
-                "zip": addr.zip or "",
-                "phone": addr.phone or "",
-                "fax": addr.fax or "",
+                "attention": "",
+                "country": country_value,
+                "street1": rel.address_line1 or "",
+                "street2": rel.address_line2 or "",
+                "city": rel.suburb or "",
+                "state": rel.state or "",
+                "state_name": rel.state or "",
+                "zip": rel.post_code or "",
+                "phone": "",
+                "fax": "",
                 "state_list": state_list
             }
 
         def get_vendor_bank_data(vendor_id):
-            bank = VendorBank.objects.filter(vendor_id=vendor_id).order_by("-created_at").first()
+            bank = (
+                VendorBank.objects
+                .filter(vendor_id=vendor_id)
+                .values("bank_name", "bic", "account_holder", "account_number")
+                .order_by("-id")
+                .first()
+            )
             if not bank:
                 return {
                     "bank_name": "",
@@ -290,12 +303,12 @@ def get_vendor_details(request):
                     "bank_verification_doc": ""
                 }
             return {
-                "bank_name": bank.bank_name or "",
-                "bank_branch": bank.bank_branch or "",
-                "bank_ifsc": bank.bic or "",
-                "account_name": bank.account_holder or "",
-                "bank_country": bank.bank_country or "",
-                "account_number": bank.account_number or "",
+                "bank_name": bank.get("bank_name") or "",
+                "bank_branch": "",
+                "bank_ifsc": bank.get("bic") or "",
+                "account_name": bank.get("account_holder") or "",
+                "bank_country": "",
+                "account_number": bank.get("account_number") or "",
                 "bank_verification_doc": ""
             }
 
@@ -309,15 +322,21 @@ def get_vendor_details(request):
 
         # build id → username map
         user_map = {
-            u.id: u.name
+            u.id: (getattr(u, "name", None) or getattr(u, "username", None) or str(u))
             for u in User.objects.filter(id__in=user_ids)
         }
 
         documents = []
         for d in qs:
+            file_url = ""
+            if d.file_path:
+                try:
+                    file_url = request.build_absolute_uri(d.file_path.url)
+                except Exception:
+                    file_url = ""
             documents.append({
                 "id": d.pk,
-                "file_path": request.build_absolute_uri(d.file_path.url),
+                "file_path": file_url,
                 "file_name": d.file_name,
                 "created_by": user_map.get(d.created_by),  # username
                 "created_at": d.created_at.strftime("%d-%m-%Y %I:%M %p"),
@@ -326,6 +345,8 @@ def get_vendor_details(request):
         contacts = list(VendorContact.objects.filter(vendor_id=vendor.id).values(
             'id', 'first_name', 'last_name', 'role', 'email', 'phone', 'department', 'description'
         ))
+
+        mode_of_payment = getattr(vendor, "mode_of_payment", "") or ""
 
         # Structure response to match your React 'profile' and 'details' states
         context = {
@@ -344,7 +365,7 @@ def get_vendor_details(request):
                 "bank_name": bank_data["bank_name"],
                 "bank_branch": bank_data["bank_branch"],
                 "bank_ifsc": bank_data["bank_ifsc"],
-                "mode_of_payment": [m for m in (vendor.mode_of_payment or "").split(",") if m.strip()],
+                "mode_of_payment": [m for m in mode_of_payment.split(",") if m.strip()],
                 "cardholder_name": vendor.cardholder_name or "",
                 "card_type": vendor.card_type or "",
                 "card_last_four": vendor.card_last_four or "",
@@ -469,19 +490,19 @@ def all_vendors(request):
 
         for addr in vendor_addresses:
             if addr.address_type == "billing":
-                billing_details = addr.address  # Directly access the related Addresses object
+                billing_details = addr
             elif addr.address_type == "shipping":
-                shipping_details = Addresses.objects.filter(id=addr.address_id).first()
+                shipping_details = addr
 
         vendor_data.append({
             "id": vendor.id,
             "vendor_name": vendor.vendor_name,
             "vendor_code": vendor.vendor_code,
             "currency": vendor.currency,
-            "billing_country" : billing_details.country.name  if billing_details and billing_details.country else "",
-            "shipping_country" : shipping_details.country.name if shipping_details and shipping_details.country else "",
-            "billing_city" : billing_details.city if billing_details else "",
-            "shipping_city" : shipping_details.city if shipping_details else "",
+            "billing_country" : billing_details.country if billing_details else "",
+            "shipping_country" : shipping_details.country if shipping_details else "",
+            "billing_city" : billing_details.suburb if billing_details else "",
+            "shipping_city" : shipping_details.suburb if shipping_details else "",
 
             "vendor_model": getattr(vendor, "vendor_model", "") or "",
             "vendor_locality": vendor.vendor_locality,
