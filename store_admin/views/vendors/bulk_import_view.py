@@ -89,8 +89,8 @@ vendor_field_schema = {
     "WorkPhone":                {"type": "str",   "max": 50,  "required": False},
     "MobilePhone":              {"type": "str",   "max": 50,  "required": True},
     "IsRegisteredBusiness":     {"type": "bool",               "required": False},
-    "ABN":                      {"type": "str",   "max": 50,  "required": False},
-    "ACN":                      {"type": "str",   "max": 50,  "required": False},
+    "ABN":                      {"type": "str",   "max": 15,  "required": False},
+    "ACN":                      {"type": "str",   "max": 15,  "required": False},
     "PaymentTerms":             {"type": "str",   "max": 100, "required": False},
     "Currency":                 {"type": "str",   "max": 10,  "required": False},
     "PaymentMethod":            {"type": "str",   "max": 100, "required": False},
@@ -484,7 +484,7 @@ def final_vendor_import(request):
 
             if vendor_addr_link:
                 # ADDRESS FOUND: UPDATE EXISTING ADDRESS
-                billing_addr = vendor_addr_link.address_id
+                billing_addr = vendor_addr_link.address
 
                 billing_addr.attention_name = billing_contact or None
                 billing_addr.country = bill_country
@@ -555,7 +555,7 @@ def final_vendor_import(request):
 
             if vendor_addr_link:
                 # ADDRESS FOUND: UPDATE EXISTING ADDRESS
-                shipping_addr = vendor_addr_link.address_id
+                shipping_addr = vendor_addr_link.address
 
                 shipping_addr.attention_name = shipping_contact or None
                 shipping_addr.country = ship_country
@@ -579,7 +579,8 @@ def final_vendor_import(request):
                     city=shipping_city or None,
                     zip=shipping_zip or None,
                     phone=shipping_phone or None,
-                    fax=shipping_fax or None,created_by = request.user.id,
+                    fax=shipping_fax or None,
+                    created_by=request.user.id,
                 )
                 VendorAddress.objects.create(
                     vendor_id=vendor.id,

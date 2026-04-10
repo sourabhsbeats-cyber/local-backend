@@ -104,7 +104,7 @@ def create_po_api_order(request):
         vendor_name="",
         created_by=request.user.id,
         global_tax_rate=10.0,
-        status_id=POStatus.DRAFT
+        status_id=POStatus.PARKED
     )
 
     return JsonResponse({
@@ -531,7 +531,7 @@ def save_po_details(request):
         po.tax_total = agg['tt'] or Decimal("0.00")
         po.summary_total = (agg['gt'] or Decimal("0.00")) + po.shipping_charge + po.surcharge_total
 
-        if not po.status_id:
+        if po.status_id in [None, POStatus.DRAFT]:
             po.status_id = POStatus.PARKED
 
         po.save()
@@ -628,8 +628,8 @@ def save_po(request):
 
         po.comments = comments
         po.created_by = request.user.id
-        if po.status_id == POStatus.DRAFT:
-            po.status_id = POStatus.PARKED #int(po_status)  # POStatus.CREATED
+        if po.status_id in [None, POStatus.DRAFT]:
+            po.status_id = POStatus.PARKED
 
         '''sub_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # qty*price
         tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)  # subtital 's tax amount
@@ -1419,13 +1419,15 @@ def update_po_status(request):
 
         #  Status label map
         STATUS_LABELS = {
-            POStatus.DRAFT:     "PO moved to Draft",
             POStatus.PARKED:    "PO moved to Parked",
             POStatus.PLACED:    "PO Placed successfully",
             POStatus.COSTED:    "PO Costed successfully",
             POStatus.RECEIPTED: "PO Receipted successfully",
             POStatus.COMPLETED: "PO Completed successfully",
         }
+
+        if new_status_id == POStatus.DRAFT:
+            new_status_id = POStatus.PARKED
 
         po = PurchaseOrder.objects.filter(po_id=po_id).first()
         if not po:

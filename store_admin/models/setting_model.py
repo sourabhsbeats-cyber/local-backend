@@ -122,9 +122,9 @@ from django.utils import timezone
 class ShippingProviders(models.Model):
     carrier_id = models.AutoField(primary_key=True)
     carrier_name = models.CharField(max_length=255)
-    carrier_code = models.CharField(max_length=50, db_index=True)
-    class_code = models.CharField(max_length=50, blank=True, null=True)
-    tracking_url = models.URLField(max_length=500, blank=True, null=True)
+    carrier_code = models.CharField(max_length=100, db_index=True)
+    class_code = models.CharField(max_length=100, blank=True, null=True)
+    tracking_url = models.URLField(max_length=2000, blank=True, null=True)
 
     # Status field (typically an Integer or Char with choices)
     STATUS_CHOICES = [

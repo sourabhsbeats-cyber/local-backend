@@ -1,11 +1,55 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from rest_framework.decorators import api_view, renderer_classes
-from rest_framework.renderers import JSONRenderer
+from rest_framework.decorators import api_view
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
+from django.core.exceptions import ValidationError
+from django.core.validators import URLValidator
 from store_admin.models.setting_model import ShippingProviders
-from django.db.models import  Q
+from django.db.models import Q
+
+MAX_CARRIER_NAME_LENGTH = 255
+MAX_CARRIER_CODE_LENGTH = 100
+MAX_CLASS_CODE_LENGTH = 100
+MAX_TRACKING_URL_LENGTH = 2000
+
+
+def validate_shipping_provider_payload(data):
+    carrier_name = str(data.get("carrier_name", "") or "").strip()
+    carrier_code = str(data.get("carrier_code", "") or "").strip()
+    class_code = str(data.get("class_code", "") or "").strip()
+    tracking_url = str(data.get("tracking_url", "") or "").strip()
+
+    if not carrier_name:
+        return False, "Carrier name is required."
+    if len(carrier_name) > MAX_CARRIER_NAME_LENGTH:
+        return False, f"Carrier name cannot exceed {MAX_CARRIER_NAME_LENGTH} characters."
+
+    if not carrier_code:
+        return False, "Carrier code is required."
+    if len(carrier_code) > MAX_CARRIER_CODE_LENGTH:
+        return False, f"Carrier code cannot exceed {MAX_CARRIER_CODE_LENGTH} characters."
+
+    if class_code and len(class_code) > MAX_CLASS_CODE_LENGTH:
+        return False, f"Class code cannot exceed {MAX_CLASS_CODE_LENGTH} characters."
+
+    if tracking_url:
+        if len(tracking_url) > MAX_TRACKING_URL_LENGTH:
+            return False, f"Tracking URL cannot exceed {MAX_TRACKING_URL_LENGTH} characters."
+        validator = URLValidator()
+        try:
+            validator(tracking_url)
+        except ValidationError:
+            return False, "Tracking URL is not valid."
+
+    return True, {
+        "carrier_name": carrier_name,
+        "carrier_code": carrier_code,
+        "class_code": class_code or None,
+        "tracking_url": tracking_url or None,
+    }
+
+
 @api_view(["GET"])
 def api_all_shipping_providers(request):
 
@@ -53,24 +97,32 @@ def api_all_shipping_providers(request):
 @api_view(["PUT"])
 def save_shipping_details(request, carrier_id):
     data = request.data
+    valid, payload_or_message = validate_shipping_provider_payload(data)
+    if not valid:
+        return JsonResponse({"status": False, "message": payload_or_message})
+
     try:
         provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
-        provider.carrier_name = data.get("carrier_name")
-        provider.carrier_code = data.get("carrier_code")
-        provider.class_code = data.get("class_code")
-        provider.tracking_url = data.get("tracking_url")
+        if ShippingProviders.objects.exclude(carrier_id=carrier_id).filter(carrier_code=payload_or_message["carrier_code"]).exists():
+            return JsonResponse({"status": False, "message": "Carrier code already exists."})
 
+        provider.carrier_name = payload_or_message["carrier_name"]
+        provider.carrier_code = payload_or_message["carrier_code"]
+        provider.class_code = payload_or_message["class_code"]
+        provider.tracking_url = payload_or_message["tracking_url"]
         provider.save()
+
         return JsonResponse({
             "status": True,
             "message": "Shipping provider updated successfully"
         })
 
-    except Exception as e:
+    except Exception:
         return JsonResponse({
             "status": False,
             "message": "Error saving shipping provider details"
         })
+
 
 @api_view(["POST"])
 def toggle_shipping_status(request, carrier_id):
@@ -79,8 +131,6 @@ def toggle_shipping_status(request, carrier_id):
         provider = get_object_or_404(ShippingProviders, carrier_id=carrier_id)
         provider.status = 0 if provider.status == 1 else 1
         status_text = "activated" if provider.status == 1 else "deactivated"
-        provider.save(update_fields=["status"])
-
         provider.save(update_fields=["status"])
         return JsonResponse({
             "status": True,
@@ -96,21 +146,20 @@ def toggle_shipping_status(request, carrier_id):
 @api_view(["POST"])
 def add_new_shipping_providers(request):
     data = request.data
-    try:
-        ex_provider = ShippingProviders.objects.filter(carrier_name=data.get("carrier_name")).exists()
+    valid, payload_or_message = validate_shipping_provider_payload(data)
+    if not valid:
+        return JsonResponse({"status": False, "message": payload_or_message})
 
-        if ex_provider:
-            return JsonResponse({
-                "status": False,
-                "message": "Shipping provider code already exists"
-            })
+    try:
+        if ShippingProviders.objects.filter(carrier_code=payload_or_message["carrier_code"]).exists():
+            return JsonResponse({"status": False, "message": "Carrier code already exists."})
 
         provider = ShippingProviders()
-        provider.carrier_name = data.get("carrier_name")
-        provider.carrier_code = data.get("carrier_code")
-        provider.class_code = data.get("class_code")
-        provider.tracking_url = data.get("tracking_url")
-        provider.created_by = request.user.id
+        provider.carrier_name = payload_or_message["carrier_name"]
+        provider.carrier_code = payload_or_message["carrier_code"]
+        provider.class_code = payload_or_message["class_code"]
+        provider.tracking_url = payload_or_message["tracking_url"]
+        provider.created_by = getattr(request.user, 'id', None) or 0
         provider.save()
 
         return JsonResponse({
@@ -118,8 +167,7 @@ def add_new_shipping_providers(request):
             "message": "Shipping provider created successfully"
         })
 
-
-    except Exception as e:
+    except Exception:
         return JsonResponse({
             "status": False,
             "message": "Error saving shipping provider details"

@@ -16,13 +16,29 @@ from store_admin.models.setting_model import ShippingProviders
 # -------------------------------------------------
 
 def to_str(val):
+    """Convert value to string, handling None, NaN, and whitespace"""
     if val is None:
         return ""
-    if isinstance(val, float) and math.isnan(val):
-        return ""
+    # Handle pandas NaN
+    try:
+        import pandas as pd
+        if isinstance(val, float) and pd.isna(val):
+            return ""
+    except (ImportError, TypeError):
+        pass
+    # Handle Python float NaN
+    if isinstance(val, float):
+        try:
+            if math.isnan(val):
+                return ""
+        except (TypeError, ValueError):
+            pass
+    # Handle string "nan"
     if str(val).lower() == "nan":
         return ""
-    return str(val).strip()
+    # Clean up non-breaking spaces (common in Excel/web imports)
+    clean_val = str(val).replace('\xa0', ' ')
+    return clean_val.strip()
 
 
 def safe_int(val, default=None):

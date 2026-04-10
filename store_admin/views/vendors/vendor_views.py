@@ -1,4 +1,5 @@
 import os
+import json
 
 from dj_rest_auth.jwt_auth import JWTCookieAuthentication
 from django.contrib.auth import get_user_model
@@ -30,6 +31,193 @@ from django.db.models.functions import Concat
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.core.validators import validate_email
+
+
+def parse_json_field(value, default):
+    if value in [None, "", "null", "undefined"]:
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    try:
+        return json.loads(value)
+    except Exception:
+        return default
+
+
+def normalize_mode_of_payment(raw_modes):
+    if isinstance(raw_modes, list):
+        return [str(m).strip() for m in raw_modes if str(m).strip()]
+    if isinstance(raw_modes, str):
+        return [m.strip() for m in raw_modes.split(",") if m.strip()]
+    return []
+
+
+def upsert_vendor_bank(vendor, primary, user_id=0):
+    if not hasattr(vendor, 'mode_of_payment'):
+        return
+
+    mode_list = normalize_mode_of_payment(primary.get('mode_of_payment') or "")
+    vendor.mode_of_payment = ",".join(mode_list) if mode_list else None
+
+    if 'paypal' in mode_list:
+        vendor.paypal_email = primary.get('paypal_email') or None
+        vendor.paypal_merchant_id = primary.get('paypal_merchant_id') or None
+        vendor.paypal_environment = primary.get('paypal_environment') or 'sandbox'
+        vendor.paypal_transaction_fee = primary.get('paypal_transaction_fee') or 0.00
+    else:
+        vendor.paypal_email = None
+        vendor.paypal_merchant_id = None
+        vendor.paypal_environment = 'sandbox'
+        vendor.paypal_transaction_fee = 0.00
+
+    if 'bank_transfer' in mode_list:
+        bank_data = {
+            'account_holder': primary.get('account_name') or "",
+            'bank_name': primary.get('bank_name') or "",
+            'bank_branch': primary.get('bank_branch') or None,
+            'account_number': str(primary.get('account_number') or ""),
+            'bic': primary.get('bank_ifsc') or "",
+            'bank_country': primary.get('bank_country') or None,
+            'created_by': user_id
+        }
+        bank_obj = VendorBank.objects.filter(vendor_id=vendor.id).first()
+        if bank_obj:
+            bank_obj.account_holder = bank_data['account_holder']
+            bank_obj.bank_name = bank_data['bank_name']
+            bank_obj.bank_branch = bank_data['bank_branch']
+            bank_obj.account_number = bank_data['account_number']
+            bank_obj.bic = bank_data['bic']
+            bank_obj.bank_country = bank_data['bank_country']
+            bank_obj.save()
+        elif any([bank_data['account_holder'], bank_data['bank_name'], bank_data['account_number'], bank_data['bic'], bank_data['bank_branch'], bank_data['bank_country']]):
+            VendorBank.objects.create(vendor_id=vendor.id, **bank_data)
+
+    if 'credit_card' in mode_list:
+        vendor.cardholder_name = primary.get('cardholder_name') or None
+        vendor.card_last_four = primary.get('card_last_four') or None
+        vendor.card_expiry = primary.get('card_expiry') or None
+        vendor.accepted_card = primary.get('accepted_card') or None
+        vendor.payment_gateway = primary.get('payment_gateway') or None
+        vendor.processing_fee = primary.get('processing_fee') or 0.00
+        vendor.three_d_secure = primary.get('three_d_secure') or 'no'
+    else:
+        vendor.cardholder_name = None
+        vendor.card_last_four = None
+        vendor.card_expiry = None
+        vendor.accepted_card = None
+        vendor.payment_gateway = None
+        vendor.processing_fee = 0.00
+        vendor.three_d_secure = 'no'
+
+    if 'wallet' in mode_list:
+        vendor.wallet_type = primary.get('wallet_type') or None
+        vendor.auto_detect_invoice = primary.get('auto_detect_invoice') or 'no'
+        vendor.allow_negative_balance = primary.get('allow_negative_balance') or 'no'
+        vendor.minimum_wallet_balance = primary.get('minimum_wallet_balance') or 0.00
+        vendor.low_balance_email = primary.get('low_balance_email') or None
+    else:
+        vendor.wallet_type = None
+        vendor.auto_detect_invoice = 'no'
+        vendor.allow_negative_balance = 'no'
+        vendor.minimum_wallet_balance = 0.00
+        vendor.low_balance_email = None
+
+    vendor.paypal_notes = primary.get('paypal_notes') or None
+    vendor.credit_card_notes = primary.get('credit_card_notes') or None
+    vendor.wallet_notes = primary.get('wallet_notes') or None
+    vendor.currency = primary.get('currency') or vendor.currency
+    vendor.save()
+
+
+def upsert_vendor_contacts(vendor, contacts, user_id=0):
+    if not contacts:
+        return
+    for contact in contacts:
+        if not isinstance(contact, dict):
+            continue
+        contact_id = contact.get('id') or contact.get('contact_id')
+        vendor_contact = None
+        if contact_id:
+            vendor_contact = VendorContact.objects.filter(id=contact_id, vendor_id=vendor.id).first()
+
+        email = (contact.get('email') or '').strip()
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError:
+                email = None
+
+        if vendor_contact:
+            vendor_contact.department = contact.get('department') or vendor_contact.department
+            vendor_contact.email = email or vendor_contact.email
+            vendor_contact.phone = contact.get('phone') or vendor_contact.phone
+            vendor_contact.first_name = (contact.get('first_name') or vendor_contact.first_name).strip()
+            vendor_contact.last_name = (contact.get('last_name') or vendor_contact.last_name).strip()
+            vendor_contact.description = contact.get('description') or vendor_contact.description
+            vendor_contact.role = contact.get('role') or vendor_contact.role
+            vendor_contact.save()
+        else:
+            if not any([contact.get('first_name'), contact.get('last_name'), email, contact.get('phone')]):
+                continue
+            VendorContact.objects.create(
+                vendor_id=vendor.id,
+                department=contact.get('department'),
+                email=email,
+                phone=contact.get('phone'),
+                first_name=(contact.get('first_name') or '').strip() or 'Unknown',
+                last_name=(contact.get('last_name') or '').strip() or 'Unknown',
+                description=contact.get('description'),
+                role=contact.get('role') or 'Unknown',
+                created_by=user_id
+            )
+
+
+def upsert_vendor_warehouses(vendor, warehouses, user_id=0):
+    if not warehouses:
+        return
+    for warehouse in warehouses:
+        if not isinstance(warehouse, dict):
+            continue
+        warehouse_id = warehouse.get('warehouse_id') or warehouse.get('id')
+        vendor_warehouse = None
+        if warehouse_id:
+            vendor_warehouse = VendorWarehouse.objects.filter(warehouse_id=warehouse_id, vendor_id=vendor.id).first()
+
+        if vendor_warehouse:
+            vendor_warehouse.name = warehouse.get('name') or vendor_warehouse.name
+            vendor_warehouse.delivery_name = warehouse.get('delivery_name') or vendor_warehouse.delivery_name
+            vendor_warehouse.address_line1 = warehouse.get('address_line1') or vendor_warehouse.address_line1
+            vendor_warehouse.address_line2 = warehouse.get('address_line2') or vendor_warehouse.address_line2
+            vendor_warehouse.city = warehouse.get('city') or vendor_warehouse.city
+            vendor_warehouse.state_id = warehouse.get('state_id') or vendor_warehouse.state_id
+            vendor_warehouse.zip = warehouse.get('zip') or vendor_warehouse.zip
+            vendor_warehouse.country_id = warehouse.get('country_id') or vendor_warehouse.country_id
+            vendor_warehouse.is_primary = bool(warehouse.get('is_primary', vendor_warehouse.is_primary))
+            vendor_warehouse.save()
+        else:
+            VendorWarehouse.objects.create(
+                vendor_id=vendor.id,
+                name=(warehouse.get('name') or '').strip() or 'Unknown',
+                delivery_name=(warehouse.get('delivery_name') or '').strip() or 'Unknown',
+                address_line1=(warehouse.get('address_line1') or '').strip() or 'Unknown',
+                address_line2=(warehouse.get('address_line2') or '').strip() or 'Unknown',
+                city=(warehouse.get('city') or '').strip() or 'Unknown',
+                state_id=warehouse.get('state_id') or None,
+                zip=(warehouse.get('zip') or '').strip() or '000000',
+                country_id=warehouse.get('country_id') or None,
+                is_primary=bool(warehouse.get('is_primary', False)),
+                created_by=user_id
+            )
+
+
+def save_vendor_addresses(vendor_id, billing_address, shipping_address, user_id=0):
+    if billing_address:
+        save_address(billing_address, 'billing', vendor_id, 'API', user_id)
+    if shipping_address:
+        save_address(shipping_address, 'shipping', vendor_id, 'API', user_id)
+
+from store_admin.serializers.common_serializers import VendorContactSerializer, VendorBankSerializer
+from store_admin.serializers.payment_serializers import VendorPaymentLogSerializer, VendorPaymentLogItemSerializer
 
 @api_view(["GET"])
 def get_vendor_details(request):
@@ -68,6 +256,30 @@ def get_vendor_details(request):
                 "fax": addr.fax or "",
                 "state_list": state_list
             }
+
+        def get_vendor_bank_data(vendor_id):
+            bank = VendorBank.objects.filter(vendor_id=vendor_id).order_by("-created_at").first()
+            if not bank:
+                return {
+                    "bank_name": "",
+                    "bank_branch": "",
+                    "bank_ifsc": "",
+                    "account_name": "",
+                    "bank_country": "",
+                    "account_number": "",
+                    "bank_verification_doc": ""
+                }
+            return {
+                "bank_name": bank.bank_name or "",
+                "bank_branch": bank.bank_branch or "",
+                "bank_ifsc": bank.bic or "",
+                "account_name": bank.account_holder or "",
+                "bank_country": bank.bank_country or "",
+                "account_number": bank.account_number or "",
+                "bank_verification_doc": ""
+            }
+
+        bank_data = get_vendor_bank_data(vendor.id)
 
         # Serialize Bank and Contact records
         qs = VendorDocuments.objects.filter(vendor_id=vendor.id)
@@ -109,10 +321,10 @@ def get_vendor_details(request):
                 "payment_term": vendor.payment_term or "",
                 "company_abn": vendor.company_abn or "",
                 "company_acn": vendor.company_acn or "",
-                "bank_name": vendor.bank_name or "",
-                "bank_branch": vendor.bank_branch or "",
-                "bank_ifsc": vendor.bank_ifsc or "",
-                "mode_of_payment": vendor.mode_of_payment or "",
+                "bank_name": bank_data["bank_name"],
+                "bank_branch": bank_data["bank_branch"],
+                "bank_ifsc": bank_data["bank_ifsc"],
+                "mode_of_payment": [m for m in (vendor.mode_of_payment or "").split(",") if m.strip()],
                 "cardholder_name": vendor.cardholder_name or "",
                 "card_type": vendor.card_type or "",
                 "card_last_four": vendor.card_last_four or "",
@@ -122,7 +334,7 @@ def get_vendor_details(request):
 
                 "company_acc_no": vendor.company_acc_no or "",
                 "company_website": vendor.company_website or "",
-                "vendor_model": vendor.vendor_model or "",
+                "vendor_model": getattr(vendor, "vendor_model", "") or "",
                 "vendor_locality": vendor.vendor_locality or "",
 
                 "paypal_notes": vendor.paypal_notes or "",
@@ -134,9 +346,9 @@ def get_vendor_details(request):
                 "allow_negative_balance": vendor.allow_negative_balance or "",
                 "minimum_wallet_balance": vendor.minimum_wallet_balance or "",
                 "low_balance_email": vendor.low_balance_email or "",
-                "account_name": vendor.account_name or "",
-                "bank_country": vendor.bank_country or "",
-                "bank_verification_doc": request.build_absolute_uri(vendor.bank_verification_doc.url) if vendor.bank_verification_doc else "",
+                "account_name": bank_data["account_name"],
+                "bank_country": bank_data["bank_country"],
+                "bank_verification_doc": bank_data["bank_verification_doc"],
                 "paypal_environment": vendor.paypal_environment or "",
                 "paypal_transaction_fee": vendor.paypal_transaction_fee or "",
                 "accepted_card": vendor.accepted_card or "",
@@ -144,9 +356,9 @@ def get_vendor_details(request):
                 "processing_fee": vendor.processing_fee or "",
                 "three_d_secure": vendor.three_d_secure or "",
 
-                "account_number": vendor.account_number or "",
-                "reminder": vendor.reminder or "",
-                "remarks": vendor.remarks or "",
+                "account_number": bank_data["account_number"],
+                "reminder": getattr(vendor, "reminder", "") or "",
+                "remarks": getattr(vendor, "remarks", "") or "",
                 "status": vendor.status,
                 "currency": vendor.currency or "",
                 #"document": request.build_absolute_uri(vendor.documents.url) if vendor.documents else None
@@ -158,12 +370,12 @@ def get_vendor_details(request):
                 "documents": documents
             },
             "onboard_details":{
-                "first_contact_date": vendor.first_contact_date or "",
-                "first_contact_via": vendor.first_contact_via or "",
-                "onboard_date": vendor.onboard_date or "",
-                "onboard_by": vendor.onboard_by or "",
-                "mode_of_contact": vendor.mode_of_contact or "",
-                "comments": vendor.comments or "",
+                "first_contact_date": getattr(vendor, "first_contact_date", "") or "",
+                "first_contact_via": getattr(vendor, "first_contact_via", "") or "",
+                "onboard_date": getattr(vendor, "onboard_date", "") or "",
+                "onboard_by": getattr(vendor, "onboard_by", "") or "",
+                "mode_of_contact": getattr(vendor, "mode_of_contact", "") or "",
+                "comments": getattr(vendor, "comments", "") or "",
             }
         }
 
@@ -251,12 +463,12 @@ def all_vendors(request):
             "billing_city" : billing_details.city if billing_details else "",
             "shipping_city" : shipping_details.city if shipping_details else "",
 
-            "vendor_model": vendor.vendor_model,
+            "vendor_model": getattr(vendor, "vendor_model", "") or "",
             "vendor_locality": vendor.vendor_locality,
             "status": vendor.status,
             "tax_percent": vendor.tax_percent,
             "is_taxable": vendor.is_taxable,
-            "reminder": vendor.reminder,
+            "reminder": getattr(vendor, "reminder", "") or "",
         })
 
     return JsonResponse({
@@ -399,7 +611,7 @@ def api_all_vendors(request):
             "currency": vendor.currency,
             "tax_percent": vendor.tax_percent,
             "is_taxable": vendor.is_taxable,
-            "reminder": vendor.reminder,
+            "reminder": getattr(vendor, "reminder", "") or "",
         })
 
     return JsonResponse({"status": True, "data": vendor_data})
@@ -476,6 +688,7 @@ def download_export_vendors(request):
 
         for vendor in vendors:
             payment_term_obj = PaymentTerm.objects.filter(id=vendor.payment_term).first()
+            bank = VendorBank.objects.filter(vendor_id=vendor.id).order_by("-created_at").first()
             row = {
                 'Vendor Code': vendor.vendor_code,
                 'Vendor Name': vendor.vendor_name,
@@ -484,9 +697,9 @@ def download_export_vendors(request):
                 'Company ACN': vendor.company_acn,
                 'Taxable': 'Yes' if vendor.is_taxable == 0 else 'No',
                 'Tax %': vendor.tax_percent,
-                'Bank Name': vendor.bank_name,
-                'Bank Branch': vendor.bank_branch,
-                'Bank Account Number': vendor.account_number,
+                'Bank Name': bank.bank_name if bank else "",
+                'Bank Branch': bank.bank_branch if bank else "",
+                'Bank Account Number': bank.account_number if bank else "",
                 'Currency Code': vendor.currency,
                 'Status': vendor.get_status_display(),
             }
@@ -675,133 +888,85 @@ def api_get_vendor_by_id(request, vendor_id):
 import re
 import ast
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
+@authentication_classes([StrictJWTCookieAuthentication])
 def api_add_new_vendor(request):
-    try:
-        data = request.data
+    data = request.data
+    primary = parse_json_field(data.get('primary'), {})
+    details = parse_json_field(data.get('details'), {})
+    onboard_details = parse_json_field(data.get('onboard_details'), {})
+    warehouses = parse_json_field(data.get('warehouses'), [])
+    contacts = parse_json_field(data.get('contacts'), [])
 
-        # Safe strip — prevent None.strip() crash
-        vendor_code = (data.get("vendor_code") or "").strip()
-        vendor_name = (data.get("vendor_name") or "").strip()
-        vendor_company_name = (data.get("vendor_company_name") or "").strip()
-        company_acc_no = (data.get("company_acc_no") or "").strip()
+    billing_address = details.get('billing_address') or parse_json_field(data.get('billing_address'), {})
+    shipping_address = details.get('shipping_address') or parse_json_field(data.get('shipping_address'), {})
 
-        # ─── Required field validation ───
-        errors = []
-        if not vendor_code:
-            errors.append("Vendor Code")
-        if not vendor_name:
-            errors.append("Vendor Name")
-        if not vendor_company_name:
-            errors.append("Vendor Company Name")
-        if not company_acc_no:
-            errors.append("Vendor Account Number")
+    vendor_code = (primary.get('vendor_code') or data.get('vendor_code') or '').strip()
+    vendor_name = (primary.get('vendor_name') or data.get('vendor_name') or '').strip()
+    vendor_company_name = (primary.get('vendor_company_name') or data.get('vendor_company_name') or '').strip()
 
-        if errors:
-            return JsonResponse({
-                "status": False,
-                "message": f"Required fields missing: {', '.join(errors)}"
-            }, status=400)
-
-        # ─── Duplicate checks ───
-        if Vendor.objects.filter(vendor_code=vendor_code).exists():
-            return JsonResponse({
-                "status": False,
-                "message": "Vendor code already exists"
-            }, status=400)
-
-        if Vendor.objects.filter(vendor_name=vendor_name).exists():
-            return JsonResponse({
-                "status": False,
-                "message": "Vendor name already exists"
-            }, status=400)
-
-        if Vendor.objects.filter(company_acc_no=company_acc_no).exists():
-            return JsonResponse({
-                "status": False,
-                "message": "Vendor Account number already exists"
-            }, status=400)
-
-        # ─── Tax validation ───
-        is_taxable = get_bool_int(data, "is_taxable")
-        tax_percent = float(data.get("tax_percent") or 0)
-
-        if not is_taxable:
-            is_taxable = 0
-            tax_percent = 0.0
-
-        if is_taxable and tax_percent == 0.0:
-            return JsonResponse({
-                "status": False,
-                "message": "Tax % is required when vendor is taxable"
-            }, status=400)
-
-        # ─── Optional fields (safe None handling) ───
-        gst_number = (data.get("gst_number") or "").strip()
-        payment_term = data.get("payment_term") or None
-        default_warehouse = data.get("default_warehouse") or None
-        bank_name = (data.get("bank_name") or "").strip()
-        bank_branch = (data.get("bank_branch") or "").strip()
-        account_number = (data.get("account_number") or "").strip()
-        currency = (data.get("currency") or "").strip()
-        reminder = (data.get("reminder") or "").strip()
-        remarks = (data.get("remarks") or "").strip()
-        company_abn = (data.get("company_abn") or "").strip()
-        company_acn = (data.get("company_acn") or "").strip()
-        min_order_value = data.get("min_order_value") or None
-        vendor_status = data.get("status") or 0
-        vendor_locality = data.get("vendor_locality") or 0
-
-        # ─── Create vendor ───
-        with transaction.atomic():
-            vendor = Vendor()
-            vendor.vendor_code = vendor_code
-            vendor.vendor_name = vendor_name
-            vendor.vendor_company_name = vendor_company_name
-            vendor.tax_percent = tax_percent if tax_percent else None
-            vendor.min_order_value = min_order_value if min_order_value else None
-            vendor.is_taxable = is_taxable
-            vendor.default_warehouse = default_warehouse
-            vendor.payment_term = payment_term
-            vendor.bank_name = bank_name
-            vendor.bank_branch = bank_branch
-            vendor.currency = currency
-            vendor.account_number = account_number
-            vendor.company_website = (data.get("company_website") or "").strip() or None
-            vendor.vendor_model = data.get("vendor_model") or None
-            vendor.company_acc_no = company_acc_no
-            vendor.vendor_locality = vendor_locality
-
-            # FIX: was saving vendor_model into paypal_notes — now correct
-            vendor.paypal_notes = (data.get("paypal_notes") or "").strip() or None
-            vendor.credit_card_notes = (data.get("credit_card_notes") or "").strip() or None
-            vendor.wallet_notes = (data.get("wallet_notes") or "").strip() or None
-
-            vendor.cardholder_name = (data.get("cardholder_name") or "").strip() or None
-            vendor.card_type = data.get("card_type") or None
-            vendor.card_last_four = (data.get("card_last_four") or "").strip() or None
-            vendor.card_expiry = data.get("card_expiry") or None
-            vendor.paypal_email = (data.get("paypal_email") or "").strip() or None
-            vendor.paypal_merchant_id = (data.get("paypal_merchant_id") or "").strip() or None
-
-            vendor.remarks = remarks
-            vendor.created_by = request.user.id
-            vendor.status = vendor_status
-            vendor.company_abn = company_abn
-            vendor.company_acn = company_acn
-
-            vendor.save()
-
+    if not vendor_code or not vendor_name or not vendor_company_name:
         return JsonResponse({
-            "status": True,
-            "message": "Vendor created successfully",
-            "vendor_id": vendor.id
-        }, status=201)
+            'status': False,
+            'message': 'Vendor Code, Name & Company Name are required'
+        }, status=400)
 
-    except Exception as e:
+    if Vendor.objects.filter(vendor_code=vendor_code).exists():
+        return JsonResponse({'status': False, 'message': 'Vendor code already exists'}, status=400)
+
+    if Vendor.objects.filter(vendor_name=vendor_name).exists():
+        return JsonResponse({'status': False, 'message': 'Vendor name already exists'}, status=400)
+
+    def safe_float(val, default=0):
+        try:
+            return float(val)
+        except Exception:
+            return default
+
+    tax_percent = safe_float(primary.get('tax_percent') or data.get('tax_percent'))
+    min_order_value = safe_float(primary.get('min_order_value') or data.get('min_order_value'))
+    is_taxable = 1 if str(primary.get('is_taxable') or data.get('is_taxable', '')).lower() in ['1', 'true'] else 0
+
+    if is_taxable and tax_percent <= 0:
         return JsonResponse({
-            "status": False,
-            "message": "Server error: " + str(e),
-        }, status=500)
+            'status': False,
+            'message': 'Tax % required when taxable'
+        }, status=400)
+
+    with transaction.atomic():
+        vendor = Vendor.objects.create(
+            vendor_code=vendor_code,
+            vendor_name=vendor_name,
+            vendor_company_name=vendor_company_name,
+            company_acc_no=primary.get('company_acc_no') or None,
+            company_website=primary.get('company_website') or None,
+            tax_percent=tax_percent,
+            is_taxable=is_taxable,
+            min_order_value=min_order_value,
+            created_by=request.user.id if request.user.is_authenticated else None,
+            status=primary.get('status') or data.get('status') or 0,
+            default_warehouse=primary.get('default_warehouse') or None,
+            payment_term=primary.get('payment_term') or None,
+            company_acn=primary.get('company_acn') or None,
+            company_abn=primary.get('company_abn') or None,
+            vendor_locality=primary.get('vendor_locality') or None,
+            currency=primary.get('currency') or None
+        )
+
+        if hasattr(vendor, 'vendor_model'):
+            vendor.vendor_model = primary.get('vendor_model') or ''
+
+        upsert_vendor_bank(vendor, primary, request.user.id if request.user.is_authenticated else 0)
+        upsert_vendor_contacts(vendor, contacts, request.user.id if request.user.is_authenticated else 0)
+        upsert_vendor_warehouses(vendor, warehouses, request.user.id if request.user.is_authenticated else 0)
+        save_vendor_addresses(vendor.id, billing_address, shipping_address, request.user.id if request.user.is_authenticated else 0)
+
+    return JsonResponse({
+        'status': True,
+        'message': 'Vendor created successfully',
+        'vendor_id': vendor.id
+    }, status=201)
+
 
 @api_view(["POST"])
 @parser_classes([MultiPartParser, FormParser, JSONParser])
@@ -833,7 +998,7 @@ def upload_vendor_files(request):
             vendor_id=vendor_id,
             file_name=file_name,
             file_path=db_path,
-            created_by=request.user.id if request.user.is_authenticated else 0
+            created_by = request.user.id if request.user.is_authenticated else None
         )
 
         # 4. Return data for the frontend table
@@ -909,16 +1074,10 @@ def api_save_vendor(request):
     verification_file = None #request.FILES.get('bank_verification_doc')
     vendor_id = data.get("vendor_id")
 
-    if not vendor_id:
-        return JsonResponse({
-            "status": False,
-            "message": "Vendor ID is required"
-        }, status=400)
-
     vendor_code = (primary.get("vendor_code") or "").strip()
     vendor_name = (primary.get("vendor_name") or "").strip()
     vendor_company_name = (primary.get("vendor_company_name") or "").strip()
-    company_acc_no = (primary.get("company_acc_no") or "").strip()
+    company_acc_no = primary.get("company_acc_no")
     #gst_number = primary.get("gst_number")
 
     # Validation
@@ -929,17 +1088,8 @@ def api_save_vendor(request):
         }, status=400)
 
 
-    if not company_acc_no:
-        return JsonResponse({
-            "status": False,
-            "message": "Vendor Account number is required"
-        }, status=400)
 
-    if Vendor.objects.filter(company_acc_no=company_acc_no).exclude(id=vendor_id).exists():
-        return JsonResponse({
-            "status": False,
-            "message": "Vendor Account number already exists"
-        }, status=400)
+
     ''''''
 
     if Vendor.objects.filter(vendor_code=vendor_code).exclude(id=vendor_id).exists():
@@ -970,24 +1120,26 @@ def api_save_vendor(request):
                 is_taxable = 0
                 tax_percent = 0.0
 
-            vendor = Vendor.objects.get(id=vendor_id)
+            if vendor_id:
+                vendor = Vendor.objects.get(id=vendor_id)
+            else:
+                vendor = Vendor()
             vendor.vendor_code = vendor_code
             vendor.vendor_name = vendor_name
             vendor.vendor_company_name = vendor_company_name
             #new fields 26/2/2026
-            vendor.company_acc_no = company_acc_no
+            vendor.company_acc_no = company_acc_no if company_acc_no else None
             vendor.company_website = primary.get("company_website") or ""
-            vendor.vendor_model = primary.get("vendor_model") or ""
+            if hasattr(vendor, "vendor_model"):
+                vendor.vendor_model = primary.get("vendor_model") or ""
 
             #vendor.gst_number = gst_number or None
             vendor.tax_percent = tax_percent
             vendor.is_taxable = is_taxable
             vendor.default_warehouse = primary.get("default_warehouse") or None
             vendor.payment_term = primary.get("payment_term") or None
-            vendor.bank_name = primary.get("bank_name") or None
             vendor.company_acn = primary.get("company_acn") or None
             vendor.company_abn = primary.get("company_abn") or None
-            vendor.bank_branch = primary.get("bank_branch") or None
             vendor.vendor_locality = primary.get("vendor_locality") or None
 
             payment_modes = primary.get('mode_of_payment', [])
@@ -995,13 +1147,20 @@ def api_save_vendor(request):
                 payment_modes = ",".join(payment_modes)
 
             vendor.mode_of_payment = payment_modes or None #
-            vendor.bank_ifsc = primary.get("bank_ifsc") or None #
-            vendor.first_contact_date = onboard_details.get("first_contact_date") or None #
-            vendor.first_contact_via = onboard_details.get("first_contact_via") or None #
-            vendor.onboard_date = onboard_details.get("onboard_date") or None #
-            vendor.onboard_by = onboard_details.get("onboard_by") or None #
-            vendor.mode_of_contact = onboard_details.get("mode_of_contact") or None
-            vendor.comments = onboard_details.get("comments") or None
+            if hasattr(vendor, "bank_ifsc"):
+                vendor.bank_ifsc = primary.get("bank_ifsc") or None #
+            if hasattr(vendor, "first_contact_date"):
+                vendor.first_contact_date = onboard_details.get("first_contact_date") or None #
+            if hasattr(vendor, "first_contact_via"):
+                vendor.first_contact_via = onboard_details.get("first_contact_via") or None #
+            if hasattr(vendor, "onboard_date"):
+                vendor.onboard_date = onboard_details.get("onboard_date") or None #
+            if hasattr(vendor, "onboard_by"):
+                vendor.onboard_by = onboard_details.get("onboard_by") or None #
+            if hasattr(vendor, "mode_of_contact"):
+                vendor.mode_of_contact = onboard_details.get("mode_of_contact") or None
+            if hasattr(vendor, "comments"):
+                vendor.comments = onboard_details.get("comments") or None
 
             raw_modes = primary.get("mode_of_payment") or ""
 
@@ -1028,23 +1187,29 @@ def api_save_vendor(request):
 
             # --- BANK TRANSFER DETAILS ---
             if "bank_transfer" in mode_list:
-                vendor.account_name = primary.get("account_name") or None
-                vendor.bank_name = primary.get("bank_name") or None
-                vendor.bank_branch = primary.get("bank_branch") or None
-                vendor.bank_ifsc = primary.get("bank_ifsc") or None
-                vendor.account_number = primary.get("account_number") or None
-                vendor.bank_country = primary.get("bank_country") or None
-                if verification_file:
-                    vendor.bank_verification_doc = verification_file
-                else:
-                    vendor.bank_verification_doc = None
+                bank_data = {
+                    "account_holder": primary.get("account_name") or "",
+                    "bank_name": primary.get("bank_name") or "",
+                    "bank_branch": primary.get("bank_branch") or None,
+                    "account_number": str(primary.get("account_number") or ""),
+                    "bic": primary.get("bank_ifsc") or "",
+                    "bank_country": primary.get("bank_country") or None,
+                    "created_by": request.user.id if request.user.is_authenticated else 0
+                }
+                bank_obj = VendorBank.objects.filter(vendor_id=vendor.id).first()
+                if bank_obj:
+                    bank_obj.account_holder = bank_data["account_holder"]
+                    bank_obj.bank_name = bank_data["bank_name"]
+                    bank_obj.bank_branch = bank_data["bank_branch"]
+                    bank_obj.account_number = bank_data["account_number"]
+                    bank_obj.bic = bank_data["bic"]
+                    bank_obj.bank_country = bank_data["bank_country"]
+                    bank_obj.save()
+                elif any([bank_data["account_holder"], bank_data["bank_name"], bank_data["account_number"], bank_data["bic"], bank_data["bank_branch"], bank_data["bank_country"]]):
+                    VendorBank.objects.create(vendor_id=vendor.id, **bank_data)
             else:
-                vendor.account_name = None
-                vendor.bank_name = None
-                vendor.bank_branch = None
-                vendor.bank_ifsc = None
-                vendor.account_number = None
-                vendor.bank_country = None
+                # preserve existing bank records; do not delete history automatically
+                pass
 
             # --- CREDIT CARD DETAILS ---
             if "credit_card" in mode_list:
@@ -1079,15 +1244,12 @@ def api_save_vendor(request):
                 vendor.minimum_wallet_balance = 0.00
                 vendor.low_balance_email = None
 
-            vendor.paypal_notes = primary.get("vendor_model") or None
+            vendor.paypal_notes = primary.get("paypal_notes") or None
             vendor.credit_card_notes = primary.get("credit_card_notes") or None
             vendor.wallet_notes = primary.get("wallet_notes") or None
 
             vendor.currency = primary.get("currency") or None
             vendor.status = primary.get("status") or 0
-            vendor.account_number = primary.get("account_number") or None
-            vendor.remarks = primary.get("remarks") or None
-            vendor.reminder = primary.get("reminder") or None
             vendor.min_order_value = primary.get("min_order_value") or None
             vendor.save()
 
@@ -1127,51 +1289,64 @@ def api_save_vendor(request):
             "detail": str(e)
         }, status=500)
 
-def save_address(request, type, vendor_id, method="POST", user_id=1):
+def save_address(request, address_type, vendor_id, method="POST", user_id=1):
     try:
-        field_prefix = f"{type}_"
-
+        # Find an existing address relation for the given vendor and address type
         relation = VendorAddress.objects.filter(
             vendor_id=vendor_id,
-            address_type=type
+            address_type=address_type
         ).first()
 
+        # If an existing relation is found, load the associated address object
         if relation:
             address_obj = Addresses.objects.filter(id=relation.address_id).first()
-            if address_obj:
-                is_new = False
-            else:
-                # relation exists but address missing
+            if not address_obj:
                 address_obj = Addresses()
                 is_new = True
+            else:
+                is_new = False
         else:
             address_obj = Addresses()
             is_new = True
-        if method == "POST":
-            address_obj.attention_name = request.POST.get(field_prefix + "attention_name")
-            address_obj.street1 = request.POST.get(field_prefix + "street1")
-            address_obj.street2 = request.POST.get(field_prefix + "street2")
-            address_obj.city = request.POST.get(field_prefix + "city")
-            address_obj.zip = request.POST.get(field_prefix + "zip")
-            address_obj.phone = request.POST.get(field_prefix + "phone")
-            address_obj.fax = request.POST.get(field_prefix + "fax")
 
-            country_id = request.POST.get(field_prefix + "country")
-            state_id = request.POST.get(field_prefix + "state")
-            user_id = request.user.id
+        # Determine request data source for form or JSON payloads
+        if hasattr(request, "POST"):
+            source = request.POST
+            field_prefix = f"{address_type}_"
         else:
-            address_obj.attention_name = request.get("attention")
-            address_obj.street1 =request.get( "street1")
-            address_obj.street2 =request.get("street2")
-            address_obj.city = request.get( "city")
-            address_obj.zip = request.get("zip")
-            address_obj.phone = request.get("phone")
-            address_obj.fax = request.get("fax")
-            country_id = request.get("country")
-            state_id = request.get("state")
+            source = request
+            field_prefix = ""
 
-        address_obj.country = Country.objects.get(id=country_id) if country_id else None
-        address_obj.state = State.objects.get(id=state_id) if state_id else None
+        def get_value(key):
+            value = source.get(field_prefix + key)
+            if value is None and field_prefix:
+                value = source.get(key)
+            return (value or "").strip() if isinstance(value, str) else (value or "")
+
+        address_obj.attention_name = get_value("attention_name")
+        address_obj.street1 = get_value("street1")
+        address_obj.street2 = get_value("street2")
+        address_obj.city = get_value("city")
+        address_obj.zip = get_value("zip")
+        address_obj.phone = get_value("phone")
+        address_obj.fax = get_value("fax")
+
+        country_id = get_value("country")
+        state_id = get_value("state")
+
+        # Safe lookup for country
+        try:
+            address_obj.country = Country.objects.get(id=country_id) \
+                if country_id not in [None, "", "0", "undefined"] else None
+        except Country.DoesNotExist:
+            address_obj.country = None
+
+        # Safe lookup for state
+        try:
+            address_obj.state = State.objects.get(id=state_id) \
+                if state_id not in [None, "", "0", "undefined"] else None
+        except State.DoesNotExist:
+            address_obj.state = None
 
         address_obj.created_by = user_id
         address_obj.save()
@@ -1180,13 +1355,14 @@ def save_address(request, type, vendor_id, method="POST", user_id=1):
             VendorAddress.objects.create(
                 vendor_id=vendor_id,
                 address_id=address_obj.id,
-                address_type=type,
-                created_by=user_id,
+                address_type=address_type,
+                created_by=user_id
             )
 
         return True
+
     except Exception as e:
-        raise e
+        raise Exception(f"Address save failed: {str(e)}")
 
 def extract_bank_details(request):
     banks = []
@@ -1255,7 +1431,7 @@ def add_newvendor_contact(request, vendor_id):
         last_name=data.get("last_name"),
         description=data.get("description"),
         role=data.get("role"),
-        created_by=request.user.id
+        created_by = request.user.id if request.user.is_authenticated else None
     )
 
     return JsonResponse({"status":True, "message":"Contact created successfully"})
@@ -1291,14 +1467,14 @@ def update_vendor_bank(request, bank_id):
     vendor_bank = VendorBank.objects.get(id=bank_id)
     vendor_bank.account_holder = data.get("account_holder")
     vendor_bank.bank_name = data.get("bank_name")
-    vendor_bank.account_number = data.get("account_number")
+    vendor_bank.account_number = str(data.get("account_number") or "")
     vendor_bank.bic = data.get("bic")
     vendor_bank.save()
     return JsonResponse({"status": True, "message": "Bank details updated successfully"})
 
 from django.core import serializers as core_serializers
-from store_admin.models.serializers.common_serializers import VendorContactSerializer, VendorBankSerializer
-
+from store_admin.serializers.common_serializers import VendorContactSerializer, VendorBankSerializer
+from store_admin.serializers.payment_serializers import VendorPaymentLogSerializer, VendorPaymentLogItemSerializer
 
 
 def get_all_vendor_contacts(request,vendor_id):
@@ -1422,6 +1598,8 @@ def add_new_vendor_bank(request, vendor_id):
     data['vendor_id'] = vendor_id
     # Set created_by if needed (e.g., current user's ID)
     data['created_by'] = request.user.id if request.user.is_authenticated else 0
+    # Ensure account_number is always a string
+    data['account_number'] = str(data.get('account_number') or "")
 
     serializer = VendorBankSerializer(data=data)
 

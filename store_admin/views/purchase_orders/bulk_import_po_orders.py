@@ -106,7 +106,7 @@ po_field_schema = {
     "Surcharges": {"type": "float", "required": False},
     #"Tax Total": {"type": "float", "required": False},
     #"Total Amount": {"type": "float", "required": False},
-    "Comment": {"type": "float", "required": False},
+    "Comment": {"type": "str", "required": False},
 }
 po_import_headers = ['Vendor Name', 'Vendor Code','PO Number', 'SBPO Order date', 'Expected Delivery Date',
             'Payment Terms', 'Warehouse', 'Vendor PO Number', 'Vendor PO Order Date', 'Vendor Invoice number',
@@ -183,7 +183,7 @@ def import_po_validate(request):
 
     ext = uploaded_file.name.split(".")[-1].lower()
     if ext not in VALID_EXTENSIONS:
-        return JsonResponse({"status": False, "message": "File must be CSV"})
+        return JsonResponse({"status": False, "message": "File must be CSV or XLSX"})
 
     # -------------------------
     # SAVE TEMP FILE
@@ -337,7 +337,7 @@ def preview_import(request, cleaned_filename, dup_option, uploaded_filename):
     try:
         if not cleaned_filename:
             messages.error(request, "No validated data found. Please re-upload the file.")
-            return redirect("import_product")
+            return redirect("import_po_orders")
 
         # Paths
         temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "purchase_orders")
@@ -418,7 +418,6 @@ def final_po_import(request):
     po_freight = Decimal("0")
     po_surcharge = Decimal("0")
 
-    vendor_values = {}
     with transaction.atomic():
 
         for _, row in df.iterrows():
@@ -429,6 +428,7 @@ def final_po_import(request):
             # PO CHANGE DETECTION
             # -------------------------
             if po_number != current_po_number:
+                vendor_values = {}
 
                 # SAVE PREVIOUS PO TOTALS
                 if current_po:
@@ -553,16 +553,13 @@ def final_po_import(request):
             # -------------------------
         if current_po:
             if vendor_values:
-                PurchaseOrderVendor.objects.create(
+                PurchaseOrderVendorDetails.objects.create(
                     po_id=current_po.po_id,
+                    is_primary=1,
+                    vendor_po_number=vendor_values.get("vendor_po_number", ""),
+                    order_number=vendor_values.get("vendor_invoice_number", ""),
+                    order_date=vendor_values.get("vendor_po_order_date") if vendor_values.get("vendor_po_order_date") else None,
                     created_by=request.user.id,
-                    po_number=vendor_values.get("vendor_po_number"),
-                    invoice_ref_number=vendor_values.get("vendor_invoice_number"),
-                    delivery_ref_number=vendor_values.get("vendor_delivery_ref"),
-                    #invoice_status=vendor_values.get("vendor_invoice_status"),
-                    invoice_due_date=vendor_values.get("vendor_invoice_due_date"),
-                    order_date=vendor_values.get("vendor_po_order_date"),
-                    invoice_date=vendor_values.get("vendor_invoice_date")
                 )
 
             current_po.sub_total = po_sub_total

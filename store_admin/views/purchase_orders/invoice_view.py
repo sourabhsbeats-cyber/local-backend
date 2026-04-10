@@ -6,24 +6,25 @@ from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.address_model import Addresses
 from store_admin.models.po_models.po_models import (PurchaseOrder, PurchaseOrderItem,
                                                     PurchaseOrderInvoiceDetails,
-                                                     PurchaseOrderVendorDetails)
+                                                    PurchaseOrderVendorDetails)
 from store_admin.models.po_models.po_receipt_model import PurchaseReceiptItem, PurchaseReceipt
 from store_admin.models.product_model import Product
 from store_admin.models.vendor_models import Vendor, VendorAddress
 from django.http import JsonResponse
-import math
+from django.db.models import OuterRef, Subquery, Q, Sum
+from django.utils import timezone
+from decimal import Decimal, ROUND_HALF_UP
+from rest_framework.decorators import api_view, permission_classes, renderer_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.renderers import JSONRenderer
-from rest_framework.decorators import renderer_classes
-from rest_framework.decorators import permission_classes
-from rest_framework.decorators import api_view
-from django.db.models import OuterRef, Subquery
-from decimal import ROUND_HALF_UP
-from decimal import Decimal
+import math
 
 @api_view(["GET"])
 def get_line_items(request, po_id):
-    po = PurchaseOrder.objects.get(po_id=po_id)
+    po = PurchaseOrder.objects.filter(po_id=po_id).first()
+    if not po:
+        return JsonResponse({"status": False, "message": "Purchase order not found."}, status=404)
+
     po_items = PurchaseOrderItem.objects.filter(po_id=po_id)
 
     data = []
@@ -178,14 +179,6 @@ def get_invoice_detail(request, invoice_id):
             status=500
         )
 
-import math
-from django.db.models import OuterRef, Subquery, Q, Sum
-from django.utils import timezone
-from django.http import JsonResponse
-from rest_framework.decorators import api_view, permission_classes, renderer_classes
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.renderers import JSONRenderer
-from datetime import datetime
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 @renderer_classes([JSONRenderer])
@@ -216,7 +209,7 @@ def all_invoices(request):
         vendor_po_order_date=Subquery(vendor_po_sub.values("order_date")[:1]),
     )
 
-    vendor_search = request.GET.get("vendor_search")
+    vendor_search = request.GET.get("vendor_search", "").strip()
     status_filter = request.GET.get("status")
     due_date_from = request.GET.get("due_date_from")
     due_date_to = request.GET.get("due_date_to")
@@ -225,7 +218,13 @@ def all_invoices(request):
     payment_term_id = request.GET.get("payment_term_id")
 
     if vendor_search:
-        qs = qs.filter(vendor_code__icontains=vendor_search)
+        qs = qs.filter(
+            Q(vendor_code__icontains=vendor_search) |
+            Q(vendor_name__icontains=vendor_search) |
+            Q(invoice_number__icontains=vendor_search) |
+            Q(vendor_po_number__icontains=vendor_search) |
+            Q(sb_po_number__icontains=vendor_search)
+        )
 
     if status_filter:
         try:
@@ -346,6 +345,7 @@ def all_invoices(request):
     for item in data_list:
         status_id = item.get("payment_status_id")
         item["status_display"] = status_map.get(status_id, "Unknown")
+        item["invoice_amount"] = float(item.get("invoice_total") or 0)
 
     last_page = math.ceil(total_records / size) if total_records else 1
 
@@ -384,7 +384,6 @@ def all_invoices(request):
         }
     })
 
-from django.db.models import Prefetch
 @api_view(["GET"])
 def all_pending_invoices(request):
     today = timezone.now().date()
@@ -394,13 +393,21 @@ def all_pending_invoices(request):
     payment_term_id = request.GET.get("payment_term_id", "")
     pos = PurchaseOrder.objects.all()
 
-    # Vendor filter
+    # Vendor / invoice filter
     if vendor_search:
         matching_vendor_ids = Vendor.objects.filter(
             Q(vendor_name__icontains=vendor_search) |
             Q(vendor_code__icontains=vendor_search)
         ).values_list("id", flat=True)
-        pos = pos.filter(vendor_id__in=matching_vendor_ids)
+
+        invoice_po_ids = PurchaseOrderInvoiceDetails.objects.filter(
+            invoice_number__icontains=vendor_search
+        ).values_list("po_id", flat=True)
+
+        pos = pos.filter(
+            Q(vendor_id__in=matching_vendor_ids) |
+            Q(po_id__in=invoice_po_ids)
+        )
 
     if payment_term_id:
         pt_vendor_ids  = Vendor.objects.filter(
@@ -417,8 +424,10 @@ def all_pending_invoices(request):
     }
     if due_date_from and due_date_to:
         inv_filters["due_date__range"] = (due_date_from, due_date_to)
-    else:
-        inv_filters["due_date__lte"] = today # exact today only
+    elif due_date_from:
+        inv_filters["due_date__gte"] = due_date_from
+    elif due_date_to:
+        inv_filters["due_date__lte"] = due_date_to
 
     all_invoices = PurchaseOrderInvoiceDetails.objects.filter(**inv_filters)
 

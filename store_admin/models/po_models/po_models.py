@@ -115,7 +115,7 @@ class PurchaseOrder(models.Model):
 
     status_id = models.IntegerField(
         choices=POStatus.choices,
-        default=-1,
+        default=POStatus.PARKED,
         blank=True,
         null=True
     )

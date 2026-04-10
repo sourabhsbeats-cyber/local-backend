@@ -1,55 +1,85 @@
-from decimal import Decimal, ROUND_HALF_UP
-from typing import Any
-
+from decimal import Decimal
 from django.db import models
-from django.db.models import IntegerField
+from django.utils import timezone
+
+from store_admin.vendor_models import VendorPaymentLog, VendorPaymentLogItem  # If needed
+from store_admin.purchase_models import POStatus, POPaymentStatus  # Import enums
 
 
-class POStatus(models.IntegerChoices):
-    DRAFT = -1, "Draft"
-    PARKED = 0, "Parked"
-    PLACED = 1, "Placed"
-    COSTED = 2, "Costed"
-    RECEIPTED = 3, "Receipted"
-    COMPLETED = 4, "Completed"
+class Invoice(models.Model):
+    invoice_id = models.AutoField(primary_key=True)
+    purchase_order_id = models.IntegerField(db_index=True)
+    vendor_id = models.IntegerField(db_index=True)
+    
+    invoice_number = models.CharField(max_length=100, unique=True)
+    invoice_date = models.DateField(default=timezone.now)
+    due_date = models.DateField(blank=True, null=True)
+    
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    balance_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    status = models.IntegerField(
+        choices=POPaymentStatus.choices,
+        default=POPaymentStatus.UNPAID,
+        db_index=True
+    )
+    
+    created_by = models.IntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    PARTIALLY_DELIVERED = 5, "Partially Delivered"
-    DELIVERED = 6, "Delivered"
-    CLOSED = 7, "Closed"
-    CANCELLED = 8, "Cancelled"
+    class Meta:
+        db_table = "store_admin_invoice"
 
-class POShippingStatus(models.IntegerChoices):
-    PENDING = -1, "Pending"
-    SHIPPED = 2, "Shipped"
-    BACK_ORDER = 3, "Back Order"
-    PARTIALLY_DELIVERED = 4, "Partially Delivered"
-    ALL_RECEIVED = 6, "All stock received"
-    DELIVERED = 5, "Delivered"
+    def __str__(self):
+        return f"Invoice-{self.invoice_number} | Vendor-{self.vendor_id}"
 
-class POPaymentStatus(models.IntegerChoices):
-    PAID = 1, "Paid"
-    UNPAID = 2, "Unpaid"
-    CANCELED = 3, "Cancelled"
-    ON_HOLD = 4, "On Hold"
 
-class POBillingStatus(models.IntegerChoices):
-    CREATED = 0, "Created"
-    NOT_BILLED = 1, "Not Billed"
-    PARTIALLY_BILLED = 2, "Partially Billed"
-    BILLED = 3, "Billed"
+class InvoiceItem(models.Model):
+    item_id = models.AutoField(primary_key=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="items")
+    product_id = models.IntegerField(db_index=True)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
-class LedgerEntryType(models.IntegerChoices):
-    DEBIT = 1, "Debit"
-    CREDIT = 2, "Credit"
+    class Meta:
+        db_table = "store_admin_invoice_item"
 
-po_status_list = [
-    {"id": -1, "purchase_status": "Draft", "tracking_status": "Pending", "description": "Draft PO created by the team"},
-    {"id": 0, "purchase_status": "Parked", "tracking_status": "Pending", "description": "Draft PO created by the team"},
-    {"id": 1, "purchase_status": "Placed", "tracking_status": "Pending", "description": "PO sent to supplier; no dispatch yet"},
-    {"id": 2, "purchase_status": "Placed", "tracking_status": "Shipped", "description": "PO sent; supplier has shipped goods"},
-    {"id": 3, "purchase_status": "Placed", "tracking_status": "Back Order", "description": "PO sent; item is on back-order"},
-    {"id": 4, "purchase_status": "Partially Delivered", "tracking_status": "Partially Delivered", "description": "Partial stock received"},
-    {"id": 5, "purchase_status": "Delivered", "tracking_status": "Delivered", "description": "All stock received"},
-    {"id": 6, "purchase_status": "Closed", "tracking_status": "Delivered", "description": "Fully locked and tracking must be Delivered"},
-    {"id": 7, "purchase_status": "Cancelled", "tracking_status": "N/A", "description": "Cancelled PO"}
-]
+    def save(self, *args, **kwargs):
+        # Auto calculate total price
+        self.total_price = (self.quantity * self.unit_price).quantize(Decimal("0.01"))
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"InvoiceItem-{self.item_id} | Invoice-{self.invoice.invoice_number}"
+
+
+class InvoicePayment(models.Model):
+    payment_id = models.AutoField(primary_key=True)
+    invoice = models.ForeignKey(Invoice, on_delete=models.CASCADE, related_name="payments")
+    
+    payment_date = models.DateField(default=timezone.now)
+    payment_mode = models.CharField(max_length=50, default="Unknown")
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    reference_number = models.CharField(max_length=200, blank=True, null=True)
+    bank_name = models.CharField(max_length=200, blank=True, null=True)
+    card_holder = models.CharField(max_length=200, blank=True, null=True)
+    
+    status = models.IntegerField(
+        choices=POPaymentStatus.choices,
+        default=POPaymentStatus.UNPAID,
+        db_index=True
+    )
+    
+    created_by = models.IntegerField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "store_admin_invoice_payment"
+
+    def __str__(self):
+        return f"InvoicePayment-{self.payment_id} | Invoice-{self.invoice.invoice_number}"

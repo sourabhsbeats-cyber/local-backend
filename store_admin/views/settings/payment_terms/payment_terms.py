@@ -7,6 +7,57 @@ from rest_framework.decorators import api_view
 from store_admin.models.payment_terms_model import PaymentTerm
 from django.contrib.auth.decorators import login_required
 
+
+def validate_payment_term_payload(data, payment_term_id=None):
+    errors = {}
+    name = (data.get("name") or "").strip()
+    frequency = data.get("frequency")
+    payment_type = data.get("type")
+    status = (data.get("status") or "").strip()
+
+    if not name:
+        errors["name"] = "Name is required."
+
+    if frequency in [None, ""]:
+        errors["frequency"] = "Frequency is required."
+    else:
+        try:
+            frequency = int(frequency)
+            if frequency <= 0:
+                errors["frequency"] = "Frequency must be a positive integer."
+        except (TypeError, ValueError):
+            errors["frequency"] = "Frequency must be a valid integer."
+
+    if payment_type in [None, ""]:
+        errors["type"] = "Type is required."
+    else:
+        try:
+            payment_type = int(payment_type)
+            if payment_type not in dict(PaymentTerm.PAYMENT_TYPES):
+                errors["type"] = "Invalid payment type."
+        except (TypeError, ValueError):
+            errors["type"] = "Type must be a valid integer."
+
+    if not status:
+        errors["status"] = "Status is required."
+    elif status not in dict(PaymentTerm.STATUS_CHOICES):
+        errors["status"] = "Status must be Active or Inactive."
+
+    if name:
+        duplicate_qs = PaymentTerm.objects.filter(name__iexact=name)
+        if payment_term_id:
+            duplicate_qs = duplicate_qs.exclude(id=payment_term_id)
+        if duplicate_qs.exists():
+            errors["name"] = "Payment Term with this name already exists."
+
+    return errors, {
+        "name": name,
+        "frequency": frequency,
+        "type": payment_type,
+        "status": status,
+    }
+
+
 @api_view(["GET"])
 def get_all_payment_terms(request):
     # 1. Get query parameters
@@ -48,15 +99,24 @@ def get_all_payment_terms(request):
 def update_payment_terms(request, payment_term_id):
     term = get_object_or_404(PaymentTerm, id=payment_term_id)
     data = request.data
-    term.name = data.get("name")
-    term.frequency = data.get("frequency")
-    term.type = data.get("type")
-    term.status = data.get("status")
+    errors, cleaned = validate_payment_term_payload(data, payment_term_id=payment_term_id)
+    if errors:
+        return JsonResponse({
+            "status": False,
+            "message": "Validation failed.",
+            "errors": errors,
+        }, status=400)
+
+    term.name = cleaned["name"]
+    term.frequency = cleaned["frequency"]
+    term.type = cleaned["type"]
+    term.status = cleaned["status"]
     term.save()
     return JsonResponse({
         "status": True,
         "message": "Payment Term updated successfully.",
     })
+
 
 #delete_payment_term
 @api_view(["DELETE"])
@@ -71,12 +131,21 @@ def delete_payment_term(request, payment_term_id):
 
 @api_view(["POST"])
 def create_payment_term(request):
-    term = PaymentTerm()
     data = request.data
-    term.name = data.get("name")
-    term.frequency = data.get("frequency")
-    term.type = data.get("type")
-    term.status = data.get("status")
+    errors, cleaned = validate_payment_term_payload(data)
+    if errors:
+        return JsonResponse({
+            "status": False,
+            "message": "Validation failed.",
+            "errors": errors,
+        }, status=400)
+
+    term = PaymentTerm(
+        name=cleaned["name"],
+        frequency=cleaned["frequency"],
+        type=cleaned["type"],
+        status=cleaned["status"],
+    )
     term.save()
     return JsonResponse({
         "status": True,
