@@ -97,6 +97,8 @@ def pre_import_check(request):
 
         seen_vendor_codes = set()
         seen_gst = set()
+        seen_contact_emails = set()
+        seen_contact_phones = set()
 
         # ---------- ROW VALIDATION ----------
         for index, row in df.iterrows():
@@ -116,12 +118,17 @@ def pre_import_check(request):
             if import_type == 'contact':
                 first = str(row.get('First Name') or '').strip()
                 last = str(row.get('Last Name') or '').strip()
+                department = str(row.get('Department') or '').strip()
 
                 raw_email = row.get('Email')
                 email = str(raw_email).strip().lower() if raw_email else ''
 
                 raw_phone = row.get('Phone')
                 phone = str(raw_phone).strip() if raw_phone else ''
+
+                raw_description = str(row.get('Description') or '').strip()
+                if dup_handling == 'skip' and ((email and email in seen_contact_emails) or (phone and phone in seen_contact_phones)):
+                    continue
 
                 # ---- Name validation ----
                 if not (first or last):
@@ -266,6 +273,11 @@ def pre_import_check(request):
                     for k, v in row.to_dict().items()
                 }
                 valid_records.append(clean_row)
+                if import_type == 'contact' and dup_handling == 'skip':
+                    if email:
+                        seen_contact_emails.add(email)
+                    if phone:
+                        seen_contact_phones.add(phone)
 
         # ---------- FINAL RESPONSE ----------
         if error_log:
