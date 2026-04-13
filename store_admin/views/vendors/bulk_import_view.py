@@ -669,5 +669,32 @@ def download_vendor_template(request, file_type, file_format):
         filename=f"{file_type}.{file_format}"
     )
 
+def import_vendor_contacts(request):
+    if request.method == "POST":
+        data = request.data  # assuming parsed CSV data
 
+        contacts_to_create = []
+
+        for row in data:
+            vendor = Vendor.objects.filter(name=row.get("vendor_name")).first()
+
+            if not vendor:
+                continue
+
+            contact = VendorContact(
+                vendor=vendor,
+                first_name=row.get("first_name"),
+                last_name=row.get("last_name"),
+                email=row.get("email"),
+                phone=row.get("phone"),
+                mobile_no=row.get("mobile_no"),
+                department=row.get("department"),
+                role=row.get("role"),
+                created_by=1
+            )
+            contacts_to_create.append(contact)
+
+        VendorContact.objects.bulk_create(contacts_to_create)
+
+        return JsonResponse({"message": "Vendor contacts imported successfully"})
 
