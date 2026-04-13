@@ -1,6 +1,14 @@
 from django.db import models
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
 from store_admin.helpers import name_validator
 from django.utils import timezone
+
+
+def validate_https_http_url(value):
+    if value is None or str(value).strip() == "":
+        return
+    URLValidator(schemes=("http", "https"))(value)
 
 # -------------------------
 # Vendor Status Choices
@@ -173,3 +181,118 @@ class VendorWarehouse(models.Model):
 
     def __str__(self):
         return self.name
+
+
+# -------------------------
+# Vendor inventory — master dropdown options
+# -------------------------
+class VendorInventoryListType(models.TextChoices):
+    INVENTORY_FREQUENCY = "inventory_frequency", "Inventory Frequency"
+    INVENTORY_SOURCE = "inventory_source", "Inventory Source"
+    PRODUCT_INVENTORY_SYNC = "product_inventory_sync", "Product Inventory Sync"
+    INVOICE_RECEIVED_ON = "invoice_received_on", "Invoice Received On"
+    TRACKING_RECEIVED_ON = "tracking_received_on", "Tracking Received On"
+    PO_INTEGRATION_TYPE = "po_integration_type", "PO Integration Type"
+
+
+class VendorInventoryMasterOption(models.Model):
+    id = models.AutoField(primary_key=True)
+    list_type = models.CharField(max_length=64, choices=VendorInventoryListType.choices, db_index=True)
+    code = models.SlugField(max_length=64)
+    label = models.CharField(max_length=120)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "store_admin_vendor_inventory_master_option"
+        unique_together = [["list_type", "code"]]
+        ordering = ["list_type", "sort_order", "label"]
+
+    def __str__(self):
+        return f"{self.list_type}:{self.code}"
+
+
+# -------------------------
+# Vendor inventory rows (per vendor, multiple entries)
+# -------------------------
+class VendorInventory(models.Model):
+    id = models.AutoField(primary_key=True)
+    # db_constraint=False: some MySQL schemas use a vendor id type that does not match Django’s FK column (3780).
+    vendor = models.ForeignKey(
+        Vendor,
+        on_delete=models.CASCADE,
+        related_name="inventory_rows",
+        db_constraint=False,
+    )
+    inventory_frequency = models.ForeignKey(
+        VendorInventoryMasterOption,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    inventory_source = models.ForeignKey(
+        VendorInventoryMasterOption,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    product_inventory_sync = models.ForeignKey(
+        VendorInventoryMasterOption,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    invoice_received_on = models.ForeignKey(
+        VendorInventoryMasterOption,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    tracking_received_on = models.ForeignKey(
+        VendorInventoryMasterOption,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    po_integration_type = models.ForeignKey(
+        VendorInventoryMasterOption,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    integration_weblink = models.CharField(
+        max_length=500,
+        blank=True,
+        null=True,
+        validators=[validate_https_http_url],
+        help_text="HTTPS/HTTP URL only; used for portal or feed links.",
+    )
+    created_by = models.PositiveIntegerField(default=0)
+    updated_by = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "store_admin_vendor_inventory"
+        ordering = ["-id"]
+
+    def clean(self):
+        super().clean()
+        checks = [
+            ("inventory_frequency", self.inventory_frequency, VendorInventoryListType.INVENTORY_FREQUENCY),
+            ("inventory_source", self.inventory_source, VendorInventoryListType.INVENTORY_SOURCE),
+            ("product_inventory_sync", self.product_inventory_sync, VendorInventoryListType.PRODUCT_INVENTORY_SYNC),
+            ("invoice_received_on", self.invoice_received_on, VendorInventoryListType.INVOICE_RECEIVED_ON),
+            ("tracking_received_on", self.tracking_received_on, VendorInventoryListType.TRACKING_RECEIVED_ON),
+            ("po_integration_type", self.po_integration_type, VendorInventoryListType.PO_INTEGRATION_TYPE),
+        ]
+        for field_name, opt, expected in checks:
+            if opt and opt.list_type != expected:
+                raise ValidationError({field_name: "Selected value is not valid for this master list."})

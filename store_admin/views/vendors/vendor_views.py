@@ -20,7 +20,17 @@ from store_admin.helpers import get_bool_int
 from store_admin.models import Country, State
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.po_models.po_models import PurchaseOrder, POStatus
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorWarehouse, VendorAddress, VendorDocuments
+from store_admin.models.vendor_models import (
+    Vendor,
+    VendorBank,
+    VendorContact,
+    VendorWarehouse,
+    VendorAddress,
+    VendorDocuments,
+    VendorInventory,
+    VendorInventoryMasterOption,
+    VendorInventoryListType,
+)
 from store_admin.models.address_model import Addresses
 from django.db import transaction
 from django.db.models import Min
@@ -1747,6 +1757,170 @@ def delete_vendor_contact(request, contact_id, vendor_id):
         return JsonResponse({"status": True, "message": "Contact deleted"})
     except Exception as e:
         return JsonResponse({"status": False, "message": str(e)})
+
+
+# -------------------------
+# Vendor Inventory Section
+# -------------------------
+def _serialize_vendor_inventory_row(obj):
+    def opt_dict(o):
+        if not o:
+            return {"id": None, "code": None, "label": ""}
+        return {"id": o.id, "code": o.code, "label": o.label}
+
+    return {
+        "id": obj.id,
+        "inventory_frequency": opt_dict(obj.inventory_frequency),
+        "inventory_source": opt_dict(obj.inventory_source),
+        "product_inventory_sync": opt_dict(obj.product_inventory_sync),
+        "invoice_received_on": opt_dict(obj.invoice_received_on),
+        "tracking_received_on": opt_dict(obj.tracking_received_on),
+        "po_integration_type": opt_dict(obj.po_integration_type),
+        "integration_weblink": obj.integration_weblink or "",
+        "created_at": obj.created_at.isoformat() if getattr(obj, "created_at", None) else None,
+        "updated_at": obj.updated_at.isoformat() if getattr(obj, "updated_at", None) else None,
+    }
+
+
+def _resolve_inventory_option(option_id, expected_list_type):
+    if option_id in (None, "", 0, "0"):
+        return None
+    try:
+        oid = int(option_id)
+    except (TypeError, ValueError):
+        return False
+    return VendorInventoryMasterOption.objects.filter(
+        id=oid, is_active=True, list_type=expected_list_type
+    ).first()
+
+
+def _inventory_payload_to_fields(data):
+    mapping = [
+        ("inventory_frequency_id", "inventory_frequency", VendorInventoryListType.INVENTORY_FREQUENCY),
+        ("inventory_source_id", "inventory_source", VendorInventoryListType.INVENTORY_SOURCE),
+        ("product_inventory_sync_id", "product_inventory_sync", VendorInventoryListType.PRODUCT_INVENTORY_SYNC),
+        ("invoice_received_on_id", "invoice_received_on", VendorInventoryListType.INVOICE_RECEIVED_ON),
+        ("tracking_received_on_id", "tracking_received_on", VendorInventoryListType.TRACKING_RECEIVED_ON),
+        ("po_integration_type_id", "po_integration_type", VendorInventoryListType.PO_INTEGRATION_TYPE),
+    ]
+    fields = {}
+    errors = {}
+    for json_key, attr, list_type in mapping:
+        raw = data.get(json_key)
+        res = _resolve_inventory_option(raw, list_type)
+        if res is False:
+            errors[json_key] = ["Invalid option id"]
+        else:
+            fields[attr] = res
+    weblink = data.get("integration_weblink")
+    if weblink is None:
+        weblink = data.get("weblink")
+    if weblink is not None:
+        s = str(weblink).strip()
+        fields["integration_weblink"] = s if s else None
+    return fields, errors
+
+
+def get_vendor_inventory_master_options(request):
+    qs = VendorInventoryMasterOption.objects.filter(is_active=True).order_by("list_type", "sort_order", "label")
+    grouped = {}
+    for row in qs:
+        grouped.setdefault(row.list_type, []).append(
+            {"id": row.id, "code": row.code, "label": row.label}
+        )
+    return JsonResponse({"status": True, "data": grouped})
+
+
+def get_all_vendor_inventory(request, vendor_id):
+    if vendor_id is None:
+        return JsonResponse({"status": False, "message": "Required fields missing"})
+    rows = VendorInventory.objects.filter(vendor_id=vendor_id).select_related(
+        "inventory_frequency",
+        "inventory_source",
+        "product_inventory_sync",
+        "invoice_received_on",
+        "tracking_received_on",
+        "po_integration_type",
+    )
+    return JsonResponse(
+        {"status": True, "data": [_serialize_vendor_inventory_row(r) for r in rows]}
+    )
+
+
+@api_view(["POST"])
+def add_vendor_inventory(request, vendor_id):
+    if not vendor_id or not Vendor.objects.filter(id=vendor_id).exists():
+        return JsonResponse({"status": False, "message": "Vendor not found"})
+    fields, errors = _inventory_payload_to_fields(request.data)
+    if errors:
+        return JsonResponse({"status": False, "message": "Invalid selections", "errors": errors}, status=400)
+    row = VendorInventory(
+        vendor_id=vendor_id,
+        created_by=request.user.id if request.user.is_authenticated else 0,
+        updated_by=request.user.id if request.user.is_authenticated else 0,
+        **fields,
+    )
+    try:
+        row.full_clean()
+        row.save()
+    except ValidationError as e:
+        return JsonResponse(
+            {"status": False, "message": "Validation failed", "errors": e.message_dict},
+            status=400,
+        )
+    row = VendorInventory.objects.select_related(
+        "inventory_frequency",
+        "inventory_source",
+        "product_inventory_sync",
+        "invoice_received_on",
+        "tracking_received_on",
+        "po_integration_type",
+    ).get(pk=row.pk)
+    return JsonResponse(
+        {"status": True, "message": "Inventory row added", "data": _serialize_vendor_inventory_row(row)}
+    )
+
+
+@api_view(["POST", "PUT"])
+def update_vendor_inventory(request, row_id):
+    row = VendorInventory.objects.filter(id=row_id).first()
+    if not row:
+        return JsonResponse({"status": False, "message": "Record not found"}, status=404)
+    fields, errors = _inventory_payload_to_fields(request.data)
+    if errors:
+        return JsonResponse({"status": False, "message": "Invalid selections", "errors": errors}, status=400)
+    for key, val in fields.items():
+        setattr(row, key, val)
+    row.updated_by = request.user.id if request.user.is_authenticated else 0
+    try:
+        row.full_clean()
+        row.save()
+    except ValidationError as e:
+        return JsonResponse(
+            {"status": False, "message": "Validation failed", "errors": e.message_dict},
+            status=400,
+        )
+    row = VendorInventory.objects.select_related(
+        "inventory_frequency",
+        "inventory_source",
+        "product_inventory_sync",
+        "invoice_received_on",
+        "tracking_received_on",
+        "po_integration_type",
+    ).get(pk=row.pk)
+    return JsonResponse(
+        {"status": True, "message": "Inventory row updated", "data": _serialize_vendor_inventory_row(row)}
+    )
+
+
+@api_view(["POST"])
+def delete_vendor_inventory(request, row_id, vendor_id):
+    obj = VendorInventory.objects.filter(id=row_id, vendor_id=vendor_id).first()
+    if not obj:
+        return JsonResponse({"status": False, "message": "Record not found"}, status=404)
+    obj.delete()
+    return JsonResponse({"status": True, "message": "Deleted"})
+
 
 @api_view(["DELETE"])
 def delete_vendor(request, vendor_id):

@@ -64,6 +64,15 @@ urlpatterns = [
     path("contact/update/<int:contact_id>", vendor_views.update_vendor_contact, name="update_vendor_contact"),
 
     # -------------------------
+    # Vendor Inventory
+    # -------------------------
+    path("inventory/master-options", vendor_views.get_vendor_inventory_master_options, name="vendor_inventory_master_options"),
+    path("inventory/getall/<int:vendor_id>", vendor_views.get_all_vendor_inventory, name="get_all_vendor_inventory"),
+    path("inventory/addNew/<int:vendor_id>", vendor_views.add_vendor_inventory, name="add_vendor_inventory"),
+    path("inventory/update/<int:row_id>", vendor_views.update_vendor_inventory, name="update_vendor_inventory"),
+    path("inventory/delete/<int:row_id>/<int:vendor_id>", vendor_views.delete_vendor_inventory, name="delete_vendor_inventory"),
+
+    # -------------------------
     # Vendor Banks
     # -------------------------
     path("bank/getall/<int:vendor_id>", vendor_views.get_all_vendor_banks, name="get_all_vendor_banks"),
