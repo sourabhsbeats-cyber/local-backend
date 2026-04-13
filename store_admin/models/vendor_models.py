@@ -296,3 +296,34 @@ class VendorInventory(models.Model):
         for field_name, opt, expected in checks:
             if opt and opt.list_type != expected:
                 raise ValidationError({field_name: "Selected value is not valid for this master list."})
+
+
+# -------------------------
+# Vendor website portal login (Super Admin only; password stored encrypted)
+# -------------------------
+class VendorPortalCredential(models.Model):
+    id = models.AutoField(primary_key=True)
+    vendor = models.OneToOneField(
+        Vendor,
+        on_delete=models.CASCADE,
+        related_name="portal_credential",
+        db_constraint=False,
+    )
+    website_username = models.CharField(max_length=255)
+    website_user_email = models.EmailField(max_length=254)
+    website_link = models.CharField(
+        max_length=500,
+        validators=[validate_https_http_url],
+    )
+    password_ciphertext = models.TextField()
+    otp_enabled = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    updated_by = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "store_admin_vendor_portal_credential"
+
+    def __str__(self):
+        return f"Portal credential for vendor_id={self.vendor_id}"

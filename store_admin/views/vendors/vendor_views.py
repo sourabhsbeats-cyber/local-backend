@@ -1,6 +1,7 @@
 import os
 import json
 import re
+from io import BytesIO
 
 from dj_rest_auth.jwt_auth import JWTCookieAuthentication
 from django.contrib.auth import get_user_model
@@ -42,6 +43,11 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from django.core.validators import validate_email
 from store_admin.helpers import parse_json_field, upsert_vendor_bank, upsert_vendor_contacts, upsert_vendor_warehouses, save_vendor_addresses
+from store_admin.views.vendors.vendor_import_utils import (
+    build_vendor_export_row,
+    get_dynamic_counts,
+    get_dynamic_vendor_columns,
+)
 
 def parse_json_field(value, default):
     if value in [None, "", "null", "undefined"]:
@@ -756,19 +762,23 @@ class WarehouseDetailManager(APIView):
         except Exception as e:
             return JsonResponse({"status": False, "message": str(e)}, status=400)
 
-    def delete(self, request, warehouse_id, vendor_id=None):
+    def delete(self, request, vendor_id, warehouse_id):
         """Remove Vendor Location"""
-        warehouse = get_object_or_404(VendorWarehouse, warehouse_id=warehouse_id)
-        active_po_qs = self._active_pos_for_location(warehouse_id=warehouse_id)
-        if active_po_qs.exists():
-            return JsonResponse(
-                {
-                    "status": False,
-                    "message": "Cannot delete vendor detail because active purchase orders reference this location.",
-                    "error": "Active PO reference",
-                },
-                status=400
-            )
+        warehouse = get_object_or_404(
+    VendorWarehouse,
+    warehouse_id=warehouse_id,
+    vendor_id=vendor_id
+)
+        # active_po_qs = self._active_pos_for_location(warehouse_id=warehouse_id)
+        # if active_po_qs.exists():
+        #     return JsonResponse(
+        #         {
+        #             "status": False,
+        #             "message": "Cannot delete vendor detail because active purchase orders reference this location.",
+        #             "error": "Active PO reference",
+        #         },
+        #         status=400
+        #     )
         warehouse.delete()
         return JsonResponse({"status": True, "message": "Vendor details deleted successfully"})
 
@@ -808,43 +818,29 @@ from django.http import FileResponse, Http404
 @authentication_classes([StrictJWTCookieAuthentication])
 def download_import_template(request):
     import_type = request.GET.get('file_type', 'vendor')
-    file_format = request.GET.get('file_format', 'csv')
-    #= request.GET.get("order_no", "").strip()
-    # Map parameters to the exact filenames shown in your folder structure
-    # Map parameters to the exact filenames shown in your folder structure
+    file_format = request.GET.get('file_format', 'csv').lower()
 
-
-    file_map = {
-        ('vendor', 'csv'): 'vendor_template.csv',
-        ('vendor', 'xl'): 'vendor_template.xlsx',
-        ('contact', 'csv'): 'vendor_template_contacts.csv',
-        ('contact', 'xl'): 'vendor_template_contacts.xlsx',
-    }
-
-    filename = file_map.get((import_type, file_format))
-
-    #filename
-    if not filename:
+    if import_type != 'vendor':
         raise Http404("Invalid template parameters provided.")
 
-    # Construct path based on your uploaded folder structure: static/import_templates/vendor/
-    # Note: If 'static' is at your project root, use BASE_DIR.
-    # If it's handled by STATIC_ROOT, use that.
-    temp_dir = os.path.join(settings.MEDIA_ROOT, "imports", "vendors")
-    file_path = os.path.join(temp_dir, filename)
+    contact_count, bank_count = get_dynamic_counts()
+    template_columns = get_dynamic_vendor_columns(contact_count=contact_count, bank_count=bank_count)
+    df = pd.DataFrame(columns=template_columns)
 
-    if not os.path.exists(file_path):
-        # Fallback check in case your static path is configured differently
-        raise Http404(f"Template file not found at: {file_path}")
+    if file_format == 'xl':
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Vendor Template')
+        response = HttpResponse(
+            output.getvalue(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="vendor_import_template.xlsx"'
+        return response
 
-    # Determine the correct MIME type for the browser
-    content_type = 'text/csv' if filename.endswith(
-        '.csv') else 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-
-    # Stream the file using FileResponse
-    response = FileResponse(open(file_path, 'rb'), content_type=content_type)
-    response['Content-Disposition'] = f'attachment; filename="{filename}"'
-
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="vendor_import_template.csv"'
+    df.to_csv(path_or_buf=response, index=False)
     return response
 
 
@@ -858,131 +854,31 @@ import pandas as pd
 @permission_classes([IsAuthenticated])
 @authentication_classes([StrictJWTCookieAuthentication])
 def download_export_vendors(request):
-    file_format = request.GET.get('format', 'csv')
-    file_type = request.GET.get('file_type', 'vendor')  # Using the file_type argument
+    file_format = request.GET.get('file_format') or request.GET.get('format', 'csv')
+    file_format = file_format.lower()
+    file_type = request.GET.get('file_type', 'vendor')
 
-    export_data = []
-    sheet_name = 'Data'
-    filename_base = 'Export'
+    if file_type != 'vendor':
+        return Response({"status": False, "message": "Only vendor export is supported"}, status=400)
 
-    # --- BRANCH 1: VENDOR EXPORT ---
-    if file_type == 'vendor':
-        vendors = Vendor.objects.all()
-        sheet_name = 'Vendors'
-        filename_base = 'Vendor_Address_Export'
-
-        for vendor in vendors:
-            payment_term_obj = PaymentTerm.objects.filter(id=vendor.payment_term).first()
-            bank = VendorBank.objects.filter(vendor_id=vendor.id).order_by("-created_at").first()
-            row = {
-                'Vendor Code': vendor.vendor_code,
-                'Vendor Name': vendor.vendor_name,
-                'Payment Term': payment_term_obj.name if payment_term_obj else "",
-                'Company ABN': vendor.company_abn,
-                'Company ACN': vendor.company_acn,
-                'Taxable': 'Yes' if vendor.is_taxable == 0 else 'No',
-                'Tax %': vendor.tax_percent,
-                'Bank Name': bank.bank_name if bank else "",
-                'Bank Branch': bank.bank_branch if bank else "",
-                'Bank Account Number': bank.account_number if bank else "",
-                'Currency Code': vendor.currency,
-                'Status': vendor.get_status_display(),
-            }
-
-            def get_address_data(addr_type):
-                rel = VendorAddress.objects.filter(vendor_id=vendor.id, address_type__iexact=addr_type).first()
-                if rel:
-                    country_name = ""
-                    state_name = ""
-                    try:
-                        if rel.country:
-                            country_name = Country.objects.filter(id=int(rel.country)).values_list("name", flat=True).first() or ""
-                    except (TypeError, ValueError):
-                        country_name = rel.country or ""
-                    try:
-                        if rel.state:
-                            state_name = State.objects.filter(id=int(rel.state)).values_list("name", flat=True).first() or ""
-                    except (TypeError, ValueError):
-                        state_name = rel.state or ""
-
-                    return {
-                        'attention': rel.attention or "",
-                        'country': country_name,
-                        'street1': rel.address_line1 or "",
-                        'street2': rel.address_line2 or "",
-                        'state': state_name,
-                        'city': rel.suburb or "",
-                        'zip': rel.post_code or "",
-                        'phone': rel.phone or ""
-                    }
-                return {}
-
-            billing = get_address_data('BILLING')
-            row.update({
-                'Billing Attention Name': billing.get('attention', ''),
-                'Billing Country': billing.get('country', ''),
-                'Billing Street Address': billing.get('street1', ''),
-                'Billing Street Address 2': billing.get('street2', ''),
-                'Billing State': billing.get('state', ''),
-                'Billing City': billing.get('city', ''),
-                'Billing ZIP': billing.get('zip', ''),
-                'Billing Phone': billing.get('phone', ''),
-            })
-
-            shipping = get_address_data('SHIPPING')
-            row.update({
-                'Shipping Attention Name': shipping.get('attention', ''),
-                'Shipping Country': shipping.get('country', ''),
-                'Shipping Street Address': shipping.get('street1', ''),
-                'Shipping Street Address 2': shipping.get('street2', ''),
-                'Shipping State': shipping.get('state', ''),
-                'Shipping City': shipping.get('city', ''),
-                'Shipping ZIP': shipping.get('zip', ''),
-                'Shipping Phone': shipping.get('phone', ''),
-            })
-            export_data.append(row)
-
-    # --- BRANCH 2: CONTACT EXPORT ---
-    elif file_type == 'contact':
-        # 1. Fetch all vendors first (Exactly like your vendor branch)
-        vendors = Vendor.objects.all()
-        sheet_name = 'Vendor Contacts'
-        filename_base = 'Vendor_Contacts_Export'
-
-        for vendor in vendors:
-            # 2. Fetch all contacts for THIS specific vendor
-            # Filter condition: VendorContact.vendor_id = vendor.id
-            vendor_contacts = VendorContact.objects.filter(vendor_id=vendor.id).all()
-
-            # 3. Iterate through VendorContacts and insert into export_data
-            for contact in vendor_contacts:
-                row = {
-                    'Vendor Code': vendor.vendor_code,  # Direct vendor-la
-                    'First Name': contact.first_name,
-                    'Last Name': contact.last_name,
-                    'Department': getattr(contact, 'department', ''),
-                    'Email': contact.email,
-                    'Phone': contact.phone,
-                    'Description': getattr(contact, 'description', ''),
-                }
-                export_data.append(row)
-
-    # 4. Create DataFrame and Export (Common for both)
-    df = pd.DataFrame(export_data)
+    vendors = Vendor.objects.all().order_by("vendor_name", "id")
+    contact_count, bank_count = get_dynamic_counts()
+    export_rows = [build_vendor_export_row(vendor, contact_count, bank_count) for vendor in vendors]
+    df = pd.DataFrame(export_rows, columns=get_dynamic_vendor_columns(contact_count, bank_count))
 
     if file_format == 'xl':
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name=sheet_name)
+            df.to_excel(writer, index=False, sheet_name='Vendors')
         response = HttpResponse(output.getvalue(),
                                 content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="{filename_base}.xlsx"'
+        response['Content-Disposition'] = 'attachment; filename="vendor_export.xlsx"'
         return response
-    else:
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
-        df.to_csv(path_or_buf=response, index=False)
-        return response
+
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="vendor_export.csv"'
+    df.to_csv(path_or_buf=response, index=False)
+    return response
 
 
 def api_vendor_search(request):

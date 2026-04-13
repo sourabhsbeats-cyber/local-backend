@@ -10,6 +10,12 @@ from django.shortcuts import redirect
 from .views.products import product_view, bulk_import_product_view
 from .views.settings.product_settings import product_settings
 from .views.settings.warehouse import warehouse_settings
+from .views.settings.vendor_portal_credentials import (
+    list_vendor_portal_credentials,
+    create_vendor_portal_credential,
+    update_vendor_portal_credential,
+    delete_vendor_portal_credential,
+)
 from .views import app_api_view
 from . import vendor_urls, product_urls
 urlpatterns = [
@@ -89,6 +95,11 @@ urlpatterns = [
     path("api/payment-terms/update/<int:payment_term_id>", payment_terms.update_payment_terms),
     path("api/payment-terms/delete/<int:payment_term_id>", payment_terms.delete_payment_term),
     path("api/payment-terms/create", payment_terms.create_payment_term),
+
+    path("api/vendor-portal-credentials", list_vendor_portal_credentials),
+    path("api/vendor-portal-credentials/create", create_vendor_portal_credential),
+    path("api/vendor-portal-credentials/update/<int:credential_id>", update_vendor_portal_credential),
+    path("api/vendor-portal-credentials/delete/<int:credential_id>", delete_vendor_portal_credential),
 
     path('api/countries', countries_view.api_all_listings),
     path("api/countries/<int:country_id>", countries_view.get_country_details),

@@ -28,7 +28,7 @@ urlpatterns = [
     path('api/vendor_warehouse/get_all/<int:vendor_id>', vendor_views.api_vendor_warehouses, name="vendor_warehouses_get"),
     path('api/vendor_warehouse/addNew/<int:vendor_id>', vendor_views.WarehouseDetailManager.as_view(), name="vendor_warehouses_add"),
     path('api/vendor_warehouse/update/<int:warehouse_id>', vendor_views.WarehouseDetailManager.as_view(), name="vendor_warehouses_update"),
-    path('api/vendor_warehouse/delete/<int:warehouse_id>/<int:vendor_id>', vendor_views.WarehouseDetailManager.as_view(), name="vendor_warehouses_delete"),
+    path('vendor_warehouse/delete/<int:vendor_id>/<int:warehouse_id>', vendor_views.WarehouseDetailManager.as_view(), name="vendor_warehouses_delete"),
 
     # -------------------------
     # Vendor Import / Export

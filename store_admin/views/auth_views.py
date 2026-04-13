@@ -141,6 +141,8 @@ def api_me(request):
         "id": user.id,
         "email": user.email,
         "name": user.name,
+        "is_superuser": bool(getattr(user, "is_superuser", False)),
+        "is_staff": bool(getattr(user, "is_staff", False)),
     })
 
 

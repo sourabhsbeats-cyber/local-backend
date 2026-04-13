@@ -2,21 +2,24 @@
 import os
 
 import pandas as pd
-from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
 from rest_framework import status
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from store_admin.AuthHandler import StrictJWTCookieAuthentication
+from django.conf import settings
 from store_admin.models.payment_terms_model import PaymentTerm
-from store_admin.models.vendor_models import Vendor, VendorContact, VendorStatus
-
-
-def clean_val(v):
-    return None if v is None or (isinstance(v, float) and pd.isna(v)) else v
+from store_admin.models.vendor_models import Vendor, VendorAddress, VendorBank, VendorContact, VendorStatus
+from store_admin.views.vendors.vendor_import_utils import (
+    extract_bank_records,
+    extract_contact_records,
+    find_existing_vendor,
+    normalize_text,
+    parse_bool,
+    parse_decimal,
+)
 
 
 def normalize_duplicate_action(value):
@@ -69,131 +72,173 @@ def confirm_import_vendor(request):
         skipped_count = 0
         error_log = []
 
+        if import_type != 'vendor':
+            return Response({"status": False, "message": "Only vendor import is supported"}, status=status.HTTP_400_BAD_REQUEST)
+
+        def upsert_address(vendor, prefix):
+            address_line1 = normalize_text(item.get(f"{prefix} Address Line 1"))
+            address_line2 = normalize_text(item.get(f"{prefix} Address Line 2"))
+            city = normalize_text(item.get(f"{prefix} City"))
+            state_value = normalize_text(item.get(f"{prefix} State"))
+            post_code = normalize_text(item.get(f"{prefix} Post Code"))
+            country = normalize_text(item.get(f"{prefix} Country"))
+            attention = normalize_text(item.get(f"{prefix} Attention"))
+            phone = normalize_text(item.get(f"{prefix} Phone"))
+            fax = normalize_text(item.get(f"{prefix} Fax"))
+
+            if not any([address_line1, address_line2, city, state_value, post_code, country, attention, phone, fax]):
+                return
+
+            address_obj = VendorAddress.objects.filter(vendor_id=vendor.id, address_type__iexact=prefix).first()
+            if not address_obj:
+                address_obj = VendorAddress(vendor_id=vendor.id, address_type=prefix.lower(), created_by=user_id)
+
+            address_obj.attention = attention or None
+            address_obj.address_line1 = address_line1 or None
+            address_obj.address_line2 = address_line2 or None
+            address_obj.suburb = city or None
+            address_obj.state = state_value or None
+            address_obj.post_code = post_code or None
+            address_obj.country = country or None
+            address_obj.phone = phone or None
+            address_obj.fax = fax or None
+            address_obj.save()
+
+        def sync_contacts(vendor, contacts):
+            if not contacts:
+                return
+
+            existing_contacts = list(VendorContact.objects.filter(vendor_id=vendor.id).order_by("-is_primary", "id"))
+            for index, payload in enumerate(contacts):
+                contact_obj = None
+                if payload["email"]:
+                    contact_obj = VendorContact.objects.filter(vendor_id=vendor.id, email__iexact=payload["email"]).first()
+                if not contact_obj and index < len(existing_contacts):
+                    contact_obj = existing_contacts[index]
+                if not contact_obj:
+                    contact_obj = VendorContact(vendor_id=vendor.id, created_by=user_id)
+
+                contact_obj.first_name = payload["first_name"] or "Unknown"
+                contact_obj.last_name = payload["last_name"] or "Unknown"
+                contact_obj.email = payload["email"] or None
+                contact_obj.phone = payload["phone"] or None
+                contact_obj.mobile_no = payload["mobile_no"] or None
+                contact_obj.department = payload["department"] or "Unknown"
+                contact_obj.role = payload["role"] or "Contact"
+                contact_obj.description = payload["description"] or None
+                contact_obj.is_primary = payload["is_primary"]
+                contact_obj.save()
+
+        def sync_banks(vendor, banks):
+            if not banks:
+                return
+
+            existing_banks = list(VendorBank.objects.filter(vendor_id=vendor.id).order_by("id"))
+            for index, payload in enumerate(banks):
+                bank_obj = None
+                if payload["account_number"]:
+                    bank_obj = VendorBank.objects.filter(vendor_id=vendor.id, account_number=payload["account_number"]).first()
+                if not bank_obj and index < len(existing_banks):
+                    bank_obj = existing_banks[index]
+                if not bank_obj:
+                    bank_obj = VendorBank(vendor_id=vendor.id, created_by=user_id)
+
+                bank_obj.account_holder = payload["account_holder"] or "Unknown"
+                bank_obj.bank_name = payload["bank_name"] or "Unknown"
+                bank_obj.account_number = payload["account_number"] or "Unknown"
+                bank_obj.bic = payload["bic"] or "Unknown"
+                bank_obj.bank_branch = payload["bank_branch"] or None
+                bank_obj.bank_country = payload["bank_country"] or None
+                bank_obj.save()
+
         with transaction.atomic():
-            if import_type == 'vendor':
-                for item in import_data:
-                    vendor_code = str(item.get('Vendor Code', '')).strip()
-                    vendor_name = (item.get('Vendor Name') or '').strip()
+            for item in import_data:
+                vendor_code = normalize_text(item.get('Vendor Code'))
+                vendor_name = normalize_text(item.get('Vendor Name'))
+                company_name = normalize_text(item.get('Company Name'))
 
-                    if not vendor_code:
+                if not vendor_code or not vendor_name or not company_name:
+                    skipped_count += 1
+                    error_log.append("Row skipped: Vendor Code, Vendor Name and Company Name are required")
+                    continue
+
+                existing_vendor, ambiguous = find_existing_vendor(vendor_code, vendor_name, company_name)
+                if ambiguous:
+                    skipped_count += 1
+                    error_log.append(f"Skipped vendor {vendor_code}: row matches multiple existing vendors")
+                    continue
+
+                if existing_vendor and duplicate_action == "skip":
+                    skipped_count += 1
+                    error_log.append(f"Skipped duplicate vendor: {vendor_code}")
+                    continue
+
+                raw_payment = normalize_text(item.get('Payment Term'))
+                payment_term_id = None
+                if raw_payment:
+                    payment_term_obj = PaymentTerm.objects.filter(name__iexact=raw_payment).first()
+                    if not payment_term_obj:
                         skipped_count += 1
-                        error_log.append("Row skipped: Missing Vendor Code")
+                        error_log.append(f"Skipped vendor {vendor_code}: payment term '{raw_payment}' not found")
                         continue
+                    payment_term_id = payment_term_obj.id
 
-                    raw_payment = clean_val(item.get('Payment Term'))
-                    payment_term_id = None
-                    if raw_payment:
-                        payment_term_obj = PaymentTerm.objects.filter(name__iexact=raw_payment).first()
-                        if payment_term_obj:
-                            payment_term_id = payment_term_obj.id
-                        else:
-                            skipped_count += 1
-                            error_log.append(f"Payment term '{raw_payment}' not found")
-                            continue
+                status_name = normalize_text(item.get('Status'))
+                try:
+                    status_id = VendorStatus[status_name.upper().replace(' ', '_')].value if status_name else VendorStatus.PENDING
+                except KeyError:
+                    status_id = VendorStatus.PENDING
 
-                    raw_tax = clean_val(item.get('Tax %'))
-                    tax_percent = float(raw_tax) if raw_tax is not None else 0.0
+                vendor = existing_vendor or Vendor(created_by=user_id)
+                vendor.vendor_code = vendor_code
+                vendor.vendor_name = vendor_name
+                vendor.vendor_company_name = company_name
+                vendor.gst_number = normalize_text(item.get('GST Number')) or None
+                vendor.payment_term = payment_term_id
+                vendor.company_abn = normalize_text(item.get('Company ABN')) or None
+                vendor.company_acn = normalize_text(item.get('Company ACN')) or None
+                vendor.company_acc_no = normalize_text(item.get('Company Account No')) or None
+                vendor.company_website = normalize_text(item.get('Company Website')) or None
+                vendor.company_locality = normalize_text(item.get('Company Locality')) or None
+                vendor.vendor_locality = normalize_text(item.get('Vendor Locality')) or None
+                vendor.preferred_shipping_provider = normalize_text(item.get('Preferred Shipping Provider')) or None
+                vendor.currency = normalize_text(item.get('Currency Code')) or None
+                vendor.is_taxable = parse_bool(item.get('Taxable'))
+                vendor.tax_percent = parse_decimal(item.get('Tax %'))
+                vendor.min_order_value = parse_decimal(item.get('Min Order Value'))
+                vendor.auto_detect_invoice = 'yes' if parse_bool(item.get('Auto Detect Invoice')) else 'no'
+                vendor.allow_negative_balance = 'yes' if parse_bool(item.get('Allow Negative Balance')) else 'no'
+                vendor.minimum_wallet_balance = parse_decimal(item.get('Minimum Wallet Balance'))
+                vendor.low_balance_email = normalize_text(item.get('Low Balance Email')) or None
+                vendor.wallet_type = normalize_text(item.get('Wallet Type')) or None
+                vendor.wallet_notes = normalize_text(item.get('Wallet Notes')) or None
+                vendor.credit_card_notes = normalize_text(item.get('Credit Card Notes')) or None
+                vendor.paypal_notes = normalize_text(item.get('PayPal Notes')) or None
+                vendor.accepted_card = normalize_text(item.get('Accepted Card')) or None
+                vendor.payment_gateway = normalize_text(item.get('Payment Gateway')) or None
+                vendor.processing_fee = parse_decimal(item.get('Processing Fee'))
+                vendor.three_d_secure = normalize_text(item.get('Three D Secure')) or 'no'
+                vendor.cardholder_name = normalize_text(item.get('Cardholder Name')) or None
+                vendor.card_type = normalize_text(item.get('Card Type')) or None
+                vendor.card_last_four = normalize_text(item.get('Card Last Four')) or None
+                vendor.card_expiry = normalize_text(item.get('Card Expiry')) or None
+                vendor.paypal_email = normalize_text(item.get('PayPal Email')) or None
+                vendor.paypal_merchant_id = normalize_text(item.get('PayPal Merchant ID')) or None
+                vendor.paypal_environment = normalize_text(item.get('PayPal Environment')) or 'sandbox'
+                vendor.paypal_transaction_fee = parse_decimal(item.get('PayPal Transaction Fee'))
+                vendor.status = status_id
+                vendor.updated_by = user_id
+                vendor.save()
 
-                    raw_acct = clean_val(item.get('Bank Account Number'))
-                    account_number = None
-                    if raw_acct is not None:
-                        account_number = str(int(raw_acct)) if isinstance(raw_acct, (int, float)) else str(raw_acct).strip()
+                upsert_address(vendor, "Billing")
+                upsert_address(vendor, "Shipping")
+                sync_contacts(vendor, extract_contact_records(item))
+                sync_banks(vendor, extract_bank_records(item))
 
-                    status_name = (item.get('Status') or '').strip()
-                    try:
-                        status_id = VendorStatus[status_name.upper().replace(' ', '_')].value if status_name else VendorStatus.PENDING
-                    except KeyError:
-                        status_id = VendorStatus.PENDING
-
-                    existing_vendor = Vendor.objects.filter(Q(vendor_code=vendor_code) | Q(vendor_name__iexact=vendor_name)).first()
-
-                    if existing_vendor:
-                        if duplicate_action == "skip":
-                            skipped_count += 1
-                            error_log.append(f"Skipped duplicate vendor: {vendor_code}")
-                            continue
-
-                        vendor = existing_vendor
-                        vendor.payment_term_id = payment_term_id
-                        vendor.company_abn = clean_val(item.get('Company ABN'))
-                        vendor.company_acn = clean_val(item.get('Company ACN'))
-                        vendor.is_taxable = 0 if str(item.get('Taxable', '')).lower() == 'yes' else 1
-                        vendor.tax_percent = tax_percent
-                        vendor.bank_name = clean_val(item.get('Bank Name'))
-                        vendor.bank_branch = clean_val(item.get('Bank Branch'))
-                        vendor.account_number = account_number
-                        vendor.currency = clean_val(item.get('Currency Code'))
-                        vendor.status = status_id
-                        vendor.updated_by = user_id
-                        vendor.save()
-                        updated_count += 1
-                    else:
-                        Vendor.objects.create(
-                            vendor_code=vendor_code,
-                            vendor_name=vendor_name,
-                            gst_number=clean_val(item.get('GST Number')),
-                            payment_term_id=payment_term_id,
-                            company_abn=clean_val(item.get('Company ABN')),
-                            company_acn=clean_val(item.get('Company ACN')),
-                            is_taxable=0 if str(item.get('Taxable', '')).lower() == 'yes' else 1,
-                            tax_percent=tax_percent,
-                            bank_name=clean_val(item.get('Bank Name')),
-                            bank_branch=clean_val(item.get('Bank Branch')),
-                            account_number=account_number,
-                            currency=clean_val(item.get('Currency Code')),
-                            created_by=user_id,
-                            updated_by=user_id,
-                            status=status_id
-                        )
-                        created_count += 1
-
-            elif import_type == 'contact':
-                for item in import_data:
-                    vendor_code = str(item.get('Vendor Code', '')).strip()
-                    email = str(item.get('Email', '')).strip().lower()
-
-                    if not vendor_code or not email:
-                        skipped_count += 1
-                        error_log.append("Row skipped: Missing Vendor Code or Email")
-                        continue
-
-                    vendor = Vendor.objects.filter(vendor_code=vendor_code).first()
-                    if not vendor:
-                        skipped_count += 1
-                        error_log.append(f"Vendor {vendor_code} not found")
-                        continue
-
-                    existing_contact = VendorContact.objects.filter(vendor_id=vendor.id, email=email).first()
-                    if existing_contact:
-                        if duplicate_action == "skip":
-                            skipped_count += 1
-                            error_log.append(f"Skipped duplicate contact: {email}")
-                            continue
-
-                        contact = existing_contact
-                        contact.first_name = str(item.get('First Name') or '').strip()
-                        contact.last_name = str(item.get('Last Name') or '').strip()
-                        contact.department = str(item.get('Department') or '').strip()
-                        contact.phone = str(item.get('Phone') or '').replace('.0', '')
-                        contact.description = str(item.get('Description') or '').strip()
-                        contact.role = str(item.get('Role') or 'Contact').strip()
-                        contact.save()
-                        updated_count += 1
-                    else:
-                        VendorContact.objects.create(
-                            vendor_id=vendor.id,
-                            email=email,
-                            first_name=str(item.get('First Name') or '').strip(),
-                            last_name=str(item.get('Last Name') or '').strip(),
-                            department=str(item.get('Department') or '').strip(),
-                            phone=str(item.get('Phone') or '').replace('.0', ''),
-                            description=str(item.get('Description') or '').strip(),
-                            role=str(item.get('Role') or 'Contact').strip(),
-                            created_by=user_id
-                        )
-                        created_count += 1
-            else:
-                return Response({"status": False, "message": "Invalid import type"}, status=status.HTTP_400_BAD_REQUEST)
+                if existing_vendor:
+                    updated_count += 1
+                else:
+                    created_count += 1
 
         imported_path = file_path.replace("_pending", "_imported")
         try:
