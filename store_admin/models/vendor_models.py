@@ -16,9 +16,9 @@ class VendorStatus(models.IntegerChoices):
 # Payment Terms Choices
 # -------------------------
 class PaymentTerms(models.IntegerChoices):
-    LAST_NEXT_NEXT_MONTH = 1, "Last date of next to next month (Forcetech)"
-    LAST_NEXT_MONTH = 2, "Last date of next month (Bambury)"
-    FOURTEENTH_NEXT_MONTH = 3, "14th of next month (Ingram)"
+    LAST_NEXT_NEXT_MONTH = 1, "Last day of Next to Next Month"
+    LAST_NEXT_MONTH = 2, "Last day of Next Month"
+    FOURTEENTH_NEXT_MONTH = 3, "14th of Next Month"
     NET_45 = 4, "Net 45 Days"
     NET_60 = 5, "Net 60 Days"
 
@@ -119,9 +119,11 @@ class VendorDocuments(models.Model):
 class VendorContact(models.Model):
     id = models.AutoField(primary_key=True)
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='contacts', null=True)
+    is_primary = models.BooleanField(default=False)
     department = models.CharField(max_length=100, default="Unknown")
     email = models.EmailField(blank=True, null=True)
     phone = models.CharField(max_length=50, blank=True, null=True)
+    mobile_no = models.CharField(max_length=50, blank=True, null=True)
     first_name = models.CharField(max_length=100, validators=[name_validator], blank=True, default="Unknown")
     last_name = models.CharField(max_length=100, validators=[name_validator], blank=True, default="Unknown")
     role = models.CharField(max_length=100, default="Unknown")
@@ -136,12 +138,15 @@ class VendorAddress(models.Model):
     id = models.AutoField(primary_key=True)
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='addresses', null=True)
     address_type = models.CharField(max_length=20, default="Unknown")
+    attention = models.CharField(max_length=255, blank=True, null=True)
     address_line1 = models.CharField(max_length=255, blank=True, null=True)
     address_line2 = models.CharField(max_length=255, blank=True, null=True)
     suburb = models.CharField(max_length=100, blank=True, null=True)
     state = models.CharField(max_length=100, blank=True, null=True)
     post_code = models.CharField(max_length=20, blank=True, null=True)
     country = models.CharField(max_length=100, blank=True, null=True)
+    phone = models.CharField(max_length=50, blank=True, null=True)
+    fax = models.CharField(max_length=50, blank=True, null=True)
     created_by = models.PositiveIntegerField(default=0)
     created_at = models.DateTimeField(default=timezone.now)
 

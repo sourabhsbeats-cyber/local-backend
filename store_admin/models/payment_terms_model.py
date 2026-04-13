@@ -67,9 +67,9 @@ class PaymentTerm(models.Model):
 # -------------------------
 def create_default_payment_terms():
     terms = [
-        {'name': 'Last date of next to next month (Forcetech)', 'frequency': 60, 'type': 2},  # Postpaid
-        {'name': 'Last date of next month (Bambury)', 'frequency': 30, 'type': 2},           # Postpaid
-        {'name': '14th of next month (Ingram)', 'frequency': 30, 'type': 2},                # Postpaid
+        {'name': 'Last day of Next to Next Month', 'frequency': 60, 'type': 2},  # Postpaid
+        {'name': 'Last day of Next Month', 'frequency': 30, 'type': 2},           # Postpaid
+        {'name': '14th of Next Month', 'frequency': 30, 'type': 2},               # Postpaid
     ]
     for term in terms:
         PaymentTerm.objects.get_or_create(name=term['name'], defaults=term)

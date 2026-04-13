@@ -75,9 +75,11 @@ class VendorContactSerializer(serializers.ModelSerializer):
         fields = [
             'id',
             'vendor_id',
+            'is_primary',
             'department',
             'email',
             'phone',
+            'mobile_no',
             'first_name',
             'last_name',
             'role',

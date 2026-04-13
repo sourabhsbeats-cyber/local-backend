@@ -1679,6 +1679,59 @@ def clean_input(val):
     return val
 
 
+def _parse_date_or_none(value):
+    if value in [None, "", "None", "null", "undefined"]:
+        return None
+    if isinstance(value, datetime.date):
+        return value
+    text = str(value).strip()
+    for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%d-%m-%Y"):
+        try:
+            return datetime.datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _last_day_of_month(any_date):
+    first_next_month = datetime.date(any_date.year + (1 if any_date.month == 12 else 0), (1 if any_date.month == 12 else any_date.month + 1), 1)
+    return first_next_month - timedelta(days=1)
+
+
+def _add_months(base_date, months):
+    year = base_date.year + ((base_date.month - 1 + months) // 12)
+    month = ((base_date.month - 1 + months) % 12) + 1
+    day = min(base_date.day, 28)
+    return datetime.date(year, month, day)
+
+
+def _expected_due_date_for_term(term_name, invoice_date):
+    if not term_name or not invoice_date:
+        return None
+    key = str(term_name).strip().lower()
+
+    if "last day of next to next month" in key or "last date of next to next month" in key or "last day of next to next months" in key:
+        return _last_day_of_month(_add_months(invoice_date, 2))
+    if "last day of next month" in key or "last date of next month" in key:
+        return _last_day_of_month(_add_months(invoice_date, 1))
+    if "14th of next month" in key:
+        nxt = _add_months(invoice_date, 1)
+        return datetime.date(nxt.year, nxt.month, 14)
+    return None
+
+
+def _validate_due_date_by_payment_term(payment_term_id, invoice_date, due_date):
+    if not payment_term_id or not invoice_date or not due_date:
+        return True, None
+    term = PaymentTerm.objects.filter(id=payment_term_id).first()
+    if not term:
+        return True, None
+    expected_due = _expected_due_date_for_term(term.name, invoice_date)
+    if expected_due and due_date != expected_due:
+        return False, f"Due date must be {expected_due.strftime('%Y-%m-%d')} for payment term '{term.name}'."
+    return True, None
+
+
 @api_view(["POST"])
 def save_purchase_invoice(request):
     if request.method != "POST":
@@ -1703,6 +1756,17 @@ def save_purchase_invoice(request):
             return val
 
         total_amount = Decimal(data.get("invoice_amount") or 0)
+        invoice_date_val = _parse_date_or_none(clean_val(data.get("invoice_date")))
+        due_date_val = _parse_date_or_none(clean_val(data.get("due_date")))
+        payment_term_id_val = clean_val(data.get("payment_term_id"))
+        try:
+            payment_term_id_val = int(payment_term_id_val) if payment_term_id_val is not None else None
+        except (TypeError, ValueError):
+            payment_term_id_val = None
+
+        valid_due, due_message = _validate_due_date_by_payment_term(payment_term_id_val, invoice_date_val, due_date_val)
+        if not valid_due:
+            return JsonResponse({"status": False, "message": due_message}, status=400)
 
         # -------------------------------------------------
         # TRANSACTION START
@@ -1712,10 +1776,10 @@ def save_purchase_invoice(request):
             invoice_header = PurchaseOrderInvoiceDetails.objects.create(
                 po_id=po_id,
                 invoice_number=invoice_number,
-                invoice_date=clean_val(data.get("invoice_date")),
-                due_date=clean_val(data.get("due_date")),
+                invoice_date=invoice_date_val,
+                due_date=due_date_val,
                 payment_status_id=payment_status_id,
-                payment_term_id=clean_val(data.get("payment_term_id")),
+                payment_term_id=payment_term_id_val,
                 invoice_total=total_amount,
                 created_by=request.user.id,
                 created_at=timezone.now()
@@ -1757,6 +1821,17 @@ def update_purchase_invoice(request, invoice_id):
             return val
 
         total_amount = Decimal(data.get("invoice_amount") or 0)
+        invoice_date_val = _parse_date_or_none(clean_val(data.get("invoice_date")))
+        due_date_val = _parse_date_or_none(clean_val(data.get("due_date")))
+        payment_term_id_val = clean_val(data.get("payment_term_id"))
+        try:
+            payment_term_id_val = int(payment_term_id_val) if payment_term_id_val is not None else None
+        except (TypeError, ValueError):
+            payment_term_id_val = None
+
+        valid_due, due_message = _validate_due_date_by_payment_term(payment_term_id_val, invoice_date_val, due_date_val)
+        if not valid_due:
+            return JsonResponse({"status": False, "message": due_message}, status=400)
 
         # ── Invoice amount minimum $10 validation ──
         if total_amount < Decimal("10"):
@@ -1795,9 +1870,9 @@ def update_purchase_invoice(request, invoice_id):
                 invoice_header.invoice_number    = invoice_number
                 invoice_header.invoice_total     = total_amount
                 invoice_header.payment_status_id = payment_status_id
-                invoice_header.invoice_date      = clean_val(data.get("invoice_date"))
-                invoice_header.payment_term_id   = clean_val(data.get("payment_term_id"))
-                invoice_header.due_date          = clean_val(data.get("due_date"))
+                invoice_header.invoice_date      = invoice_date_val
+                invoice_header.payment_term_id   = payment_term_id_val
+                invoice_header.due_date          = due_date_val
                 invoice_header.updated_by        = request.user.id
                 invoice_header.updated_at        = timezone.now()
                 invoice_header.save()
