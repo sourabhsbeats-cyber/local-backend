@@ -339,7 +339,7 @@ def final_vendor_import(request):
         messages.error(request, "Invalid request.")
         return redirect("import_vendor")
 
-    dup_option = request.session.get("dup_option")  # skip_duplicate / overwrite_existing / allow_duplicates
+    dup_option = request.session.get("dup_option")
     cleaned_filename = request.session.get("cleaned_filename")
 
     if not cleaned_filename:
@@ -353,7 +353,6 @@ def final_vendor_import(request):
         messages.error(request, "Cleaned file not found. Please restart import.")
         return redirect("import_vendor")
 
-    # Load cleaned CSV
     try:
         df = pd.read_csv(cleaned_path, encoding="utf-8")
     except Exception as e:
@@ -363,13 +362,20 @@ def final_vendor_import(request):
 
     imported_count = 0
 
+    payment_map = {
+        "LAST_NEXT_NEXT_MONTH": 1,
+        "LAST_NEXT_MONTH": 2,
+        "FOURTEENTH_NEXT_MONTH": 3,
+        "NET_45": 4,
+        "NET_60": 5,
+    }
+
     for _, row in df.iterrows():
 
-        # --------- BASIC CLEANED VALUES ----------
         vendor_code = to_str(row.get("VendorCode"))
         email = to_str(row.get("Email"))
 
-        #continue
+        # ---------------- CHECK EXISTING VENDOR ----------------
         if vendor_code and email:
             existing_vendor = Vendor.objects.filter(
                 Q(vendor_code=vendor_code) | Q(email_address=email)
@@ -381,77 +387,68 @@ def final_vendor_import(request):
         else:
             existing_vendor = None
 
-        # 1) Skip duplicates
+        # ---------------- DUPLICATE HANDLING ----------------
         if dup_option == "skip_duplicate" and existing_vendor:
             continue
 
-        # 2) Overwrite existing
         if dup_option == "overwrite_existing" and existing_vendor:
             vendor = existing_vendor
         else:
-            # 3) Always create new
             vendor = Vendor()
             if vendor_code:
                 vendor.vendor_code = vendor_code
             else:
                 with transaction.atomic():
-                    try:
-                        # Note: We must lock a row, so we try to get the highest ID one.
-                        last = Vendor.objects.order_by('-id').select_for_update().first()
-                    except Vendor.DoesNotExist:
-                        last = None
-
+                    last = Vendor.objects.order_by("-id").first()
                     next_id = (last.id + 1) if last else 1
                 vendor.vendor_code = f"V{next_id:03d}"
 
+        # ---------------- VENDOR CORE FIELDS ----------------
+        vendor.vendor_company_name = to_str(row.get("CompanyName")) or None
 
-        # --------- VENDOR CORE FIELDS ----------
-        vendor.vendor_type = to_str(row.get("VendorType")) or None
-        vendor.salutation = to_str(row.get("Salutation")) or None
-        vendor.first_name = to_str(row.get("FirstName")) or None
-        vendor.last_name = to_str(row.get("LastName")) or None
+        vendor.vendor_name = " ".join(
+            part for part in [
+                to_str(row.get("Salutation")),
+                to_str(row.get("FirstName")),
+                to_str(row.get("LastName"))
+            ] if part
+        ) or None
 
-        display_name = to_str(row.get("DisplayName"))
-        if display_name:
-            vendor.display_name = display_name
-        else:
-            full_name = " ".join(
-                part for part in [vendor.salutation, vendor.first_name, vendor.last_name] if part
-            )
-            vendor.display_name = full_name or vendor.vendor_code
-
-        # DO NOT overwrite vendor.vendor_code again – it is already set above
-
-        vendor.email_address = email
-        vendor.work_phone = to_str(row.get("WorkPhone")) or None
-        vendor.mobile_number = to_str(row.get("MobilePhone")) or None
-        vendor.company_name = to_str(row.get("CompanyName")) or None
-        vendor.company_type = to_str(row.get("CompanyType")) or None
-
-        is_reg = to_str(row.get("IsRegisteredBusiness")).lower()
-        vendor.registered_business = True if is_reg in ["1", "yes", "true", "y"] else False
-
+        vendor.gst_number = to_str(row.get("ABN")) or None
         vendor.company_abn = to_str(row.get("ABN")) or None
         vendor.company_acn = to_str(row.get("ACN")) or None
         vendor.currency = to_str(row.get("Currency")) or None
-        vendor.payment_method = to_str(row.get("PaymentMethod")) or None
+
+        vendor.company_acc_no = None
+        vendor.company_website = None
+        vendor.company_locality = None
+
+        is_reg = to_str(row.get("IsRegisteredBusiness")).lower()
+        vendor.is_taxable = True if is_reg in ["1", "yes", "true", "y"] else False
+
+        vendor.work_phone = to_str(row.get("WorkPhone")) or None
+        vendor.mobile_number = to_str(row.get("MobilePhone")) or None
+
+        vendor.email_address = email
+
+        vendor.company_type = to_str(row.get("CompanyType")) or None
+        vendor.vendor_locality = None
         vendor.vendor_remarks = to_str(row.get("Remarks")) or None
 
-        # Payment Term (FK)
-        pay_term_name = to_str(row.get("PaymentTerms"))
-        vendor.payment_term = (
-            PaymentTerm.objects.filter(name=pay_term_name).first()
-            if pay_term_name else None
-        )
+        # ---------------- PAYMENT TERM ----------------
+        pay_term = to_str(row.get("PaymentTerms"))
+        vendor.payment_term = payment_map.get(pay_term, 2)
 
-        if not vendor.id:  # only for newly created
+        if not vendor.id:
             vendor.created_by = request.user.id
-        vendor.status = 1
-        vendor.save()  # MUST be saved before using vendor.id
 
-        # =========================
-        #   BILLING ADDRESS (FIXED)
-        # =========================
+        vendor.status = 1
+        vendor.save()
+
+        # ======================================================
+        # BILLING ADDRESS
+        # ======================================================
+        billing_contact = to_str(row.get("BillingContact"))
         billing_street1 = to_str(row.get("BillingStreet1"))
         billing_street2 = to_str(row.get("BillingStreet2"))
         billing_city = to_str(row.get("BillingCity"))
@@ -460,69 +457,56 @@ def final_vendor_import(request):
         billing_phone = to_str(row.get("BillingPhone"))
         billing_fax = to_str(row.get("BillingFax"))
         billing_country_txt = to_str(row.get("BillingCountry"))
-        billing_contact = to_str(row.get("BillingContact"))
 
-        bill_country = (
-            Country.objects.filter(name__iexact=billing_country_txt).first()
-            if billing_country_txt else None
-        )
-        bill_state = (
-            State.objects.filter(name__iexact=billing_state_txt).first()
-            if billing_state_txt else None
-        )
+        bill_country = Country.objects.filter(name__iexact=billing_country_txt).first() if billing_country_txt else None
+        bill_state = State.objects.filter(name__iexact=billing_state_txt).first() if billing_state_txt else None
 
-        billing_has_data = any([
-            billing_street1, billing_city, bill_state,
-            billing_zip, bill_country, billing_phone, billing_contact
-        ])
+        billing_has_data = any([billing_street1, billing_city, billing_zip, bill_country])
 
         if billing_has_data:
-            # CHECK IF ADDRESS ALREADY EXISTS FOR THIS VENDOR
+
             vendor_addr_link = VendorAddress.objects.filter(
-                vendor_id=vendor.id, address_type="billing"
+                vendor=vendor, address_type="billing"
             ).first()
 
             if vendor_addr_link:
-                # ADDRESS FOUND: UPDATE EXISTING ADDRESS
-                billing_addr = vendor_addr_link.address
-
-                billing_addr.attention_name = billing_contact or None
-                billing_addr.country = bill_country
-                billing_addr.street1 = billing_street1 or None
-                billing_addr.street2 = billing_street2 or None
-                billing_addr.state = bill_state
-                billing_addr.city = billing_city or None
-                billing_addr.zip = billing_zip or None
-                billing_addr.phone = billing_phone or None
-                billing_addr.fax = billing_fax or None
-
-                billing_addr.save()
+                addr = vendor_addr_link.address
+                addr.attention = billing_contact or None
+                addr.address_line1 = billing_street1 or None
+                addr.address_line2 = billing_street2 or None
+                addr.suburb = billing_city or None
+                addr.state = billing_state_txt or None
+                addr.post_code = billing_zip or None
+                addr.country = billing_country_txt or None
+                addr.phone = billing_phone or None
+                addr.fax = billing_fax or None
+                addr.save()
 
             else:
-                # ADDRESS NOT FOUND: CREATE NEW ADDRESS AND LINK
-                billing_addr = Addresses.objects.create(
-                    attention_name=billing_contact or None,
-                    country=bill_country,
-                    street1=billing_street1 or None,
-                    street2=billing_street2 or None,
-                    state=bill_state,
-                    city=billing_city or None,
-                    zip=billing_zip or None,
+                addr = Addresses.objects.create(
+                    attention=billing_contact or None,
+                    address_line1=billing_street1 or None,
+                    address_line2=billing_street2 or None,
+                    suburb=billing_city or None,
+                    state=billing_state_txt or None,
+                    post_code=billing_zip or None,
+                    country=billing_country_txt or None,
                     phone=billing_phone or None,
                     fax=billing_fax or None,
-                    created_by = request.user.id,
-                )
-                VendorAddress.objects.create(
-                    vendor_id=vendor.id,
-                    address_id=billing_addr.id,
-                    address_type="billing",
                     created_by=request.user.id,
-
                 )
 
-        # =========================
-        #   SHIPPING ADDRESS (FIXED)
-        # =========================
+                VendorAddress.objects.create(
+                    vendor=vendor,
+                    address_type="billing",
+                    address_id=addr.id,
+                    created_by=request.user.id
+                )
+
+        # ======================================================
+        # SHIPPING ADDRESS
+        # ======================================================
+        shipping_contact = to_str(row.get("ShippingContact"))
         shipping_street1 = to_str(row.get("ShippingStreet1"))
         shipping_street2 = to_str(row.get("ShippingStreet2"))
         shipping_city = to_str(row.get("ShippingCity"))
@@ -531,75 +515,59 @@ def final_vendor_import(request):
         shipping_phone = to_str(row.get("ShippingPhone"))
         shipping_fax = to_str(row.get("ShippingFax"))
         shipping_country_txt = to_str(row.get("ShippingCountry"))
-        shipping_contact = to_str(row.get("ShippingContact"))
 
-        ship_country = (
-            Country.objects.filter(name__iexact=shipping_country_txt).first()
-            if shipping_country_txt else None
-        )
-        ship_state = (
-            State.objects.filter(name__iexact=shipping_state_txt).first()
-            if shipping_state_txt else None
-        )
-
-        shipping_has_data = any([
-            shipping_street1, shipping_city, ship_state,
-            shipping_zip, ship_country, shipping_phone, shipping_contact
-        ])
+        shipping_has_data = any([shipping_street1, shipping_city, shipping_zip])
 
         if shipping_has_data:
-            # CHECK IF ADDRESS ALREADY EXISTS FOR THIS VENDOR
+
             vendor_addr_link = VendorAddress.objects.filter(
-                vendor_id=vendor.id, address_type="shipping"
+                vendor=vendor, address_type="shipping"
             ).first()
 
             if vendor_addr_link:
-                # ADDRESS FOUND: UPDATE EXISTING ADDRESS
-                shipping_addr = vendor_addr_link.address
-
-                shipping_addr.attention_name = shipping_contact or None
-                shipping_addr.country = ship_country
-                shipping_addr.street1 = shipping_street1 or None
-                shipping_addr.street2 = shipping_street2 or None
-                shipping_addr.state = ship_state
-                shipping_addr.city = shipping_city or None
-                shipping_addr.zip = shipping_zip or None
-                shipping_addr.phone = shipping_phone or None
-                shipping_addr.fax = shipping_fax or None
-                shipping_addr.save()
+                addr = vendor_addr_link.address
+                addr.attention = shipping_contact or None
+                addr.address_line1 = shipping_street1 or None
+                addr.address_line2 = shipping_street2 or None
+                addr.suburb = shipping_city or None
+                addr.state = shipping_state_txt or None
+                addr.post_code = shipping_zip or None
+                addr.country = shipping_country_txt or None
+                addr.phone = shipping_phone or None
+                addr.fax = shipping_fax or None
+                addr.save()
 
             else:
-                # ADDRESS NOT FOUND: CREATE NEW ADDRESS AND LINK
-                shipping_addr = Addresses.objects.create(
-                    attention_name=shipping_contact or None,
-                    country=ship_country,
-                    street1=shipping_street1 or None,
-                    street2=shipping_street2 or None,
-                    state=ship_state,
-                    city=shipping_city or None,
-                    zip=shipping_zip or None,
+                addr = Addresses.objects.create(
+                    attention=shipping_contact or None,
+                    address_line1=shipping_street1 or None,
+                    address_line2=shipping_street2 or None,
+                    suburb=shipping_city or None,
+                    state=shipping_state_txt or None,
+                    post_code=shipping_zip or None,
+                    country=shipping_country_txt or None,
                     phone=shipping_phone or None,
                     fax=shipping_fax or None,
                     created_by=request.user.id,
                 )
+
                 VendorAddress.objects.create(
-                    vendor_id=vendor.id,
-                    address_id=shipping_addr.id,
+                    vendor=vendor,
                     address_type="shipping",
-                    created_by=request.user.id,
+                    address_id=addr.id,
+                    created_by=request.user.id
                 )
 
-        # =========================
-        #   BANK DETAILS (FIXED)
-        # =========================
+        # ======================================================
+        # BANK DETAILS
+        # ======================================================
         bank_account_no = to_str(row.get("BankAccountNumber"))
 
         if bank_account_no:
-            # FIND OR CREATE bank record
-            vendor_bank = VendorBank.objects.filter(vendor_id=vendor.id).first()
+            vendor_bank = VendorBank.objects.filter(vendor=vendor).first()
 
             if not vendor_bank:
-                vendor_bank = VendorBank(vendor_id=vendor.id, created_by=request.user.id)
+                vendor_bank = VendorBank(vendor=vendor, created_by=request.user.id)
 
             vendor_bank.account_holder = to_str(row.get("BankAccountName")) or None
             vendor_bank.bank_name = to_str(row.get("BankName")) or None
@@ -607,36 +575,37 @@ def final_vendor_import(request):
             vendor_bank.bic = to_str(row.get("BankCode")) or None
             vendor_bank.save()
 
-        # =========================
-        #   CONTACT PERSON (FIXED)
-        # =========================
+        # ======================================================
+        # CONTACT PERSON
+        # ======================================================
         contact_email = to_str(row.get("ContactEmail"))
         contact_first = to_str(row.get("ContactFirstName"))
         contact_last = to_str(row.get("ContactLastName"))
         contact_phone = to_str(row.get("ContactPhone"))
         contact_role = to_str(row.get("ContactRole"))
-        contact_purpose = to_str(row.get("ContactPurpose"))
 
-        if contact_email or contact_first or contact_last or contact_phone:
-            # FIND OR CREATE contact record
-            vendor_contact = VendorContact.objects.filter(vendor_id=vendor.id).first()
+        if contact_email or contact_first or contact_phone:
 
-            if not vendor_contact:
-                vendor_contact = VendorContact(vendor_id=vendor.id)
-                vendor_contact.created_by = request.user.id  # Set created_by only on new record
-
-            vendor_contact.department = contact_role or None
-            vendor_contact.first_name = contact_first or None
-            vendor_contact.last_name = contact_last or None
-            vendor_contact.email = contact_email or None
-            vendor_contact.phone = contact_phone or None
-            vendor_contact.description = contact_purpose or None
-            vendor_contact.save()
+            VendorContact.objects.create(
+                vendor=vendor,
+                is_primary=False,
+                department=contact_role or "Unknown",
+                email=contact_email or None,
+                phone=contact_phone or None,
+                mobile_no=None,
+                first_name=contact_first or "Unknown",
+                last_name=contact_last or "Unknown",
+                role=contact_role or "Unknown",
+                description=to_str(row.get("ContactPurpose")) or None,
+                created_by=request.user.id
+            )
 
         imported_count += 1
 
-    return render(request, "sbadmin/pages/vendor/bulk_import/import_vendor_stage_3.html",
-                  {"imported_count": imported_count, "updated_count":0})
+    return render(request,
+        "sbadmin/pages/vendor/bulk_import/import_vendor_stage_3.html",
+        {"imported_count": imported_count, "updated_count": 0}
+    )
 
 @login_required
 def download_vendor_template(request, file_type, file_format):

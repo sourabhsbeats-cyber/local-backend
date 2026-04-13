@@ -57,11 +57,11 @@ urlpatterns = [
     # -------------------------
     # Vendor Contacts
     # -------------------------
-    path("contact/delete/<int:contact_id>/<int:vendor_id>", vendor_views.delete_vendor_contact, name="delete_vendor_contact"),
-    path("contact/addNew/<int:vendor_id>", vendor_views.add_newvendor_contact, name="add_newvendor_contact"),
-    path("contact/getall/<int:vendor_id>", vendor_views.get_all_vendor_contacts, name="get_all_vendor_contacts"),
-    path("contact/getsingle/<int:vendor_id>/<int:contact_id>", vendor_views.get_single_vendor_contact, name="get_single_vendor_contact"),
-    path("contact/update/<int:contact_id>", vendor_views.update_vendor_contact, name="update_vendor_contact"),
+    path("api/contact/delete/<int:contact_id>/<int:vendor_id>", vendor_views.delete_vendor_contact, name="delete_vendor_contact"),
+    path("api/contact/addNew/<int:vendor_id>", vendor_views.add_newvendor_contact, name="add_newvendor_contact"),
+    path("api/contact/getall/<int:vendor_id>", vendor_views.get_all_vendor_contacts, name="get_all_vendor_contacts"),
+    path("api/contact/getsingle/<int:vendor_id>/<int:contact_id>", vendor_views.get_single_vendor_contact, name="get_single_vendor_contact"),
+    path("api/contact/update/<int:contact_id>", vendor_views.update_vendor_contact, name="update_vendor_contact"),      
 
     # -------------------------
     # Vendor Inventory
