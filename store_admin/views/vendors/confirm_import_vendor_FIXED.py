@@ -12,7 +12,7 @@ from django.conf import settings
 
 from store_admin.AuthHandler import StrictJWTCookieAuthentication
 from store_admin.models.payment_terms_model import PaymentTerm
-from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorStatus
+from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorStatus, PaymentTerms
 
 
 def clean_val(v):
@@ -93,7 +93,7 @@ def confirm_import_vendor(request):
                     raw_payment = clean_val(item.get('Payment Term'))
                     payment_term_name = raw_payment
                     payment_term_id = None
-                    
+
                     if payment_term_name:
                         payment_term_obj = PaymentTerm.objects.filter(
                             name__iexact=payment_term_name
@@ -129,6 +129,11 @@ def confirm_import_vendor(request):
                         Q(vendor_name__iexact=vendor_name)
                     ).first()
 
+                    company_name = clean_val(item.get('Company Name')) or vendor_name
+                    company_locality = clean_val(item.get('Company Locality'))
+                    country = clean_val(item.get('Country'))
+                    currency_value = clean_val(item.get('Currency Code')) or clean_val(item.get('Currency'))
+
                     if existing_vendor:
                         if duplicate_action == "skip":
                             skipped_count += 1
@@ -136,17 +141,20 @@ def confirm_import_vendor(request):
 
                         # Update existing vendor
                         vendor = existing_vendor
-                        vendor.payment_term_id = payment_term_id
+                        if payment_term_id is not None:
+                            vendor.payment_term = payment_term_id
                         vendor.company_abn = clean_val(item.get('Company ABN'))
                         vendor.company_acn = clean_val(item.get('Company ACN'))
-                        vendor.is_taxable = 0 if str(item.get('Taxable', '')).lower() == 'yes' else 1
+                        vendor.is_taxable = True if str(item.get('Taxable', '')).lower() == 'yes' else False
                         vendor.tax_percent = tax_percent
-                        vendor.bank_name = clean_val(item.get('Bank Name'))
-                        vendor.bank_branch = clean_val(item.get('Bank Branch'))
-                        vendor.account_number = account_number
-                        vendor.currency = clean_val(item.get('Currency Code'))
+                        vendor.company_acc_no = account_number
+                        vendor.currency = currency_value
+                        vendor.company_locality = company_locality
+                        if country:
+                            vendor.vendor_locality = country
                         vendor.status = status_id
                         vendor.updated_by = user_id
+                        vendor.vendor_company_name = company_name
                         vendor.save()
 
                         updated_count += 1
@@ -156,16 +164,17 @@ def confirm_import_vendor(request):
                         Vendor.objects.create(
                             vendor_code=vendor_code,
                             vendor_name=vendor_name,
+                            vendor_company_name=company_name,
                             gst_number=clean_val(item.get('GST Number')),
-                            payment_term_id=payment_term_id,
+                            payment_term=payment_term_id if payment_term_id is not None else PaymentTerms.LAST_NEXT_MONTH,
                             company_abn=clean_val(item.get('Company ABN')),
                             company_acn=clean_val(item.get('Company ACN')),
-                            is_taxable=0 if str(item.get('Taxable', '')).lower() == 'yes' else 1,
+                            is_taxable=True if str(item.get('Taxable', '')).lower() == 'yes' else False,
                             tax_percent=tax_percent,
-                            bank_name=clean_val(item.get('Bank Name')),
-                            bank_branch=clean_val(item.get('Bank Branch')),
-                            account_number=account_number,
-                            currency=clean_val(item.get('Currency Code')),
+                            company_acc_no=account_number,
+                            currency=currency_value,
+                            company_locality=company_locality,
+                            vendor_locality=country,
                             created_by=user_id,
                             updated_by=user_id,
                             status=status_id

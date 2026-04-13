@@ -41,19 +41,36 @@ def pre_import_check(request):
     if ext not in ALLOWED_EXTS:
         return JsonResponse({"status": False, "message": "Only CSV or XLSX files allowed"})
 
-    template_cols = {
-        'vendor': [
-            'Vendor Code', 'Vendor Name', 'Status', 'Payment Term',
-            'Currency Code', 'Taxable', 'Tax %',
-            'Company ABN', 'Company ACN', 'Bank Account Number'
-        ],
-        'contact': [
-            'Vendor Code', 'First Name', 'Last Name',
-            'Department', 'Email', 'Phone', 'Description'
-        ]
+    HEADER_ALIASES = {
+        'vendor code': 'Vendor Code',
+        'vendor name': 'Vendor Name',
+        'company name': 'Company Name',
+        'vendor type': 'Vendor Type',
+        'company locality': 'Company Locality',
+        'city': 'City',
+        'country': 'Country',
+        'currency': 'Currency',
+        'currency code': 'Currency Code',
+        'tax %': 'Tax %',
+        'status': 'Status',
+        'payment term': 'Payment Term',
+        'actions': 'Actions',
+        'first name': 'First Name',
+        'last name': 'Last Name',
+        'department': 'Department',
+        'email': 'Email',
+        'phone': 'Phone',
+        'description': 'Description',
+        'role': 'Role',
+        'is primary': 'Is Primary'
     }
 
-    required_fields = template_cols.get(import_type)
+    REQUIRED_FIELDS = {
+        'vendor': ['Vendor Code', 'Vendor Name'],
+        'contact': ['Vendor Code', 'Email']
+    }
+
+    required_fields = REQUIRED_FIELDS.get(import_type)
     if not required_fields:
         return JsonResponse({"status": False, "message": "Invalid import type"})
 
@@ -80,6 +97,7 @@ def pre_import_check(request):
             })
 
         df.columns = [c.strip() for c in df.columns]
+        df = df.rename(columns={col: HEADER_ALIASES.get(col.strip().lower(), col.strip()) for col in df.columns})
 
         # ---------- HEADER VALIDATION ----------
         missing_cols = [c for c in required_fields if c not in df.columns]
@@ -96,6 +114,8 @@ def pre_import_check(request):
         valid_records = []
 
         seen_vendor_codes = set()
+        seen_vendor_names = set()
+        seen_company_names = set()
         seen_gst = set()
         seen_contact_emails = set()
         seen_contact_phones = set()
@@ -162,6 +182,7 @@ def pre_import_check(request):
             # ---------- VENDOR VALIDATION ----------
             if import_type == 'vendor':
                 name = str(row.get('Vendor Name') or '').strip()
+                company_name = str(row.get('Company Name') or name).strip()
 
                 raw_gst = row.get('GST Number')
                 gst = str(raw_gst).strip() if raw_gst is not None and not pd.isna(raw_gst) else ''
@@ -179,8 +200,12 @@ def pre_import_check(request):
                 if raw_acn is not None and not pd.isna(raw_acn):
                     acn = str(raw_acn).strip().replace(" ", "")
 
-                raw_currency = row.get('Currency Code')
+                raw_currency = row.get('Currency Code') if row.get('Currency Code') is not None else row.get('Currency')
                 currency = str(raw_currency).strip() if raw_currency is not None and not pd.isna(raw_currency) else ''
+
+                status_value = str(row.get('Status') or '').strip()
+                company_locality = str(row.get('Company Locality') or '').strip()
+                country = str(row.get('Country') or '').strip()
 
                 # ---------- VALIDATIONS ----------
 
@@ -190,13 +215,21 @@ def pre_import_check(request):
                         "message": "Invalid vendor code format (3+ alphanumeric/hyphen)"
                     })
 
-                if vendor_code in seen_vendor_codes:
-                    row_errors.append({
-                        "row": row_num, "column": "Vendor Code",
-                        "message": "Duplicate vendor code in file"
-                    })
+                company_name = str(row.get('Company Name') or name).strip()
+                normalized_name = name.lower() if name else ""
+                normalized_company = company_name.lower() if company_name else ""
+
+                if (vendor_code in seen_vendor_codes or
+                    (normalized_name and normalized_name in seen_vendor_names) or
+                    (normalized_company and normalized_company in seen_company_names)):
+                    if dup_handling == 'skip':
+                        continue
                 else:
                     seen_vendor_codes.add(vendor_code)
+                    if normalized_name:
+                        seen_vendor_names.add(normalized_name)
+                    if normalized_company:
+                        seen_company_names.add(normalized_company)
 
                 if not name:
                     row_errors.append({
@@ -213,13 +246,8 @@ def pre_import_check(request):
                     else:
                         seen_gst.add(gst)
 
-                if not payment_term:
-                    row_errors.append({
-                        "row": row_num, "column": "Payment Term",
-                        "message": "Payment Term is required"
-                    })
-                else:
-                    # Validate payment term exists
+                if payment_term:
+                    # Validate payment term exists only when provided
                     pt_obj = PaymentTerm.objects.filter(
                         name__iexact=payment_term
                     ).first()
