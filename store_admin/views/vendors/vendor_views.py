@@ -820,26 +820,43 @@ def download_import_template(request):
     import_type = request.GET.get('file_type', 'vendor')
     file_format = request.GET.get('file_format', 'csv').lower()
 
-    if import_type != 'vendor':
+    if import_type == 'vendor':
+        contact_count, bank_count = get_dynamic_counts()
+        template_columns = get_dynamic_vendor_columns(contact_count=contact_count, bank_count=bank_count)
+        df = pd.DataFrame(columns=template_columns)
+        filename_base = 'vendor_import_template'
+        sheet_name = 'Vendor Template'
+    elif import_type == 'contact':
+        template_columns = [
+            'Vendor Code',
+            'First Name',
+            'Last Name',
+            'Department',
+            'Email',
+            'Phone',
+            'Description',
+            'Role',
+            'Is Primary'
+        ]
+        df = pd.DataFrame(columns=template_columns)
+        filename_base = 'vendor_contact_import_template'
+        sheet_name = 'Contact Template'
+    else:
         raise Http404("Invalid template parameters provided.")
-
-    contact_count, bank_count = get_dynamic_counts()
-    template_columns = get_dynamic_vendor_columns(contact_count=contact_count, bank_count=bank_count)
-    df = pd.DataFrame(columns=template_columns)
 
     if file_format == 'xl':
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Vendor Template')
+            df.to_excel(writer, index=False, sheet_name=sheet_name)
         response = HttpResponse(
             output.getvalue(),
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
-        response['Content-Disposition'] = 'attachment; filename="vendor_import_template.xlsx"'
+        response['Content-Disposition'] = f'attachment; filename="{filename_base}.xlsx"'
         return response
 
     response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="vendor_import_template.csv"'
+    response['Content-Disposition'] = f'attachment; filename="{filename_base}.csv"'
     df.to_csv(path_or_buf=response, index=False)
     return response
 

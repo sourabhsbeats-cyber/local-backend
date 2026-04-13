@@ -97,8 +97,6 @@ def pre_import_check(request):
 
         seen_vendor_codes = set()
         seen_gst = set()
-        seen_emails = set()
-        seen_phones = set()
 
         # ---------- ROW VALIDATION ----------
         for index, row in df.iterrows():
@@ -141,14 +139,6 @@ def pre_import_check(request):
                             "column": "Email",
                             "message": "Invalid email format"
                         })
-                    elif email in seen_emails:
-                        row_errors.append({
-                            "row": row_num,
-                            "column": "Email",
-                            "message": "Duplicate email in file"
-                        })
-                    else:
-                        seen_emails.add(email)
 
                 # ---- Phone validation ----
                 if phone:
@@ -161,14 +151,6 @@ def pre_import_check(request):
                             "column": "Phone",
                             "message": "Phone must contain only digits"
                         })
-                    elif phone in seen_phones:
-                        row_errors.append({
-                            "row": row_num,
-                            "column": "Phone",
-                            "message": "Duplicate phone in file"
-                        })
-                    else:
-                        seen_phones.add(phone)
 
             # ---------- VENDOR VALIDATION ----------
             if import_type == 'vendor':

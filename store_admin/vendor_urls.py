@@ -3,8 +3,8 @@ from django.urls import path
 from .views.vendors import (
     vendor_views,
     bulk_import_view,
-    pre_import_vendor,
-    confirm_import_vendor,
+    pre_import_vendor_FIXED as pre_import_vendor,
+    confirm_import_vendor_FIXED as confirm_import_vendor,
     vendor_payment_views  # Newly added for payments
 )
 from .views.vendors.vendor_views import get_vendor_details  # <- Add this line

@@ -174,6 +174,8 @@ def confirm_import_vendor(request):
                         created_count += 1
 
             elif import_type == 'contact':
+                seen_contacts = set()
+
                 for item in import_data:
                     vendor_code = str(item.get('Vendor Code', '')).strip()
                     email = str(item.get('Email', '')).strip().lower()
@@ -188,6 +190,15 @@ def confirm_import_vendor(request):
                         skipped_count += 1
                         error_log.append(f"Vendor {vendor_code} not found")
                         continue
+
+                    contact_key = (vendor.id, email)
+                    if contact_key in seen_contacts:
+                        if duplicate_action == "skip":
+                            skipped_count += 1
+                            continue
+                        # If update, allow later row to overwrite previous created/updated entry
+                    else:
+                        seen_contacts.add(contact_key)
 
                     existing_contact = VendorContact.objects.filter(
                         vendor_id=vendor.id,
@@ -210,7 +221,6 @@ def confirm_import_vendor(request):
                         contact.save()
 
                         updated_count += 1
-
                     else:
                         # Create new contact
                         VendorContact.objects.create(
