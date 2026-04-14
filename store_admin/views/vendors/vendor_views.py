@@ -834,6 +834,7 @@ def download_import_template(request):
             'Department',
             'Email',
             'Phone',
+            'Mobile',
             'Description',
             'Role',
             'Is Primary'

@@ -60,6 +60,7 @@ def pre_import_check(request):
         'department': 'Department',
         'email': 'Email',
         'phone': 'Phone',
+        'mobile': 'Mobile',
         'description': 'Description',
         'role': 'Role',
         'is primary': 'Is Primary'
@@ -157,6 +158,16 @@ def pre_import_check(request):
                         "column": "First Name / Last Name",
                         "message": "Either First Name or Last Name is required"
                     })
+
+                # Vendor must exist for contact import.
+                if vendor_code:
+                    vendor_exists = Vendor.objects.filter(vendor_code__iexact=vendor_code).exists()
+                    if not vendor_exists:
+                        row_errors.append({
+                            "row": row_num,
+                            "column": "Vendor Code",
+                            "message": f"Vendor '{vendor_code}' not found"
+                        })
 
                 # ---- Email validation ----
                 if email:

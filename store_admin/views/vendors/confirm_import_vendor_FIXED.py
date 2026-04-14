@@ -2,6 +2,7 @@ import os
 import glob
 import pandas as pd
 import json
+from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
@@ -14,10 +15,70 @@ from store_admin.AuthHandler import StrictJWTCookieAuthentication
 from store_admin.models.payment_terms_model import PaymentTerm
 from store_admin.models.vendor_models import Vendor, VendorBank, VendorContact, VendorStatus, PaymentTerms
 
+HEADER_ALIASES = {
+    'vendor code': 'Vendor Code',
+    'vendor name': 'Vendor Name',
+    'company name': 'Company Name',
+    'vendor type': 'Vendor Type',
+    'company locality': 'Company Locality',
+    'city': 'City',
+    'country': 'Country',
+    'currency': 'Currency',
+    'currency code': 'Currency Code',
+    'tax %': 'Tax %',
+    'status': 'Status',
+    'payment term': 'Payment Term',
+    'actions': 'Actions',
+    'first name': 'First Name',
+    'last name': 'Last Name',
+    'department': 'Department',
+    'email': 'Email',
+    'phone': 'Phone',
+    'mobile': 'Mobile',
+    'description': 'Description',
+    'role': 'Role',
+    'is primary': 'Is Primary'
+}
+
 
 def clean_val(v):
     """Convert NaN and None values to None"""
     return None if v is None or (isinstance(v, float) and pd.isna(v)) else v
+
+
+def _to_bool(value):
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _normalize_contact_number(value):
+    if value is None:
+        return ""
+    if isinstance(value, float) and pd.isna(value):
+        return ""
+    if isinstance(value, int):
+        return str(value)
+    if isinstance(value, float):
+        if value.is_integer():
+            return str(int(value))
+        return format(value, "f").rstrip("0").rstrip(".")
+
+    text = str(value).strip()
+    if not text or text.lower() in {"none", "nan", "null"}:
+        return ""
+
+    compact = text.replace(" ", "")
+    if compact.endswith(".0"):
+        compact = compact[:-2]
+
+    if "e" in compact.lower():
+        try:
+            dec = Decimal(compact)
+            if dec == dec.to_integral():
+                return str(dec.to_integral())
+            return format(dec.normalize(), "f")
+        except (InvalidOperation, ValueError):
+            return compact
+    return compact
 
 
 @api_view(['POST'])
@@ -62,6 +123,7 @@ def confirm_import_vendor(request):
         # Read file
         df = pd.read_csv(file_path) if ext == ".csv" else pd.read_excel(file_path)
         df.columns = [c.strip() for c in df.columns]
+        df = df.rename(columns={col: HEADER_ALIASES.get(col.strip().lower(), col.strip()) for col in df.columns})
         df = df.where(pd.notnull(df), None)
 
         import_data = df.to_dict(orient="records")
@@ -184,17 +246,28 @@ def confirm_import_vendor(request):
 
             elif import_type == 'contact':
                 seen_contacts = set()
+                cleared_vendor_contacts = set()
 
                 for item in import_data:
                     vendor_code = str(item.get('Vendor Code', '')).strip()
+                    vendor_name = str(item.get('Vendor Name', '')).strip()
                     email = str(item.get('Email', '')).strip().lower()
+                    first_name = str(item.get('First Name') or '').strip()
+                    last_name = str(item.get('Last Name') or '').strip()
+                    phone_number = _normalize_contact_number(item.get('Phone'))
+                    mobile_value = item.get('Mobile')
+                    if mobile_value in [None, ""]:
+                        mobile_value = item.get('MOBILE')
+                    mobile_number = _normalize_contact_number(mobile_value)
 
                     if not vendor_code or not email:
                         skipped_count += 1
                         error_log.append("Row skipped: Missing Vendor Code or Email")
                         continue
 
-                    vendor = Vendor.objects.filter(vendor_code=vendor_code).first()
+                    vendor = Vendor.objects.filter(vendor_code__iexact=vendor_code).first()
+                    if not vendor and vendor_name:
+                        vendor = Vendor.objects.filter(vendor_name__iexact=vendor_name).first()
                     if not vendor:
                         skipped_count += 1
                         error_log.append(f"Vendor {vendor_code} not found")
@@ -209,41 +282,66 @@ def confirm_import_vendor(request):
                     else:
                         seen_contacts.add(contact_key)
 
-                    existing_contact = VendorContact.objects.filter(
-                        vendor_id=vendor.id,
-                        email=email
-                    ).first()
+                    if duplicate_action == "update":
+                        # Replace vendor contacts with the imported list so Contact Details matches preview exactly.
+                        if vendor.id not in cleared_vendor_contacts:
+                            VendorContact.objects.filter(vendor_id=vendor.id).delete()
+                            cleared_vendor_contacts.add(vendor.id)
 
-                    if existing_contact:
-                        if duplicate_action == "skip":
-                            skipped_count += 1
-                            continue
+                        incoming_primary = _to_bool(item.get('Is Primary'))
+                        if incoming_primary:
+                            VendorContact.objects.filter(vendor_id=vendor.id, is_primary=True).update(is_primary=False)
 
-                        # Update existing contact
-                        contact = existing_contact
-                        contact.first_name = str(item.get('First Name') or '').strip()
-                        contact.last_name = str(item.get('Last Name') or '').strip()
-                        contact.department = str(item.get('Department') or '').strip()
-                        contact.phone = str(item.get('Phone') or '').replace('.0', '')
-                        contact.description = str(item.get('Description') or '').strip()
-                        contact.role = str(item.get('Role') or 'Contact').strip()
-                        contact.save()
-
-                        updated_count += 1
-                    else:
-                        # Create new contact
                         VendorContact.objects.create(
                             vendor_id=vendor.id,
                             email=email,
-                            first_name=str(item.get('First Name') or '').strip(),
-                            last_name=str(item.get('Last Name') or '').strip(),
+                            first_name=first_name or "Unknown",
+                            last_name=last_name or "Unknown",
                             department=str(item.get('Department') or '').strip(),
-                            phone=str(item.get('Phone') or '').replace('.0', ''),
+                            phone=phone_number or None,
+                            mobile_no=mobile_number or None,
                             description=str(item.get('Description') or '').strip(),
                             role=str(item.get('Role') or 'Contact').strip(),
+                            is_primary=incoming_primary,
                             created_by=user_id
                         )
+                        updated_count += 1
+                    else:
+                        existing_contact = None
+                        if email:
+                            existing_contact = VendorContact.objects.filter(
+                                vendor_id=vendor.id,
+                                email__iexact=email
+                            ).first()
+                        if not existing_contact and phone_number:
+                            existing_contact = VendorContact.objects.filter(
+                                vendor_id=vendor.id,
+                                phone=phone_number
+                            ).first()
+                        if not existing_contact and (first_name or last_name):
+                            existing_contact = VendorContact.objects.filter(
+                                vendor_id=vendor.id,
+                                first_name__iexact=first_name or "Unknown",
+                                last_name__iexact=last_name or "Unknown"
+                            ).order_by("-is_primary", "-id").first()
 
+                        if existing_contact:
+                            skipped_count += 1
+                            continue
+
+                        VendorContact.objects.create(
+                            vendor_id=vendor.id,
+                            email=email,
+                            first_name=first_name or "Unknown",
+                            last_name=last_name or "Unknown",
+                            department=str(item.get('Department') or '').strip(),
+                            phone=phone_number or None,
+                            mobile_no=mobile_number or None,
+                            description=str(item.get('Description') or '').strip(),
+                            role=str(item.get('Role') or 'Contact').strip(),
+                            is_primary=_to_bool(item.get('Is Primary')),
+                            created_by=user_id
+                        )
                         created_count += 1
 
             else:
