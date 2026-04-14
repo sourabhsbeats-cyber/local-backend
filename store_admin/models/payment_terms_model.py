@@ -10,9 +10,16 @@ class PaymentTerm(models.Model):
         (1, 'Prepaid'),
         (2, 'Postpaid'),
     ]
+    TERM_OPTION_CHOICES = [
+        ('frequency', 'Frequency'),
+        ('nextMonth14', '14th of Next Month'),
+        ('nextMonthLastDay', 'Last day of Next Month'),
+        ('nextNextMonthLastDay', 'Last day of Next to Next Month'),
+    ]
 
     name = models.CharField(max_length=100, unique=True)
     frequency = models.PositiveIntegerField(help_text="Enter number of days (e.g., 30 = Net 30)")
+    term_option = models.CharField(max_length=32, choices=TERM_OPTION_CHOICES, default='frequency')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Active')
     type = models.PositiveIntegerField(choices=PAYMENT_TYPES, default=1)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -32,6 +39,7 @@ class PaymentTerm(models.Model):
             if int(self.type) == 1:
                 # Business rule: Prepaid terms always use 0 days.
                 self.frequency = 0
+                self.term_option = 'frequency'
             elif frequency_value <= 0:
                 errors['frequency'] = "Frequency must be a positive integer."
             else:
@@ -50,6 +58,9 @@ class PaymentTerm(models.Model):
 
         if not self.status or str(self.status).strip() not in dict(self.STATUS_CHOICES):
             errors['status'] = "Status must be Active or Inactive."
+
+        if not self.term_option or self.term_option not in dict(self.TERM_OPTION_CHOICES):
+            errors['term_option'] = "Invalid term option."
 
         if errors:
             from django.core.exceptions import ValidationError

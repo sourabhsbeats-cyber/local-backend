@@ -48,10 +48,20 @@ def _dynamic_frequency_from_option(option_value):
     return None
 
 
+def _option_to_label(term_option):
+    return {
+        "frequency": "Frequency",
+        "nextMonth14": "14th of Next Month",
+        "nextMonthLastDay": "Last day of Next Month",
+        "nextNextMonthLastDay": "Last day of Next to Next Month",
+    }.get(term_option, "Frequency")
+
+
 def validate_payment_term_payload(data, payment_term_id=None):
     errors = {}
     name = (data.get("name") or "").strip()
     frequency = data.get("frequency")
+    term_option = (data.get("termOption") or data.get("term_option") or "").strip()
     payment_type = data.get("type")
     raw_status = data.get("status")
     status = str(raw_status).strip() if raw_status is not None else ""
@@ -69,11 +79,17 @@ def validate_payment_term_payload(data, payment_term_id=None):
         except (TypeError, ValueError):
             errors["type"] = "Type must be a valid integer."
 
+    valid_term_options = dict(PaymentTerm.TERM_OPTION_CHOICES)
+    if payment_type == 1:
+        term_option = "frequency"
+    if term_option not in valid_term_options:
+        errors["term_option"] = "Invalid term option."
+
     if frequency in [None, ""]:
         errors["frequency"] = "Frequency is required."
     else:
-        # Accept both numeric frequency and legacy term labels from UI.
-        dynamic_frequency = _dynamic_frequency_from_option(frequency)
+        # Accept both selected term option and legacy term labels from UI.
+        dynamic_frequency = _dynamic_frequency_from_option(_option_to_label(term_option) if term_option else frequency)
         if dynamic_frequency is not None:
             frequency = dynamic_frequency
         try:
@@ -106,6 +122,7 @@ def validate_payment_term_payload(data, payment_term_id=None):
     return errors, {
         "name": name,
         "frequency": frequency,
+        "term_option": term_option,
         "type": payment_type,
         "status": status,
     }
@@ -137,6 +154,7 @@ def get_all_payment_terms(request):
             "type": getattr(term, 'type', 'Prepaid'),  # Handles 'Type' from your UI
             "name": term.name,
             "frequency": term.frequency,
+            "term_option": getattr(term, "term_option", "frequency"),
             "status": term.status,  # 'Active' or 'Inactive'
         })
 
@@ -162,6 +180,7 @@ def update_payment_terms(request, payment_term_id):
 
     term.name = cleaned["name"]
     term.frequency = cleaned["frequency"]
+    term.term_option = cleaned["term_option"]
     term.type = cleaned["type"]
     term.status = cleaned["status"]
     try:
@@ -208,6 +227,7 @@ def create_payment_term(request):
     term = PaymentTerm(
         name=cleaned["name"],
         frequency=cleaned["frequency"],
+        term_option=cleaned["term_option"],
         type=cleaned["type"],
         status=cleaned["status"],
     )
