@@ -70,7 +70,7 @@ def api_all_shipping_providers(request):
 
 @api_view(["GET"])
 def api_all_payment_terms(request):
-    payment_terms = PaymentTerm.objects.filter(status=1).values(
+    payment_terms = PaymentTerm.objects.filter(status="Active").values(
         "name", "type", "frequency", "id",
     )
 

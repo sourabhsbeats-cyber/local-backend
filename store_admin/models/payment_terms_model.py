@@ -29,7 +29,10 @@ class PaymentTerm(models.Model):
 
         try:
             frequency_value = int(self.frequency)
-            if frequency_value <= 0:
+            if int(self.type) == 1:
+                # Business rule: Prepaid terms always use 0 days.
+                self.frequency = 0
+            elif frequency_value <= 0:
                 errors['frequency'] = "Frequency must be a positive integer."
             else:
                 self.frequency = frequency_value
