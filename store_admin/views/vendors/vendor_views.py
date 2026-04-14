@@ -71,11 +71,9 @@ def normalize_mode_of_payment(raw_modes):
 def upsert_vendor_bank(vendor, primary, user_id=0):
     from store_admin.models.vendor_models import VendorBank  # moved inside to avoid circular import
 
-    if not hasattr(vendor, 'mode_of_payment'):
-        return
-
     mode_list = normalize_mode_of_payment(primary.get('mode_of_payment') or "")
-    vendor.mode_of_payment = ",".join(mode_list) if mode_list else None
+    if hasattr(vendor, 'mode_of_payment'):
+        vendor.mode_of_payment = ",".join(mode_list) if mode_list else None
 
     if 'paypal' in mode_list:
         vendor.paypal_email = primary.get('paypal_email') or None
@@ -315,7 +313,7 @@ def get_vendor_details(request):
             bank = (
                 VendorBank.objects
                 .filter(vendor_id=vendor_id)
-                .values("bank_name", "bic", "account_holder", "account_number")
+                .values("bank_name", "bic", "account_holder", "account_number", "bank_country")
                 .order_by("-id")
                 .first()
             )
@@ -328,6 +326,7 @@ def get_vendor_details(request):
                     "bank_country": "",
                     "account_number": "",
                     "account_number_confirm": "",
+                    "bank_account_number_confirm": "",
                     "bank_verification_doc": ""
                 }
             return {
@@ -336,11 +335,11 @@ def get_vendor_details(request):
                 "bank_ifsc": bank.get("bic") or "",
                 "account_name": bank.get("account_holder") or "",
                 "bank_account_holder_name": bank.get("account_holder") or "",
-                "bank_country": "",
+                "bank_country": bank.get("bank_country") or "",
                 "account_number": bank.get("account_number") or "",
                 "bank_account_number": bank.get("account_number") or "",
-                "account_number_confirm": "",
-                "bank_account_number_confirm": "",
+                "account_number_confirm": bank.get("account_number") or "",
+                "bank_account_number_confirm": bank.get("account_number") or "",
                 "bank_verification_doc": ""
             }
 
@@ -430,9 +429,10 @@ def get_vendor_details(request):
                 "processing_fee": vendor.processing_fee or "",
                 "three_d_secure": vendor.three_d_secure or "",
 
-                "account_number": bank_data["account_number"],
-                "bank_account_number": bank_data["account_number"],
-                "bank_account_number_confirm": "",
+                "account_number": bank_data.get("account_number", ""),
+                "bank_account_number": bank_data.get("account_number", ""),
+                "account_number_confirm": bank_data.get("account_number_confirm", ""),
+                "bank_account_number_confirm": bank_data.get("bank_account_number_confirm", ""),
                 "reminder": getattr(vendor, "reminder", "") or "",
                 "remarks": getattr(vendor, "remarks", "") or "",
                 "status": vendor.status,
@@ -1012,12 +1012,25 @@ def api_add_new_vendor(request):
     warehouses = parse_json_field(data.get('warehouses'), [])
     contacts = parse_json_field(data.get('contacts'), [])
 
+    # Support both payload styles:
+    # 1) nested under "primary" (edit flow)
+    # 2) flat top-level keys (add new vendor flow)
+    primary_payload = {}
+    # request.data may be QueryDict / ReturnDict (dict-like, but not plain dict)
+    try:
+        for k, v in data.items():
+            primary_payload[k] = v
+    except Exception:
+        pass
+    if isinstance(primary, dict):
+        primary_payload.update(primary)
+
     billing_address = details.get('billing_address') or parse_json_field(data.get('billing_address'), {})
     shipping_address = details.get('shipping_address') or parse_json_field(data.get('shipping_address'), {})
 
-    vendor_code = (primary.get('vendor_code') or data.get('vendor_code') or '').strip()
-    vendor_name = (primary.get('vendor_name') or data.get('vendor_name') or '').strip()
-    vendor_company_name = (primary.get('vendor_company_name') or data.get('vendor_company_name') or '').strip()
+    vendor_code = (primary_payload.get('vendor_code') or data.get('vendor_code') or '').strip()
+    vendor_name = (primary_payload.get('vendor_name') or data.get('vendor_name') or '').strip()
+    vendor_company_name = (primary_payload.get('vendor_company_name') or data.get('vendor_company_name') or '').strip()
 
     if not vendor_code or not vendor_name or not vendor_company_name:
         return JsonResponse({
@@ -1037,9 +1050,9 @@ def api_add_new_vendor(request):
         except Exception:
             return default
 
-    tax_percent = safe_float(primary.get('tax_percent') or data.get('tax_percent'))
-    min_order_value = safe_float(primary.get('min_order_value') or data.get('min_order_value'))
-    is_taxable = 1 if str(primary.get('is_taxable') or data.get('is_taxable', '')).lower() in ['1', 'true'] else 0
+    tax_percent = safe_float(primary_payload.get('tax_percent') or data.get('tax_percent'))
+    min_order_value = safe_float(primary_payload.get('min_order_value') or data.get('min_order_value'))
+    is_taxable = 1 if str(primary_payload.get('is_taxable') or data.get('is_taxable', '')).lower() in ['1', 'true'] else 0
 
     if is_taxable and tax_percent <= 0:
         return JsonResponse({
@@ -1047,14 +1060,20 @@ def api_add_new_vendor(request):
             'message': 'Tax % required when taxable'
         }, status=400)
 
-    raw_modes = primary.get("mode_of_payment") or data.get("mode_of_payment") or []
-    if isinstance(raw_modes, str):
-        mode_list = [m.strip() for m in raw_modes.split(",") if m.strip()]
-    else:
-        mode_list = raw_modes
+    raw_modes = primary_payload.get("mode_of_payment") or data.get("mode_of_payment") or []
+    mode_list = normalize_mode_of_payment(raw_modes)
+    has_bank_payload = any([
+        str(primary_payload.get("bank_name") or "").strip(),
+        str(primary_payload.get("bank_account_holder_name") or primary_payload.get("account_name") or "").strip(),
+        str(primary_payload.get("bank_ifsc") or "").strip(),
+        str(primary_payload.get("bank_account_number") or primary_payload.get("account_number") or "").strip(),
+        str(primary_payload.get("bank_country") or "").strip(),
+    ])
+    if has_bank_payload and "bank_transfer" not in mode_list:
+        mode_list.append("bank_transfer")
     if "bank_transfer" in mode_list:
-        account_number = str(primary.get("bank_account_number") or primary.get("account_number") or "")
-        account_number_confirm = str(primary.get("bank_account_number_confirm") or "")
+        account_number = str(primary_payload.get("bank_account_number") or primary_payload.get("account_number") or "")
+        account_number_confirm = str(primary_payload.get("bank_account_number_confirm") or "")
         if account_number_confirm and account_number != account_number_confirm:
             return JsonResponse({
                 "status": False,
@@ -1066,26 +1085,26 @@ def api_add_new_vendor(request):
             vendor_code=vendor_code,
             vendor_name=vendor_name,
             vendor_company_name=vendor_company_name,
-            company_acc_no=primary.get('company_acc_no') or None,
-            company_website=primary.get('company_website') or None,
+            company_acc_no=primary_payload.get('company_acc_no') or None,
+            company_website=primary_payload.get('company_website') or None,
             tax_percent=tax_percent,
             is_taxable=is_taxable,
             min_order_value=min_order_value,
             created_by=request.user.id if request.user.is_authenticated else None,
-            status=primary.get('status') or data.get('status') or 0,
-            payment_term=primary.get('payment_term') or None,
-            company_acn=primary.get('company_acn') or None,
-            company_abn=primary.get('company_abn') or None,
-            vendor_locality=primary.get('vendor_locality') or None,
-            currency=primary.get('currency') or None
+            status=primary_payload.get('status') or data.get('status') or 0,
+            payment_term=primary_payload.get('payment_term') or None,
+            company_acn=primary_payload.get('company_acn') or None,
+            company_abn=primary_payload.get('company_abn') or None,
+            vendor_locality=primary_payload.get('vendor_locality') or None,
+            currency=primary_payload.get('currency') or None
         )
 
         # Optional vendor model field
         if hasattr(vendor, 'vendor_model'):
-            vendor.vendor_model = primary.get('vendor_model') or ''
+            vendor.vendor_model = primary_payload.get('vendor_model') or ''
 
         # Save related models
-        upsert_vendor_bank(vendor, primary, request.user.id if request.user.is_authenticated else 0)
+        upsert_vendor_bank(vendor, primary_payload, request.user.id if request.user.is_authenticated else 0)
         upsert_vendor_contacts(vendor, contacts, request.user.id if request.user.is_authenticated else 0)
         upsert_vendor_warehouses(vendor, warehouses, request.user.id if request.user.is_authenticated else 0)
         save_vendor_addresses(vendor.id, billing_address, shipping_address, request.user.id if request.user.is_authenticated else 0)
@@ -1301,12 +1320,16 @@ def api_save_vendor(request):
                 vendor.comments = onboard_details.get("comments") or None
 
             raw_modes = primary.get("mode_of_payment") or ""
-
-            # 2. அதை லிஸ்ட்டாக மாற்றவும் (அப்போதுதான் 'in' செக் பண்ண முடியும்)
-            if isinstance(raw_modes, str):
-                mode_list = [m.strip() for m in raw_modes.split(',') if m.strip()]
-            else:
-                mode_list = raw_modes  # ஒருவேளை ஏற்கனவே லிஸ்ட்டா இருந்தா அப்படியே விட்ரு
+            mode_list = normalize_mode_of_payment(raw_modes)
+            has_bank_payload = any([
+                str(primary.get("bank_name") or "").strip(),
+                str(primary.get("bank_account_holder_name") or primary.get("account_name") or "").strip(),
+                str(primary.get("bank_ifsc") or "").strip(),
+                str(primary.get("bank_account_number") or primary.get("account_number") or "").strip(),
+                str(primary.get("bank_country") or "").strip(),
+            ])
+            if has_bank_payload and "bank_transfer" not in mode_list:
+                mode_list.append("bank_transfer")
 
             # 3. டேட்டாபேஸில் ஸ்ட்ரிங்காகவே சேமிக்க
             vendor.mode_of_payment = ",".join(mode_list) if mode_list else None
