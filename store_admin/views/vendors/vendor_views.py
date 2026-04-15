@@ -829,6 +829,8 @@ def download_import_template(request):
     elif import_type == 'contact':
         template_columns = [
             'Vendor Code',
+            'Vendor Name',
+            'Company Name',
             'First Name',
             'Last Name',
             'Department',

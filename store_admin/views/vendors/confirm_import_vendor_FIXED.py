@@ -1,10 +1,8 @@
 import os
 import glob
 import pandas as pd
-import json
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
-from django.db.models import Q
 from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -79,6 +77,73 @@ def _normalize_contact_number(value):
         except (InvalidOperation, ValueError):
             return compact
     return compact
+
+
+def _create_vendor_from_import_row(vendor_code, item, user_id, error_log):
+    """
+    Create a Vendor from a CSV/Excel row (vendor or contact import).
+    Missing/invalid Payment Term falls back to default; a note is appended to error_log.
+    """
+    raw_payment = clean_val(item.get('Payment Term'))
+    payment_term_id = None
+    if raw_payment:
+        payment_term_name = str(raw_payment).strip()
+        payment_term_obj = PaymentTerm.objects.filter(name__iexact=payment_term_name).first()
+        if payment_term_obj:
+            payment_term_id = payment_term_obj.id
+        else:
+            error_log.append(
+                f"Payment term '{payment_term_name}' not found; using default for vendor {vendor_code}"
+            )
+
+    raw_tax = clean_val(item.get('Tax %'))
+    tax_percent = float(raw_tax) if raw_tax is not None else 0.0
+
+    raw_acct = clean_val(item.get('Bank Account Number'))
+    account_number = None
+    if raw_acct is not None:
+        account_number = str(int(raw_acct)) if isinstance(raw_acct, (int, float)) else str(raw_acct).strip()
+
+    status_name = (item.get('Status') or '').strip()
+    try:
+        status_id = (
+            VendorStatus[status_name.upper().replace(" ", "_")].value
+            if status_name
+            else VendorStatus.PENDING
+        )
+    except KeyError:
+        status_id = VendorStatus.PENDING
+
+    vn = str(item.get('Vendor Name') or '').strip()
+    cn = clean_val(item.get('Company Name'))
+    cn = str(cn).strip() if cn else ''
+    vendor_name = vn or cn or vendor_code
+    # Keep display name and company name independent:
+    # if Company Name is absent, do not reuse Vendor Name.
+    company_name = cn or vendor_code
+
+    company_locality = clean_val(item.get('Company Locality'))
+    country = clean_val(item.get('Country'))
+    currency_value = clean_val(item.get('Currency Code')) or clean_val(item.get('Currency'))
+
+    return Vendor.objects.create(
+        vendor_code=vendor_code,
+        vendor_name=vendor_name,
+        vendor_company_name=company_name,
+        gst_number=clean_val(item.get('GST Number')),
+        payment_term=payment_term_id if payment_term_id is not None else PaymentTerms.LAST_NEXT_MONTH,
+        company_abn=clean_val(item.get('Company ABN')),
+        company_acn=clean_val(item.get('Company ACN')),
+        is_taxable=True if str(item.get('Taxable', '')).lower() == 'yes' else False,
+        tax_percent=tax_percent,
+        company_acc_no=account_number,
+        currency=currency_value,
+        company_locality=company_locality,
+        vendor_locality=country,
+        created_by=user_id,
+        updated_by=user_id,
+        status=status_id,
+    )
 
 
 @api_view(['POST'])
@@ -185,13 +250,10 @@ def confirm_import_vendor(request):
                     except KeyError:
                         status_id = VendorStatus.PENDING
 
-                    # Check for duplicates
-                    existing_vendor = Vendor.objects.filter(
-                        Q(vendor_code=vendor_code) |
-                        Q(vendor_name__iexact=vendor_name)
-                    ).first()
+                    # Duplicate check: vendor code is the primary key for import.
+                    existing_vendor = Vendor.objects.filter(vendor_code__iexact=vendor_code).first()
 
-                    company_name = clean_val(item.get('Company Name')) or vendor_name
+                    company_name = clean_val(item.get('Company Name'))
                     company_locality = clean_val(item.get('Company Locality'))
                     country = clean_val(item.get('Country'))
                     currency_value = clean_val(item.get('Currency Code')) or clean_val(item.get('Currency'))
@@ -203,6 +265,8 @@ def confirm_import_vendor(request):
 
                         # Update existing vendor
                         vendor = existing_vendor
+                        if vendor_name:
+                            vendor.vendor_name = vendor_name
                         if payment_term_id is not None:
                             vendor.payment_term = payment_term_id
                         vendor.company_abn = clean_val(item.get('Company ABN'))
@@ -216,17 +280,18 @@ def confirm_import_vendor(request):
                             vendor.vendor_locality = country
                         vendor.status = status_id
                         vendor.updated_by = user_id
-                        vendor.vendor_company_name = company_name
+                        if company_name:
+                            vendor.vendor_company_name = company_name
                         vendor.save()
 
                         updated_count += 1
 
                     else:
-                        # Create new vendor
+                        # Create new vendor (payment term required when provided — validated above)
                         Vendor.objects.create(
                             vendor_code=vendor_code,
                             vendor_name=vendor_name,
-                            vendor_company_name=company_name,
+                            vendor_company_name=company_name or vendor_name,
                             gst_number=clean_val(item.get('GST Number')),
                             payment_term=payment_term_id if payment_term_id is not None else PaymentTerms.LAST_NEXT_MONTH,
                             company_abn=clean_val(item.get('Company ABN')),
@@ -246,11 +311,9 @@ def confirm_import_vendor(request):
 
             elif import_type == 'contact':
                 seen_contacts = set()
-                cleared_vendor_contacts = set()
 
                 for item in import_data:
                     vendor_code = str(item.get('Vendor Code', '')).strip()
-                    vendor_name = str(item.get('Vendor Name', '')).strip()
                     email = str(item.get('Email', '')).strip().lower()
                     first_name = str(item.get('First Name') or '').strip()
                     last_name = str(item.get('Last Name') or '').strip()
@@ -266,12 +329,11 @@ def confirm_import_vendor(request):
                         continue
 
                     vendor = Vendor.objects.filter(vendor_code__iexact=vendor_code).first()
-                    if not vendor and vendor_name:
-                        vendor = Vendor.objects.filter(vendor_name__iexact=vendor_name).first()
                     if not vendor:
-                        skipped_count += 1
-                        error_log.append(f"Vendor {vendor_code} not found")
-                        continue
+                        vendor = _create_vendor_from_import_row(
+                            vendor_code, item, user_id, error_log
+                        )
+                        created_count += 1
 
                     contact_key = (vendor.id, email)
                     if contact_key in seen_contacts:
@@ -282,16 +344,33 @@ def confirm_import_vendor(request):
                     else:
                         seen_contacts.add(contact_key)
 
-                    if duplicate_action == "update":
-                        # Replace vendor contacts with the imported list so Contact Details matches preview exactly.
-                        if vendor.id not in cleared_vendor_contacts:
-                            VendorContact.objects.filter(vendor_id=vendor.id).delete()
-                            cleared_vendor_contacts.add(vendor.id)
+                    # Duplicate = same vendor + same email only (matches UI / pre-import).
+                    existing_contact = VendorContact.objects.filter(
+                        vendor_id=vendor.id,
+                        email__iexact=email,
+                    ).first()
 
-                        incoming_primary = _to_bool(item.get('Is Primary'))
+                    incoming_primary = _to_bool(item.get('Is Primary'))
+                    if existing_contact:
+                        if duplicate_action == "skip":
+                            skipped_count += 1
+                            continue
+
+                        if incoming_primary:
+                            VendorContact.objects.filter(vendor_id=vendor.id, is_primary=True).exclude(id=existing_contact.id).update(is_primary=False)
+                        existing_contact.first_name = first_name or "Unknown"
+                        existing_contact.last_name = last_name or "Unknown"
+                        existing_contact.department = str(item.get('Department') or '').strip()
+                        existing_contact.phone = phone_number or None
+                        existing_contact.mobile_no = mobile_number or None
+                        existing_contact.description = str(item.get('Description') or '').strip()
+                        existing_contact.role = str(item.get('Role') or 'Contact').strip()
+                        existing_contact.is_primary = incoming_primary
+                        existing_contact.save()
+                        updated_count += 1
+                    else:
                         if incoming_primary:
                             VendorContact.objects.filter(vendor_id=vendor.id, is_primary=True).update(is_primary=False)
-
                         VendorContact.objects.create(
                             vendor_id=vendor.id,
                             email=email,
@@ -303,43 +382,6 @@ def confirm_import_vendor(request):
                             description=str(item.get('Description') or '').strip(),
                             role=str(item.get('Role') or 'Contact').strip(),
                             is_primary=incoming_primary,
-                            created_by=user_id
-                        )
-                        updated_count += 1
-                    else:
-                        existing_contact = None
-                        if email:
-                            existing_contact = VendorContact.objects.filter(
-                                vendor_id=vendor.id,
-                                email__iexact=email
-                            ).first()
-                        if not existing_contact and phone_number:
-                            existing_contact = VendorContact.objects.filter(
-                                vendor_id=vendor.id,
-                                phone=phone_number
-                            ).first()
-                        if not existing_contact and (first_name or last_name):
-                            existing_contact = VendorContact.objects.filter(
-                                vendor_id=vendor.id,
-                                first_name__iexact=first_name or "Unknown",
-                                last_name__iexact=last_name or "Unknown"
-                            ).order_by("-is_primary", "-id").first()
-
-                        if existing_contact:
-                            skipped_count += 1
-                            continue
-
-                        VendorContact.objects.create(
-                            vendor_id=vendor.id,
-                            email=email,
-                            first_name=first_name or "Unknown",
-                            last_name=last_name or "Unknown",
-                            department=str(item.get('Department') or '').strip(),
-                            phone=phone_number or None,
-                            mobile_no=mobile_number or None,
-                            description=str(item.get('Description') or '').strip(),
-                            role=str(item.get('Role') or 'Contact').strip(),
-                            is_primary=_to_bool(item.get('Is Primary')),
                             created_by=user_id
                         )
                         created_count += 1

@@ -118,13 +118,13 @@ def pre_import_check(request):
         seen_vendor_names = set()
         seen_company_names = set()
         seen_gst = set()
-        seen_contact_emails = set()
-        seen_contact_phones = set()
+        seen_contact_keys = set()  # (vendor_code.lower(), email) — contact duplicates per vendor
 
         # ---------- ROW VALIDATION ----------
         for index, row in df.iterrows():
             row_num = index + 2  # Excel row number
             row_errors = []
+            contact_dup_key = None
 
             vendor_code = str(row.get('Vendor Code', '') or '').strip()
 
@@ -147,8 +147,8 @@ def pre_import_check(request):
                 raw_phone = row.get('Phone')
                 phone = str(raw_phone).strip() if raw_phone else ''
 
-                raw_description = str(row.get('Description') or '').strip()
-                if dup_handling == 'skip' and ((email and email in seen_contact_emails) or (phone and phone in seen_contact_phones)):
+                contact_dup_key = (vendor_code.lower(), email) if (vendor_code and email) else None
+                if dup_handling == 'skip' and contact_dup_key and contact_dup_key in seen_contact_keys:
                     continue
 
                 # ---- Name validation ----
@@ -159,24 +159,26 @@ def pre_import_check(request):
                         "message": "Either First Name or Last Name is required"
                     })
 
-                # Vendor must exist for contact import.
-                if vendor_code:
-                    vendor_exists = Vendor.objects.filter(vendor_code__iexact=vendor_code).exists()
-                    if not vendor_exists:
-                        row_errors.append({
-                            "row": row_num,
-                            "column": "Vendor Code",
-                            "message": f"Vendor '{vendor_code}' not found"
-                        })
+                if vendor_code and not VENDOR_CODE_REGEX.match(vendor_code):
+                    row_errors.append({
+                        "row": row_num,
+                        "column": "Vendor Code",
+                        "message": "Invalid vendor code format (3+ alphanumeric/hyphen)"
+                    })
 
                 # ---- Email validation ----
-                if email:
-                    if not EMAIL_REGEX.fullmatch(email):
-                        row_errors.append({
-                            "row": row_num,
-                            "column": "Email",
-                            "message": "Invalid email format"
-                        })
+                if not email:
+                    row_errors.append({
+                        "row": row_num,
+                        "column": "Email",
+                        "message": "Email is required"
+                    })
+                elif not EMAIL_REGEX.fullmatch(email):
+                    row_errors.append({
+                        "row": row_num,
+                        "column": "Email",
+                        "message": "Invalid email format"
+                    })
 
                 # ---- Phone validation ----
                 if phone:
@@ -312,11 +314,8 @@ def pre_import_check(request):
                     for k, v in row.to_dict().items()
                 }
                 valid_records.append(clean_row)
-                if import_type == 'contact' and dup_handling == 'skip':
-                    if email:
-                        seen_contact_emails.add(email)
-                    if phone:
-                        seen_contact_phones.add(phone)
+                if import_type == 'contact' and dup_handling == 'skip' and contact_dup_key:
+                    seen_contact_keys.add(contact_dup_key)
 
         # ---------- FINAL RESPONSE ----------
         if error_log:
