@@ -565,10 +565,7 @@ def api_vendor_warehouses(request, vendor_id):  # Added 'request' argument
     # without creating a separate Serializer class.
     warehouses = VendorWarehouse.objects.filter(vendor_id=vendor_id).order_by("-warehouse_id").values(
         'warehouse_id',
-        'name',
-        'delivery_name',
         'address_line1',
-        'address_line2',
         'city',
         'state_id',
         'zip',
@@ -660,10 +657,10 @@ class WarehouseDetailManager(APIView):
             errors["state_id"] = "Selected state does not belong to the selected country."
 
         cleaned = {
-            "name": cls._clean_text(data.get("name")) or "Unknown",
-            "delivery_name": cls._clean_text(data.get("delivery_name")) or "Unknown",
+            "name": "Unknown",
+            "delivery_name": "Unknown",
             "address_line1": address_line1,
-            "address_line2": cls._clean_text(data.get("address_line2")),
+            "address_line2": "",
             "city": city,
             "state_id": state_id,
             "zip": zip_code,
@@ -694,10 +691,10 @@ class WarehouseDetailManager(APIView):
             )
         data = {
             "id": warehouse.id,
-            "name": warehouse.name,
-            "delivery_name": warehouse.delivery_name,
+            "name": "Unknown",
+            "delivery_name": "Unknown",
             "address_line1": warehouse.address_line1,
-            "address_line2": warehouse.address_line2,
+            "address_line2": "",
             "city": warehouse.city,
             "state_id": warehouse.state_id,
             "zip": warehouse.zip,
@@ -719,10 +716,10 @@ class WarehouseDetailManager(APIView):
                     status=400
                 )
 
-            warehouse.name = cleaned["name"] or warehouse.name
-            warehouse.delivery_name = cleaned["delivery_name"] or warehouse.delivery_name
+            warehouse.name = "Unknown"
+            warehouse.delivery_name = "Unknown"
             warehouse.address_line1 = cleaned["address_line1"]
-            warehouse.address_line2 = cleaned["address_line2"]
+            warehouse.address_line2 = ""
             warehouse.city = cleaned["city"]
             warehouse.state_id = cleaned["state_id"]
             warehouse.zip = cleaned["zip"]
@@ -746,11 +743,10 @@ class WarehouseDetailManager(APIView):
                     status=400
                 )
 
-            warehouse.name = cleaned["name"]
-            warehouse.vendor_id = vendor_id
-            warehouse.delivery_name = cleaned["delivery_name"]
+            warehouse.name = "Unknown"
+            warehouse.delivery_name = "Unknown"
             warehouse.address_line1 = cleaned["address_line1"]
-            warehouse.address_line2 = cleaned["address_line2"]
+            warehouse.address_line2 = ""
             warehouse.city = cleaned["city"]
             warehouse.state_id = cleaned["state_id"]
             warehouse.zip = cleaned["zip"]
